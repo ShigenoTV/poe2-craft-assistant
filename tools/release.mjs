@@ -34,8 +34,9 @@ console.log(dry ? `(essai à blanc) numéros de version qui seraient écrits : $
 const git = (...a) => { console.log(`> git ${a.join(" ")}`); if (!dry) execFileSync("git", a, { cwd: root, stdio: "inherit" }); };
 git("add", "-A");
 git("commit", "-m", `Version ${version}`);
-git("tag", `v${version}`);
-git("push", "origin", "HEAD", "--follow-tags");
+git("tag", "-a", `v${version}`, "-m", `Version ${version}`); // annoté : nécessaire, --follow-tags ignore les tags légers
+git("push", "origin", "HEAD");
+git("push", "origin", `v${version}`); // poussé explicitement : ne dépend plus du comportement de --follow-tags
 console.log(dry
   ? "\n(essai à blanc : rien n'a été commité ni poussé)"
   : `\nPoussé. Suis la construction ici : onglet « Actions » de ton dépôt. Comptez ~15 minutes, puis la Release v${version} apparaît.`);
