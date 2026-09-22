@@ -3,6 +3,9 @@
 Assistant de craft pour Path of Exile 2 : simulateur, **reverse-crafting** (coût moyen minimal + arbre de décision),
 lecture des objets copiés en jeu et **overlay** transparent par-dessus le jeu.
 
+**Tu veux juste utiliser l'application ?** → [GUIDE.md](GUIDE.md)
+Ce fichier-ci est pour la compilation, l'architecture et la publication de versions.
+
 Stack : Rust (moteur, solveur, Tauri 2) + React/TypeScript (React Flow + ELK pour le graphe).
 
 ## Architecture

@@ -23,7 +23,7 @@ pub struct SolveConfig {
 }
 impl Default for SolveConfig {
     fn default() -> Self {
-        Self { eps: 1e-10, max_sweeps: 200_000, max_millis: 30_000, max_states: 600_000 }
+        Self { eps: 1e-10, max_sweeps: 50_000_000, max_millis: 45_000, max_states: 600_000 }
     }
 }
 
