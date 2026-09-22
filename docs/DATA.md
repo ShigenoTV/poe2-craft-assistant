@@ -51,33 +51,38 @@ avec 4 affixes ; Chaos = retrait puis ajout ; Fracture = rare avec ≥ 4 affixes
 niveau de mod minimal (`min_mod_level`, piloté par les données). Vérifie ces règles contre la version du jeu visée.
 
 
-## Import réel (repoe-fork.github.io/poe2) — session du 22/09/2026
+## Mettre à jour les données de jeu
 
-`tools/import_repoe.py` convertit un vrai export du jeu en dataset compatible :
+Le jeu de données embarqué (`data/sample/dataset.json`, chargé par `Dataset::embedded()`) est désormais
+un **vrai** export du jeu (RePoE, via repoe-fork.github.io/poe2), pas un exemple illustratif. Pour le
+rafraîchir après une mise à jour de Path of Exile 2 :
 
 ```
-python3 tools/import_repoe.py mods.min.json base_items.min.json -o data/poe2/dataset.json
+update-dataset.bat
 ```
 
-Les deux fichiers source se téléchargent à la main depuis un navigateur (le site est généré par une
-action GitHub, pas stocké en clair dans un dépôt, donc aucun outil automatique ne peut les récupérer) :
-- https://repoe-fork.github.io/poe2/mods.min.json
-- https://repoe-fork.github.io/poe2/base_items.min.json
+Il télécharge `mods.min.json` et `base_items.min.json` depuis
+[repoe-fork.github.io/poe2](https://repoe-fork.github.io/poe2/) (le site est généré par une action GitHub,
+pas stocké en clair dans un dépôt : seul un navigateur ou une machine avec accès internet normal peut
+l'atteindre — impossible depuis l'environnement de développement sandboxé), puis lance
+`tools/import_repoe.mjs` pour produire `data/sample/dataset.json`. Vérifie ensuite que l'application
+fonctionne toujours (`npm run tauri dev`) avant de commiter et publier une nouvelle version.
 
-Résultat sur l'export testé (version 4.5.5.2) : 53 bases, 1655 affixes réels, chargés sans erreur.
-Vérifié avec la vraie base `gloves_str` : coût espéré et contrôle par visites concordent à 0,0006 %
-près une fois le correctif de convergence (voir plus bas) appliqué.
+État au 22/09/2026 (version 4.5.5.2 du jeu) : 53 bases, 1655 affixes, 177 groupes d'exclusion.
 
-**Limite connue** : le groupe d'exclusion mécanique du jeu (`groups[0]` dans `mods.json`) sert aussi de
-famille de tiers dans l'interface. Sur ~155 groupes sur 383 (avant filtrage), plusieurs stats différentes
-s'excluent mutuellement sous un même groupe (ex. « BaseLocalDefences » = Armure locale OU Évasion locale
-OU Énergie Spirituelle locale, jamais deux à la fois). Le texte de chaque tier reste toujours exact ; seul
-le nom de famille au-dessus de la barre de tiers peut être générique dans ces cas. Éviter ces groupes
-mélangés comme objectif de craft (ex. préférer « FireResistance » à « BaseLocalDefences »).
+Ce que fait l'import, et pourquoi (voir aussi les commentaires en tête de `tools/import_repoe.mjs`) :
+- Mods retenus : `domain == "item"`, `generation_type` préfixe ou suffixe, hors mods réservés aux Essences.
+- Groupe d'exclusion = le champ brut `groups[0]` du jeu (seule source de vérité mécanique). La famille
+  affichée dans l'interface s'appuie dessus mais peut être plus générique sur ~155 groupes qui mélangent
+  plusieurs stats mutuellement exclusives (ex. `BaseLocalDefences` = Armure locale OU Évasion locale OU
+  Énergie Spirituelle locale). Le texte de chaque tier reste toujours exact.
+- Bases retenues : équipement uniquement, `release_state == "released"`. Les 4 classes d'armure
+  principales + Shield sont scindées par archétype d'attribut (str/dex/int et hybrides) ; le reste a un
+  seul représentant par classe, au plus haut niveau de drop (l'équivalent « fin de jeu »).
+- Non importé : Essences, mods de corruption, mods d'objets uniques.
 
-**Non importé pour l'instant** : Essences (`is_essence_only`), mods de corruption, mods d'objets uniques.
-`data/poe2/dataset.json` n'est pas encore le dataset embarqué par défaut : à importer manuellement via
-l'écran « Données » → « Importer un fichier ».
+`tools/import_repoe.mjs` (Node, pas de dépendance en plus) est appelé automatiquement par
+`update-dataset.bat` ; utilisable seul si besoin : `node tools/import_repoe.mjs <mods> <base_items> -o data/sample/dataset.json`.
 
 ## Correctif de convergence du solveur (22/09/2026)
 

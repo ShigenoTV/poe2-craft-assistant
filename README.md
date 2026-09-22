@@ -94,7 +94,7 @@ et l'application refuse tout ce qui n'est pas signé par elle. Le dépôt GitHub
 
 ## Limites connues
 
-- **Données** : le dataset embarqué est illustratif (voir `docs/DATA.md`). Pas d'importeur poe2db fourni.
+- **Données** : le dataset embarqué est un vrai export du jeu (`update-dataset.bat` pour le rafraîchir, voir `docs/DATA.md`).
 - **Presse-papiers** : testé sur 3 vrais objets rares (bâton, gants, bottes corrompues avec mod désécré ; voir
   `crates/craft-data/tests/fixtures`). Sur ce client, `Ctrl+C` et `Ctrl+Alt+C` donnent le même texte, avec en-têtes
   `{ Prefix Modifier "…" (Tier: N) — … }`. Non vus : objets magiques, normaux, fracturés (en-tête supposé

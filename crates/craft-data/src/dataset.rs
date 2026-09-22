@@ -271,12 +271,12 @@ mod tests {
     fn first_matching_tag_rule_and_zero_weight_exclusion() {
         let ds = Dataset::embedded();
         let gloves = ds.build_pool("gloves_dex").unwrap();
-        let wand = ds.build_pool("wand_int").unwrap();
-        // « Evasion flat » n'existe que sur les armures DEX, « Spell Damage » que sur la baguette
-        assert!(gloves.groups.iter().any(|g| g.key == "evasion_flat"));
-        assert!(!wand.groups.iter().any(|g| g.key == "evasion_flat"));
-        assert!(wand.groups.iter().any(|g| g.key == "spell_dmg"));
-        assert!(!gloves.groups.iter().any(|g| g.key == "spell_dmg"));
+        let wand = ds.build_pool("wand").unwrap();
+        // les mods de vie n'existent pas sur les armes dans ce jeu de données ; les dégâts de sort sont propres à la baguette
+        assert!(gloves.groups.iter().any(|g| g.key == "IncreasedLife"));
+        assert!(!wand.groups.iter().any(|g| g.key == "IncreasedLife"));
+        assert!(wand.groups.iter().any(|g| g.key == "SpellDamageAndMana"), "{:?}", wand.groups.iter().map(|g| &g.key).collect::<Vec<_>>());
+        assert!(!gloves.groups.iter().any(|g| g.key == "SpellDamageAndMana"));
     }
 
     #[test]

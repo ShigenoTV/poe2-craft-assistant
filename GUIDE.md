@@ -73,10 +73,10 @@ fait aussi automatiquement au démarrage si les prix ont plus d'une heure). Tu p
 
 ## Les données de craft
 
-Le jeu de données utilisé pour les calculs (quels affixes existent, leurs poids, leurs tiers) peut être
-soit l'exemple fourni avec l'application (illustratif, à ne pas prendre au pied de la lettre), soit un
-fichier importé via **Données → Importer un fichier**. Le bandeau orange dans la barre de gauche indique
-quand tu utilises encore l'exemple.
+Le jeu de données utilisé pour les calculs (quels affixes existent, leurs poids, leurs tiers) est un
+vrai export du jeu, embarqué directement dans l'application. Le bandeau orange dans la barre de gauche,
+s'il apparaît, indique qu'un jeu de données personnalisé (importé via **Données → Importer un fichier**)
+diffère de celui embarqué par défaut.
 
 ## Mises à jour
 

@@ -382,21 +382,21 @@ mod tests {
 
     fn sample(bp: &BasePool) -> (String, String, Vec<u16>) {
         let pick = |key: &str, tier: u8| bp.groups.iter().find(|g| g.key == key).unwrap().tiers.iter().find(|t| t.tier == tier).unwrap().clone();
-        let (life, fire, evas) = (pick("life_flat", 3), pick("fire_res", 2), pick("evasion_pct", 4));
+        let (life, fire, acc) = (pick("IncreasedLife", 3), pick("FireResistance", 2), pick("IncreasedAccuracy", 4));
         let adv = format!(
             "Item Class: Gloves\nRarity: Rare\nDoom Grip\nEvasion Gloves\n--------\nEvasion Rating: 190\n--------\nItem Level: 81\n--------\n\
              {{ Prefix Modifier \"{}\" (Tier: {}) — Life }}\n{}\n\
              {{ Suffix Modifier \"{}\" (Tier: {}) — Elemental, Fire, Resistance }}\n{}\n\
              {{ Fractured Prefix Modifier \"{}\" (Tier: {}) — Defences }}\n{}\n",
-            life.name, life.tier, render_value(&life.text), fire.name, fire.tier, render_value(&fire.text), evas.name, evas.tier, render_value(&evas.text)
+            life.name, life.tier, render_value(&life.text), fire.name, fire.tier, render_value(&fire.text), acc.name, acc.tier, render_value(&acc.text)
         );
         let basic = format!(
             "Item Class: Gloves\nRarity: Rare\nDoom Grip\nEvasion Gloves\n--------\nEvasion Rating: 190\n--------\nItem Level: 81\n--------\n{}\n{}\n{} (fractured)\n",
             render_value(&life.text),
             render_value(&fire.text),
-            render_value(&evas.text)
+            render_value(&acc.text)
         );
-        (adv, basic, vec![life.affix_idx, fire.affix_idx, evas.affix_idx])
+        (adv, basic, vec![life.affix_idx, fire.affix_idx, acc.affix_idx])
     }
 
     #[test]

@@ -1,4 +1,4 @@
-//! CLI de développement : `craft-cli solve gloves_dex 81 life_flat:3 fire_res:2 ...`
+//! CLI de développement : `craft-cli solve gloves_dex 81 IncreasedLife:3 FireResistance:2 ...`
 use craft_api::craft_core::{ItemState, Mod, Rarity};
 use craft_api::craft_data::ParsedItem;
 use craft_api::*;
@@ -97,7 +97,7 @@ fn main() {
             let req = PlanRequest {
                 base_id: "gloves_dex".into(),
                 ilvl: 81,
-                wanted: ["life_flat", "fire_res", "cold_res", "evasion_pct"].iter().map(|g| WantedReq { group: (*g).into(), max_tier: 3 }).collect(),
+                wanted: ["IncreasedLife", "FireResistance", "ColdResistance", "IncreasedAccuracy"].iter().map(|g| WantedReq { group: (*g).into(), max_tier: 3 }).collect(),
                 enabled_actions: None,
                 prices: None,
                 allow_abandon: true,
@@ -111,8 +111,8 @@ fn main() {
             // capture d'exemple : rare avec Vie T2 (voulue), Évasion % T6 (tier trop bas → bloque), 1 mauvais suffixe
             let pick = |key: &str, tier: u8| ctx.bp.groups.iter().find(|g| g.key == key).unwrap().tiers.iter().find(|t| t.tier == tier).unwrap().affix_idx;
             let mut it = ItemState::new(Rarity::Rare, 81);
-            for (k, t) in [("life_flat", 2u8), ("evasion_pct", 6), ("fire_res", 2), ("accuracy", 4)] {
-                it.push(Mod { idx: pick(k, t), fractured: k == "life_flat" });
+            for (k, t) in [("IncreasedLife", 2u8), ("BaseLocalDefences", 6), ("FireResistance", 2), ("IncreasedAccuracy", 4)] {
+                it.push(Mod { idx: pick(k, t), fractured: k == "IncreasedLife" });
             }
             let advice = advise_item(&ctx, &it, &AtomicBool::new(false)).unwrap();
             let analysis = ItemAnalysis {
