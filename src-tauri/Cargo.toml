@@ -1,0 +1,23 @@
+[package]
+name = "poe2-craft-assistant"
+version.workspace = true
+edition.workspace = true
+description = "Assistant de craft Path of Exile 2 : simulateur, reverse-crafting, overlay"
+
+[lib]
+name = "poe2_craft_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-updater = "2"
+serde.workspace = true
+serde_json.workspace = true
+rayon.workspace = true
+craft-api = { path = "../crates/craft-api" }
+arboard = "3"
+ureq = "2"

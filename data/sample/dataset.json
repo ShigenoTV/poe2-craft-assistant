@@ -1,0 +1,5842 @@
+{
+ "meta": {
+  "schema": 1,
+  "source": "sample-placeholder",
+  "game_version": "n/a",
+  "generated_at": "2026-09-21",
+  "notice": "JEU DE DONNÉES ILLUSTRATIF : poids, niveaux et prix sont inventés. Remplacer par un import poe2db.",
+  "price_unit": "Exalted Orb",
+  "prices_note": "Prix par défaut relevés sur poe.ninja le 2026-09-21 (Forbidden Rites)."
+ },
+ "tags": [
+  "armour",
+  "attack",
+  "attribute",
+  "body_armour",
+  "caster",
+  "chaos",
+  "cold",
+  "critical",
+  "damage",
+  "defences",
+  "dex_armour",
+  "drop",
+  "fire",
+  "gloves",
+  "life",
+  "lightning",
+  "mana",
+  "physical",
+  "resistance",
+  "speed",
+  "str_armour",
+  "wand",
+  "weapon"
+ ],
+ "bases": [
+  {
+   "id": "gloves_dex",
+   "name": "Evasion Gloves",
+   "item_class": "Gloves",
+   "tags": [
+    "gloves",
+    "dex_armour",
+    "armour"
+   ],
+   "implicit": null
+  },
+  {
+   "id": "body_str",
+   "name": "Armour Body Armour",
+   "item_class": "Body Armours",
+   "tags": [
+    "body_armour",
+    "str_armour",
+    "armour"
+   ],
+   "implicit": null
+  },
+  {
+   "id": "wand_int",
+   "name": "Wand",
+   "item_class": "Wands",
+   "tags": [
+    "wand",
+    "wand",
+    "weapon"
+   ],
+   "implicit": null
+  }
+ ],
+ "mods": [
+  {
+   "id": "evasion_flat_8",
+   "group": "evasion_flat",
+   "family": "Evasion flat",
+   "name": "Evasion flat VIII",
+   "slot": "prefix",
+   "level": 1,
+   "text": "+(10-20) to Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_flat_7",
+   "group": "evasion_flat",
+   "family": "Evasion flat",
+   "name": "Evasion flat VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "+(36-51) to Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_flat_6",
+   "group": "evasion_flat",
+   "family": "Evasion flat",
+   "name": "Evasion flat VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "+(61-83) to Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_flat_5",
+   "group": "evasion_flat",
+   "family": "Evasion flat",
+   "name": "Evasion flat V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "+(87-114) to Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 900
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_flat_4",
+   "group": "evasion_flat",
+   "family": "Evasion flat",
+   "name": "Evasion flat IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "+(113-146) to Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 650
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_flat_3",
+   "group": "evasion_flat",
+   "family": "Evasion flat",
+   "name": "Evasion flat III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "+(139-177) to Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 400
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_flat_2",
+   "group": "evasion_flat",
+   "family": "Evasion flat",
+   "name": "Evasion flat II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "+(164-209) to Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 220
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_flat_1",
+   "group": "evasion_flat",
+   "family": "Evasion flat",
+   "name": "Evasion flat I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "+(190-240) to Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 100
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_pct_8",
+   "group": "evasion_pct",
+   "family": "Evasion %",
+   "name": "Evasion % VIII",
+   "slot": "prefix",
+   "level": 1,
+   "text": "(15-26)% increased Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 800
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_pct_7",
+   "group": "evasion_pct",
+   "family": "Evasion %",
+   "name": "Evasion % VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "(26-37)% increased Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 800
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_pct_6",
+   "group": "evasion_pct",
+   "family": "Evasion %",
+   "name": "Evasion % VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "(36-47)% increased Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 800
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_pct_5",
+   "group": "evasion_pct",
+   "family": "Evasion %",
+   "name": "Evasion % V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "(47-58)% increased Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 720
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_pct_4",
+   "group": "evasion_pct",
+   "family": "Evasion %",
+   "name": "Evasion % IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "(57-68)% increased Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 520
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_pct_3",
+   "group": "evasion_pct",
+   "family": "Evasion %",
+   "name": "Evasion % III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "(68-79)% increased Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 320
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_pct_2",
+   "group": "evasion_pct",
+   "family": "Evasion %",
+   "name": "Evasion % II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "(78-89)% increased Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 176
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "evasion_pct_1",
+   "group": "evasion_pct",
+   "family": "Evasion %",
+   "name": "Evasion % I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "(89-100)% increased Evasion Rating",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 80
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_flat_8",
+   "group": "armour_flat",
+   "family": "Armour flat",
+   "name": "Armour flat VIII",
+   "slot": "prefix",
+   "level": 1,
+   "text": "+(12-25) to Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_flat_7",
+   "group": "armour_flat",
+   "family": "Armour flat",
+   "name": "Armour flat VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "+(52-70) to Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_flat_6",
+   "group": "armour_flat",
+   "family": "Armour flat",
+   "name": "Armour flat VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "+(91-115) to Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_flat_5",
+   "group": "armour_flat",
+   "family": "Armour flat",
+   "name": "Armour flat V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "+(131-160) to Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 900
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_flat_4",
+   "group": "armour_flat",
+   "family": "Armour flat",
+   "name": "Armour flat IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "+(171-205) to Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 650
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_flat_3",
+   "group": "armour_flat",
+   "family": "Armour flat",
+   "name": "Armour flat III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "+(211-250) to Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 400
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_flat_2",
+   "group": "armour_flat",
+   "family": "Armour flat",
+   "name": "Armour flat II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "+(250-295) to Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 220
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_flat_1",
+   "group": "armour_flat",
+   "family": "Armour flat",
+   "name": "Armour flat I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "+(290-340) to Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 100
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_pct_8",
+   "group": "armour_pct",
+   "family": "Armour %",
+   "name": "Armour % VIII",
+   "slot": "prefix",
+   "level": 1,
+   "text": "(15-26)% increased Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 800
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_pct_7",
+   "group": "armour_pct",
+   "family": "Armour %",
+   "name": "Armour % VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "(26-37)% increased Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 800
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_pct_6",
+   "group": "armour_pct",
+   "family": "Armour %",
+   "name": "Armour % VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "(36-47)% increased Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 800
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_pct_5",
+   "group": "armour_pct",
+   "family": "Armour %",
+   "name": "Armour % V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "(47-58)% increased Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 720
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_pct_4",
+   "group": "armour_pct",
+   "family": "Armour %",
+   "name": "Armour % IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "(57-68)% increased Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 520
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_pct_3",
+   "group": "armour_pct",
+   "family": "Armour %",
+   "name": "Armour % III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "(68-79)% increased Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 320
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_pct_2",
+   "group": "armour_pct",
+   "family": "Armour %",
+   "name": "Armour % II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "(78-89)% increased Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 176
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "armour_pct_1",
+   "group": "armour_pct",
+   "family": "Armour %",
+   "name": "Armour % I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "(89-100)% increased Armour",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 80
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "life_flat_8",
+   "group": "life_flat",
+   "family": "Maximum Life",
+   "name": "Maximum Life VIII",
+   "slot": "prefix",
+   "level": 1,
+   "text": "+(10-19) to maximum Life",
+   "tags": [
+    "life"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "life_flat_7",
+   "group": "life_flat",
+   "family": "Maximum Life",
+   "name": "Maximum Life VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "+(21-32) to maximum Life",
+   "tags": [
+    "life"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "life_flat_6",
+   "group": "life_flat",
+   "family": "Maximum Life",
+   "name": "Maximum Life VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "+(33-45) to maximum Life",
+   "tags": [
+    "life"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "life_flat_5",
+   "group": "life_flat",
+   "family": "Maximum Life",
+   "name": "Maximum Life V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "+(44-58) to maximum Life",
+   "tags": [
+    "life"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 900
+    },
+    {
+     "tag": "str_armour",
+     "weight": 900
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "life_flat_4",
+   "group": "life_flat",
+   "family": "Maximum Life",
+   "name": "Maximum Life IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "+(56-70) to maximum Life",
+   "tags": [
+    "life"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 650
+    },
+    {
+     "tag": "str_armour",
+     "weight": 650
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "life_flat_3",
+   "group": "life_flat",
+   "family": "Maximum Life",
+   "name": "Maximum Life III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "+(67-83) to maximum Life",
+   "tags": [
+    "life"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 400
+    },
+    {
+     "tag": "str_armour",
+     "weight": 400
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "life_flat_2",
+   "group": "life_flat",
+   "family": "Maximum Life",
+   "name": "Maximum Life II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "+(79-96) to maximum Life",
+   "tags": [
+    "life"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 220
+    },
+    {
+     "tag": "str_armour",
+     "weight": 220
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "life_flat_1",
+   "group": "life_flat",
+   "family": "Maximum Life",
+   "name": "Maximum Life I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "+(90-109) to maximum Life",
+   "tags": [
+    "life"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 100
+    },
+    {
+     "tag": "str_armour",
+     "weight": 100
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "es_flat_7",
+   "group": "es_flat",
+   "family": "Maximum Energy Shield",
+   "name": "Maximum Energy Shield VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "+(5-9) to maximum Energy Shield",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 500
+    },
+    {
+     "tag": "str_armour",
+     "weight": 300
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "es_flat_6",
+   "group": "es_flat",
+   "family": "Maximum Energy Shield",
+   "name": "Maximum Energy Shield VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "+(12-18) to maximum Energy Shield",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 500
+    },
+    {
+     "tag": "str_armour",
+     "weight": 300
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "es_flat_5",
+   "group": "es_flat",
+   "family": "Maximum Energy Shield",
+   "name": "Maximum Energy Shield V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "+(20-26) to maximum Energy Shield",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 450
+    },
+    {
+     "tag": "str_armour",
+     "weight": 270
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "es_flat_4",
+   "group": "es_flat",
+   "family": "Maximum Energy Shield",
+   "name": "Maximum Energy Shield IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "+(27-34) to maximum Energy Shield",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 325
+    },
+    {
+     "tag": "str_armour",
+     "weight": 195
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "es_flat_3",
+   "group": "es_flat",
+   "family": "Maximum Energy Shield",
+   "name": "Maximum Energy Shield III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "+(34-43) to maximum Energy Shield",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 200
+    },
+    {
+     "tag": "str_armour",
+     "weight": 120
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "es_flat_2",
+   "group": "es_flat",
+   "family": "Maximum Energy Shield",
+   "name": "Maximum Energy Shield II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "+(42-52) to maximum Energy Shield",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 110
+    },
+    {
+     "tag": "str_armour",
+     "weight": 66
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "es_flat_1",
+   "group": "es_flat",
+   "family": "Maximum Energy Shield",
+   "name": "Maximum Energy Shield I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "+(49-60) to maximum Energy Shield",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 50
+    },
+    {
+     "tag": "str_armour",
+     "weight": 30
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_atk_7",
+   "group": "phys_atk",
+   "family": "Physical Damage to Attacks",
+   "name": "Physical Damage to Attacks VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "Adds (1-2) to (3-5) Physical Damage to Attacks",
+   "tags": [
+    "damage",
+    "physical",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 700
+    },
+    {
+     "tag": "str_armour",
+     "weight": 500
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_atk_6",
+   "group": "phys_atk",
+   "family": "Physical Damage to Attacks",
+   "name": "Physical Damage to Attacks VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "Adds (2-4) to (6-10) Physical Damage to Attacks",
+   "tags": [
+    "damage",
+    "physical",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 700
+    },
+    {
+     "tag": "str_armour",
+     "weight": 500
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_atk_5",
+   "group": "phys_atk",
+   "family": "Physical Damage to Attacks",
+   "name": "Physical Damage to Attacks V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "Adds (4-7) to (9-15) Physical Damage to Attacks",
+   "tags": [
+    "damage",
+    "physical",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 630
+    },
+    {
+     "tag": "str_armour",
+     "weight": 450
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_atk_4",
+   "group": "phys_atk",
+   "family": "Physical Damage to Attacks",
+   "name": "Physical Damage to Attacks IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "Adds (6-10) to (12-20) Physical Damage to Attacks",
+   "tags": [
+    "damage",
+    "physical",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 455
+    },
+    {
+     "tag": "str_armour",
+     "weight": 325
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_atk_3",
+   "group": "phys_atk",
+   "family": "Physical Damage to Attacks",
+   "name": "Physical Damage to Attacks III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "Adds (7-12) to (16-24) Physical Damage to Attacks",
+   "tags": [
+    "damage",
+    "physical",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 280
+    },
+    {
+     "tag": "str_armour",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_atk_2",
+   "group": "phys_atk",
+   "family": "Physical Damage to Attacks",
+   "name": "Physical Damage to Attacks II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "Adds (8-14) to (19-29) Physical Damage to Attacks",
+   "tags": [
+    "damage",
+    "physical",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 154
+    },
+    {
+     "tag": "str_armour",
+     "weight": 110
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_atk_1",
+   "group": "phys_atk",
+   "family": "Physical Damage to Attacks",
+   "name": "Physical Damage to Attacks I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "Adds (10-17) to (22-34) Physical Damage to Attacks",
+   "tags": [
+    "damage",
+    "physical",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 70
+    },
+    {
+     "tag": "str_armour",
+     "weight": 50
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_atk_7",
+   "group": "fire_atk",
+   "family": "Fire Damage to Attacks",
+   "name": "Fire Damage to Attacks VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "Adds (2-3) to (5-8) Fire Damage to Attacks",
+   "tags": [
+    "damage",
+    "fire",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 600
+    },
+    {
+     "tag": "str_armour",
+     "weight": 600
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_atk_6",
+   "group": "fire_atk",
+   "family": "Fire Damage to Attacks",
+   "name": "Fire Damage to Attacks VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "Adds (5-8) to (11-17) Fire Damage to Attacks",
+   "tags": [
+    "damage",
+    "fire",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 600
+    },
+    {
+     "tag": "str_armour",
+     "weight": 600
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_atk_5",
+   "group": "fire_atk",
+   "family": "Fire Damage to Attacks",
+   "name": "Fire Damage to Attacks V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "Adds (8-14) to (17-26) Fire Damage to Attacks",
+   "tags": [
+    "damage",
+    "fire",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 540
+    },
+    {
+     "tag": "str_armour",
+     "weight": 540
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_atk_4",
+   "group": "fire_atk",
+   "family": "Fire Damage to Attacks",
+   "name": "Fire Damage to Attacks IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "Adds (12-19) to (24-35) Fire Damage to Attacks",
+   "tags": [
+    "damage",
+    "fire",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 390
+    },
+    {
+     "tag": "str_armour",
+     "weight": 390
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_atk_3",
+   "group": "fire_atk",
+   "family": "Fire Damage to Attacks",
+   "name": "Fire Damage to Attacks III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "Adds (15-24) to (30-44) Fire Damage to Attacks",
+   "tags": [
+    "damage",
+    "fire",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 240
+    },
+    {
+     "tag": "str_armour",
+     "weight": 240
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_atk_2",
+   "group": "fire_atk",
+   "family": "Fire Damage to Attacks",
+   "name": "Fire Damage to Attacks II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "Adds (18-30) to (36-53) Fire Damage to Attacks",
+   "tags": [
+    "damage",
+    "fire",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 132
+    },
+    {
+     "tag": "str_armour",
+     "weight": 132
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_atk_1",
+   "group": "fire_atk",
+   "family": "Fire Damage to Attacks",
+   "name": "Fire Damage to Attacks I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "Adds (21-35) to (42-62) Fire Damage to Attacks",
+   "tags": [
+    "damage",
+    "fire",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 60
+    },
+    {
+     "tag": "str_armour",
+     "weight": 60
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_atk_7",
+   "group": "cold_atk",
+   "family": "Cold Damage to Attacks",
+   "name": "Cold Damage to Attacks VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "Adds (2-3) to (4-7) Cold Damage to Attacks",
+   "tags": [
+    "damage",
+    "cold",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 600
+    },
+    {
+     "tag": "str_armour",
+     "weight": 600
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_atk_6",
+   "group": "cold_atk",
+   "family": "Cold Damage to Attacks",
+   "name": "Cold Damage to Attacks VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "Adds (5-8) to (10-15) Cold Damage to Attacks",
+   "tags": [
+    "damage",
+    "cold",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 600
+    },
+    {
+     "tag": "str_armour",
+     "weight": 600
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_atk_5",
+   "group": "cold_atk",
+   "family": "Cold Damage to Attacks",
+   "name": "Cold Damage to Attacks V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "Adds (8-12) to (15-23) Cold Damage to Attacks",
+   "tags": [
+    "damage",
+    "cold",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 540
+    },
+    {
+     "tag": "str_armour",
+     "weight": 540
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_atk_4",
+   "group": "cold_atk",
+   "family": "Cold Damage to Attacks",
+   "name": "Cold Damage to Attacks IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "Adds (10-16) to (21-32) Cold Damage to Attacks",
+   "tags": [
+    "damage",
+    "cold",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 390
+    },
+    {
+     "tag": "str_armour",
+     "weight": 390
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_atk_3",
+   "group": "cold_atk",
+   "family": "Cold Damage to Attacks",
+   "name": "Cold Damage to Attacks III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "Adds (13-21) to (27-40) Cold Damage to Attacks",
+   "tags": [
+    "damage",
+    "cold",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 240
+    },
+    {
+     "tag": "str_armour",
+     "weight": 240
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_atk_2",
+   "group": "cold_atk",
+   "family": "Cold Damage to Attacks",
+   "name": "Cold Damage to Attacks II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "Adds (16-26) to (32-48) Cold Damage to Attacks",
+   "tags": [
+    "damage",
+    "cold",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 132
+    },
+    {
+     "tag": "str_armour",
+     "weight": 132
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_atk_1",
+   "group": "cold_atk",
+   "family": "Cold Damage to Attacks",
+   "name": "Cold Damage to Attacks I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "Adds (19-30) to (38-56) Cold Damage to Attacks",
+   "tags": [
+    "damage",
+    "cold",
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 60
+    },
+    {
+     "tag": "str_armour",
+     "weight": 60
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_res_8",
+   "group": "fire_res",
+   "family": "Fire Resistance",
+   "name": "Fire Resistance VIII",
+   "slot": "suffix",
+   "level": 1,
+   "text": "+(6-10)% to Fire Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_res_7",
+   "group": "fire_res",
+   "family": "Fire Resistance",
+   "name": "Fire Resistance VII",
+   "slot": "suffix",
+   "level": 11,
+   "text": "+(10-15)% to Fire Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_res_6",
+   "group": "fire_res",
+   "family": "Fire Resistance",
+   "name": "Fire Resistance VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "+(15-20)% to Fire Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_res_5",
+   "group": "fire_res",
+   "family": "Fire Resistance",
+   "name": "Fire Resistance V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "+(19-25)% to Fire Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 900
+    },
+    {
+     "tag": "str_armour",
+     "weight": 900
+    },
+    {
+     "tag": "wand",
+     "weight": 630
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_res_4",
+   "group": "fire_res",
+   "family": "Fire Resistance",
+   "name": "Fire Resistance IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "+(23-30)% to Fire Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 650
+    },
+    {
+     "tag": "str_armour",
+     "weight": 650
+    },
+    {
+     "tag": "wand",
+     "weight": 455
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_res_3",
+   "group": "fire_res",
+   "family": "Fire Resistance",
+   "name": "Fire Resistance III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "+(27-35)% to Fire Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 400
+    },
+    {
+     "tag": "str_armour",
+     "weight": 400
+    },
+    {
+     "tag": "wand",
+     "weight": 280
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_res_2",
+   "group": "fire_res",
+   "family": "Fire Resistance",
+   "name": "Fire Resistance II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "+(32-40)% to Fire Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 220
+    },
+    {
+     "tag": "str_armour",
+     "weight": 220
+    },
+    {
+     "tag": "wand",
+     "weight": 154
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_res_1",
+   "group": "fire_res",
+   "family": "Fire Resistance",
+   "name": "Fire Resistance I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "+(36-45)% to Fire Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 100
+    },
+    {
+     "tag": "str_armour",
+     "weight": 100
+    },
+    {
+     "tag": "wand",
+     "weight": 70
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_res_8",
+   "group": "cold_res",
+   "family": "Cold Resistance",
+   "name": "Cold Resistance VIII",
+   "slot": "suffix",
+   "level": 1,
+   "text": "+(6-10)% to Cold Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_res_7",
+   "group": "cold_res",
+   "family": "Cold Resistance",
+   "name": "Cold Resistance VII",
+   "slot": "suffix",
+   "level": 11,
+   "text": "+(10-15)% to Cold Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_res_6",
+   "group": "cold_res",
+   "family": "Cold Resistance",
+   "name": "Cold Resistance VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "+(15-20)% to Cold Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_res_5",
+   "group": "cold_res",
+   "family": "Cold Resistance",
+   "name": "Cold Resistance V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "+(19-25)% to Cold Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 900
+    },
+    {
+     "tag": "str_armour",
+     "weight": 900
+    },
+    {
+     "tag": "wand",
+     "weight": 630
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_res_4",
+   "group": "cold_res",
+   "family": "Cold Resistance",
+   "name": "Cold Resistance IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "+(23-30)% to Cold Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 650
+    },
+    {
+     "tag": "str_armour",
+     "weight": 650
+    },
+    {
+     "tag": "wand",
+     "weight": 455
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_res_3",
+   "group": "cold_res",
+   "family": "Cold Resistance",
+   "name": "Cold Resistance III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "+(27-35)% to Cold Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 400
+    },
+    {
+     "tag": "str_armour",
+     "weight": 400
+    },
+    {
+     "tag": "wand",
+     "weight": 280
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_res_2",
+   "group": "cold_res",
+   "family": "Cold Resistance",
+   "name": "Cold Resistance II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "+(32-40)% to Cold Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 220
+    },
+    {
+     "tag": "str_armour",
+     "weight": 220
+    },
+    {
+     "tag": "wand",
+     "weight": 154
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_res_1",
+   "group": "cold_res",
+   "family": "Cold Resistance",
+   "name": "Cold Resistance I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "+(36-45)% to Cold Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 100
+    },
+    {
+     "tag": "str_armour",
+     "weight": 100
+    },
+    {
+     "tag": "wand",
+     "weight": 70
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "lightning_res_8",
+   "group": "lightning_res",
+   "family": "Lightning Resistance",
+   "name": "Lightning Resistance VIII",
+   "slot": "suffix",
+   "level": 1,
+   "text": "+(6-10)% to Lightning Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "lightning_res_7",
+   "group": "lightning_res",
+   "family": "Lightning Resistance",
+   "name": "Lightning Resistance VII",
+   "slot": "suffix",
+   "level": 11,
+   "text": "+(10-15)% to Lightning Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "lightning_res_6",
+   "group": "lightning_res",
+   "family": "Lightning Resistance",
+   "name": "Lightning Resistance VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "+(15-20)% to Lightning Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "str_armour",
+     "weight": 1000
+    },
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "lightning_res_5",
+   "group": "lightning_res",
+   "family": "Lightning Resistance",
+   "name": "Lightning Resistance V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "+(19-25)% to Lightning Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 900
+    },
+    {
+     "tag": "str_armour",
+     "weight": 900
+    },
+    {
+     "tag": "wand",
+     "weight": 630
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "lightning_res_4",
+   "group": "lightning_res",
+   "family": "Lightning Resistance",
+   "name": "Lightning Resistance IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "+(23-30)% to Lightning Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 650
+    },
+    {
+     "tag": "str_armour",
+     "weight": 650
+    },
+    {
+     "tag": "wand",
+     "weight": 455
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "lightning_res_3",
+   "group": "lightning_res",
+   "family": "Lightning Resistance",
+   "name": "Lightning Resistance III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "+(27-35)% to Lightning Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 400
+    },
+    {
+     "tag": "str_armour",
+     "weight": 400
+    },
+    {
+     "tag": "wand",
+     "weight": 280
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "lightning_res_2",
+   "group": "lightning_res",
+   "family": "Lightning Resistance",
+   "name": "Lightning Resistance II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "+(32-40)% to Lightning Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 220
+    },
+    {
+     "tag": "str_armour",
+     "weight": 220
+    },
+    {
+     "tag": "wand",
+     "weight": 154
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "lightning_res_1",
+   "group": "lightning_res",
+   "family": "Lightning Resistance",
+   "name": "Lightning Resistance I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "+(36-45)% to Lightning Resistance",
+   "tags": [
+    "resistance"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 100
+    },
+    {
+     "tag": "str_armour",
+     "weight": 100
+    },
+    {
+     "tag": "wand",
+     "weight": 70
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "chaos_res_5",
+   "group": "chaos_res",
+   "family": "Chaos Resistance",
+   "name": "Chaos Resistance V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "+(4-7)% to Chaos Resistance",
+   "tags": [
+    "resistance",
+    "chaos"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 450
+    },
+    {
+     "tag": "str_armour",
+     "weight": 450
+    },
+    {
+     "tag": "wand",
+     "weight": 270
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "chaos_res_4",
+   "group": "chaos_res",
+   "family": "Chaos Resistance",
+   "name": "Chaos Resistance IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "+(8-12)% to Chaos Resistance",
+   "tags": [
+    "resistance",
+    "chaos"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 325
+    },
+    {
+     "tag": "str_armour",
+     "weight": 325
+    },
+    {
+     "tag": "wand",
+     "weight": 195
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "chaos_res_3",
+   "group": "chaos_res",
+   "family": "Chaos Resistance",
+   "name": "Chaos Resistance III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "+(12-17)% to Chaos Resistance",
+   "tags": [
+    "resistance",
+    "chaos"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 200
+    },
+    {
+     "tag": "str_armour",
+     "weight": 200
+    },
+    {
+     "tag": "wand",
+     "weight": 120
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "chaos_res_2",
+   "group": "chaos_res",
+   "family": "Chaos Resistance",
+   "name": "Chaos Resistance II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "+(17-22)% to Chaos Resistance",
+   "tags": [
+    "resistance",
+    "chaos"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 110
+    },
+    {
+     "tag": "str_armour",
+     "weight": 110
+    },
+    {
+     "tag": "wand",
+     "weight": 66
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "chaos_res_1",
+   "group": "chaos_res",
+   "family": "Chaos Resistance",
+   "name": "Chaos Resistance I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "+(21-27)% to Chaos Resistance",
+   "tags": [
+    "resistance",
+    "chaos"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 50
+    },
+    {
+     "tag": "str_armour",
+     "weight": 50
+    },
+    {
+     "tag": "wand",
+     "weight": 30
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "dexterity_8",
+   "group": "dexterity",
+   "family": "Dexterity",
+   "name": "Dexterity VIII",
+   "slot": "suffix",
+   "level": 1,
+   "text": "+(5-8) to Dexterity",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 700
+    },
+    {
+     "tag": "wand",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "dexterity_7",
+   "group": "dexterity",
+   "family": "Dexterity",
+   "name": "Dexterity VII",
+   "slot": "suffix",
+   "level": 11,
+   "text": "+(9-12) to Dexterity",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 700
+    },
+    {
+     "tag": "wand",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "dexterity_6",
+   "group": "dexterity",
+   "family": "Dexterity",
+   "name": "Dexterity VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "+(13-17) to Dexterity",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 700
+    },
+    {
+     "tag": "wand",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "dexterity_5",
+   "group": "dexterity",
+   "family": "Dexterity",
+   "name": "Dexterity V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "+(17-21) to Dexterity",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 630
+    },
+    {
+     "tag": "wand",
+     "weight": 180
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "dexterity_4",
+   "group": "dexterity",
+   "family": "Dexterity",
+   "name": "Dexterity IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "+(21-25) to Dexterity",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 455
+    },
+    {
+     "tag": "wand",
+     "weight": 130
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "dexterity_3",
+   "group": "dexterity",
+   "family": "Dexterity",
+   "name": "Dexterity III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "+(25-29) to Dexterity",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 280
+    },
+    {
+     "tag": "wand",
+     "weight": 80
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "dexterity_2",
+   "group": "dexterity",
+   "family": "Dexterity",
+   "name": "Dexterity II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "+(29-34) to Dexterity",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 154
+    },
+    {
+     "tag": "wand",
+     "weight": 44
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "dexterity_1",
+   "group": "dexterity",
+   "family": "Dexterity",
+   "name": "Dexterity I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "+(33-38) to Dexterity",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 70
+    },
+    {
+     "tag": "wand",
+     "weight": 20
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "strength_8",
+   "group": "strength",
+   "family": "Strength",
+   "name": "Strength VIII",
+   "slot": "suffix",
+   "level": 1,
+   "text": "+(5-8) to Strength",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 700
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 200
+    },
+    {
+     "tag": "wand",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "strength_7",
+   "group": "strength",
+   "family": "Strength",
+   "name": "Strength VII",
+   "slot": "suffix",
+   "level": 11,
+   "text": "+(9-12) to Strength",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 700
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 200
+    },
+    {
+     "tag": "wand",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "strength_6",
+   "group": "strength",
+   "family": "Strength",
+   "name": "Strength VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "+(13-17) to Strength",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 700
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 200
+    },
+    {
+     "tag": "wand",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "strength_5",
+   "group": "strength",
+   "family": "Strength",
+   "name": "Strength V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "+(17-21) to Strength",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 630
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 180
+    },
+    {
+     "tag": "wand",
+     "weight": 180
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "strength_4",
+   "group": "strength",
+   "family": "Strength",
+   "name": "Strength IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "+(21-25) to Strength",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 455
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 130
+    },
+    {
+     "tag": "wand",
+     "weight": 130
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "strength_3",
+   "group": "strength",
+   "family": "Strength",
+   "name": "Strength III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "+(25-29) to Strength",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 280
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 80
+    },
+    {
+     "tag": "wand",
+     "weight": 80
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "strength_2",
+   "group": "strength",
+   "family": "Strength",
+   "name": "Strength II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "+(29-34) to Strength",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 154
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 44
+    },
+    {
+     "tag": "wand",
+     "weight": 44
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "strength_1",
+   "group": "strength",
+   "family": "Strength",
+   "name": "Strength I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "+(33-38) to Strength",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 70
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 20
+    },
+    {
+     "tag": "wand",
+     "weight": 20
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "intelligence_8",
+   "group": "intelligence",
+   "family": "Intelligence",
+   "name": "Intelligence VIII",
+   "slot": "suffix",
+   "level": 1,
+   "text": "+(5-8) to Intelligence",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "intelligence_7",
+   "group": "intelligence",
+   "family": "Intelligence",
+   "name": "Intelligence VII",
+   "slot": "suffix",
+   "level": 11,
+   "text": "+(9-12) to Intelligence",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "intelligence_6",
+   "group": "intelligence",
+   "family": "Intelligence",
+   "name": "Intelligence VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "+(13-17) to Intelligence",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "intelligence_5",
+   "group": "intelligence",
+   "family": "Intelligence",
+   "name": "Intelligence V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "+(17-21) to Intelligence",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 630
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 180
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "intelligence_4",
+   "group": "intelligence",
+   "family": "Intelligence",
+   "name": "Intelligence IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "+(21-25) to Intelligence",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 455
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 130
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "intelligence_3",
+   "group": "intelligence",
+   "family": "Intelligence",
+   "name": "Intelligence III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "+(25-29) to Intelligence",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 280
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 80
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "intelligence_2",
+   "group": "intelligence",
+   "family": "Intelligence",
+   "name": "Intelligence II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "+(29-34) to Intelligence",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 154
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 44
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "intelligence_1",
+   "group": "intelligence",
+   "family": "Intelligence",
+   "name": "Intelligence I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "+(33-38) to Intelligence",
+   "tags": [
+    "attribute"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 70
+    },
+    {
+     "tag": "dex_armour",
+     "weight": 20
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "attack_speed_6",
+   "group": "attack_speed",
+   "family": "Attack Speed",
+   "name": "Attack Speed VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "(3-4)% increased Attack Speed",
+   "tags": [
+    "attack",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 400
+    },
+    {
+     "tag": "str_armour",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "attack_speed_5",
+   "group": "attack_speed",
+   "family": "Attack Speed",
+   "name": "Attack Speed V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "(4-5)% increased Attack Speed",
+   "tags": [
+    "attack",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 360
+    },
+    {
+     "tag": "str_armour",
+     "weight": 180
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "attack_speed_4",
+   "group": "attack_speed",
+   "family": "Attack Speed",
+   "name": "Attack Speed IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "(5-6)% increased Attack Speed",
+   "tags": [
+    "attack",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 260
+    },
+    {
+     "tag": "str_armour",
+     "weight": 130
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "attack_speed_3",
+   "group": "attack_speed",
+   "family": "Attack Speed",
+   "name": "Attack Speed III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "(7-8)% increased Attack Speed",
+   "tags": [
+    "attack",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 160
+    },
+    {
+     "tag": "str_armour",
+     "weight": 80
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "attack_speed_2",
+   "group": "attack_speed",
+   "family": "Attack Speed",
+   "name": "Attack Speed II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "(8-9)% increased Attack Speed",
+   "tags": [
+    "attack",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 88
+    },
+    {
+     "tag": "str_armour",
+     "weight": 44
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "attack_speed_1",
+   "group": "attack_speed",
+   "family": "Attack Speed",
+   "name": "Attack Speed I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "(9-10)% increased Attack Speed",
+   "tags": [
+    "attack",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 40
+    },
+    {
+     "tag": "str_armour",
+     "weight": 20
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "accuracy_8",
+   "group": "accuracy",
+   "family": "Accuracy Rating",
+   "name": "Accuracy Rating VIII",
+   "slot": "suffix",
+   "level": 1,
+   "text": "+(20-40) to Accuracy Rating",
+   "tags": [
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 600
+    },
+    {
+     "tag": "str_armour",
+     "weight": 300
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "accuracy_7",
+   "group": "accuracy",
+   "family": "Accuracy Rating",
+   "name": "Accuracy Rating VII",
+   "slot": "suffix",
+   "level": 11,
+   "text": "+(67-103) to Accuracy Rating",
+   "tags": [
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 600
+    },
+    {
+     "tag": "str_armour",
+     "weight": 300
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "accuracy_6",
+   "group": "accuracy",
+   "family": "Accuracy Rating",
+   "name": "Accuracy Rating VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "+(114-166) to Accuracy Rating",
+   "tags": [
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 600
+    },
+    {
+     "tag": "str_armour",
+     "weight": 300
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "accuracy_5",
+   "group": "accuracy",
+   "family": "Accuracy Rating",
+   "name": "Accuracy Rating V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "+(161-229) to Accuracy Rating",
+   "tags": [
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 540
+    },
+    {
+     "tag": "str_armour",
+     "weight": 270
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "accuracy_4",
+   "group": "accuracy",
+   "family": "Accuracy Rating",
+   "name": "Accuracy Rating IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "+(209-291) to Accuracy Rating",
+   "tags": [
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 390
+    },
+    {
+     "tag": "str_armour",
+     "weight": 195
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "accuracy_3",
+   "group": "accuracy",
+   "family": "Accuracy Rating",
+   "name": "Accuracy Rating III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "+(256-354) to Accuracy Rating",
+   "tags": [
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 240
+    },
+    {
+     "tag": "str_armour",
+     "weight": 120
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "accuracy_2",
+   "group": "accuracy",
+   "family": "Accuracy Rating",
+   "name": "Accuracy Rating II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "+(303-417) to Accuracy Rating",
+   "tags": [
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 132
+    },
+    {
+     "tag": "str_armour",
+     "weight": 66
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "accuracy_1",
+   "group": "accuracy",
+   "family": "Accuracy Rating",
+   "name": "Accuracy Rating I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "+(350-480) to Accuracy Rating",
+   "tags": [
+    "attack"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 60
+    },
+    {
+     "tag": "str_armour",
+     "weight": 30
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "stun_thresh_6",
+   "group": "stun_thresh",
+   "family": "Stun Threshold",
+   "name": "Stun Threshold VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "+(12-24) to Stun Threshold",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 500
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "stun_thresh_5",
+   "group": "stun_thresh",
+   "family": "Stun Threshold",
+   "name": "Stun Threshold V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "+(44-59) to Stun Threshold",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 450
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "stun_thresh_4",
+   "group": "stun_thresh",
+   "family": "Stun Threshold",
+   "name": "Stun Threshold IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "+(75-94) to Stun Threshold",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 325
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "stun_thresh_3",
+   "group": "stun_thresh",
+   "family": "Stun Threshold",
+   "name": "Stun Threshold III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "+(107-130) to Stun Threshold",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "stun_thresh_2",
+   "group": "stun_thresh",
+   "family": "Stun Threshold",
+   "name": "Stun Threshold II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "+(138-165) to Stun Threshold",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 110
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "stun_thresh_1",
+   "group": "stun_thresh",
+   "family": "Stun Threshold",
+   "name": "Stun Threshold I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "+(170-200) to Stun Threshold",
+   "tags": [
+    "defences"
+   ],
+   "spawn": [
+    {
+     "tag": "str_armour",
+     "weight": 50
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_regen_6",
+   "group": "mana_regen",
+   "family": "Mana Regeneration",
+   "name": "Mana Regeneration VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "(10-19)% increased Mana Regeneration Rate",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 300
+    },
+    {
+     "tag": "str_armour",
+     "weight": 300
+    },
+    {
+     "tag": "wand",
+     "weight": 800
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_regen_5",
+   "group": "mana_regen",
+   "family": "Mana Regeneration",
+   "name": "Mana Regeneration V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "(20-29)% increased Mana Regeneration Rate",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 270
+    },
+    {
+     "tag": "str_armour",
+     "weight": 270
+    },
+    {
+     "tag": "wand",
+     "weight": 720
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_regen_4",
+   "group": "mana_regen",
+   "family": "Mana Regeneration",
+   "name": "Mana Regeneration IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "(30-39)% increased Mana Regeneration Rate",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 195
+    },
+    {
+     "tag": "str_armour",
+     "weight": 195
+    },
+    {
+     "tag": "wand",
+     "weight": 520
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_regen_3",
+   "group": "mana_regen",
+   "family": "Mana Regeneration",
+   "name": "Mana Regeneration III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "(40-49)% increased Mana Regeneration Rate",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 120
+    },
+    {
+     "tag": "str_armour",
+     "weight": 120
+    },
+    {
+     "tag": "wand",
+     "weight": 320
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_regen_2",
+   "group": "mana_regen",
+   "family": "Mana Regeneration",
+   "name": "Mana Regeneration II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "(50-59)% increased Mana Regeneration Rate",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 66
+    },
+    {
+     "tag": "str_armour",
+     "weight": 66
+    },
+    {
+     "tag": "wand",
+     "weight": 176
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_regen_1",
+   "group": "mana_regen",
+   "family": "Mana Regeneration",
+   "name": "Mana Regeneration I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "(60-69)% increased Mana Regeneration Rate",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 30
+    },
+    {
+     "tag": "str_armour",
+     "weight": 30
+    },
+    {
+     "tag": "wand",
+     "weight": 80
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "rarity_5",
+   "group": "rarity",
+   "family": "Item Rarity",
+   "name": "Item Rarity V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "(6-10)% increased Rarity of Items found",
+   "tags": [
+    "drop"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 225
+    },
+    {
+     "tag": "str_armour",
+     "weight": 225
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "rarity_4",
+   "group": "rarity",
+   "family": "Item Rarity",
+   "name": "Item Rarity IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "(10-14)% increased Rarity of Items found",
+   "tags": [
+    "drop"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 162
+    },
+    {
+     "tag": "str_armour",
+     "weight": 162
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "rarity_3",
+   "group": "rarity",
+   "family": "Item Rarity",
+   "name": "Item Rarity III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "(14-18)% increased Rarity of Items found",
+   "tags": [
+    "drop"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 100
+    },
+    {
+     "tag": "str_armour",
+     "weight": 100
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "rarity_2",
+   "group": "rarity",
+   "family": "Item Rarity",
+   "name": "Item Rarity II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "(17-21)% increased Rarity of Items found",
+   "tags": [
+    "drop"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 55
+    },
+    {
+     "tag": "str_armour",
+     "weight": 55
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "rarity_1",
+   "group": "rarity",
+   "family": "Item Rarity",
+   "name": "Item Rarity I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "(21-25)% increased Rarity of Items found",
+   "tags": [
+    "drop"
+   ],
+   "spawn": [
+    {
+     "tag": "dex_armour",
+     "weight": 25
+    },
+    {
+     "tag": "str_armour",
+     "weight": 25
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_dmg_8",
+   "group": "spell_dmg",
+   "family": "Spell Damage",
+   "name": "Spell Damage VIII",
+   "slot": "prefix",
+   "level": 1,
+   "text": "(5-9)% increased Spell Damage",
+   "tags": [
+    "caster",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_dmg_7",
+   "group": "spell_dmg",
+   "family": "Spell Damage",
+   "name": "Spell Damage VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "(13-18)% increased Spell Damage",
+   "tags": [
+    "caster",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_dmg_6",
+   "group": "spell_dmg",
+   "family": "Spell Damage",
+   "name": "Spell Damage VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "(21-28)% increased Spell Damage",
+   "tags": [
+    "caster",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 1000
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_dmg_5",
+   "group": "spell_dmg",
+   "family": "Spell Damage",
+   "name": "Spell Damage V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "(29-37)% increased Spell Damage",
+   "tags": [
+    "caster",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 900
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_dmg_4",
+   "group": "spell_dmg",
+   "family": "Spell Damage",
+   "name": "Spell Damage IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "(36-46)% increased Spell Damage",
+   "tags": [
+    "caster",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 650
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_dmg_3",
+   "group": "spell_dmg",
+   "family": "Spell Damage",
+   "name": "Spell Damage III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "(44-55)% increased Spell Damage",
+   "tags": [
+    "caster",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 400
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_dmg_2",
+   "group": "spell_dmg",
+   "family": "Spell Damage",
+   "name": "Spell Damage II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "(52-65)% increased Spell Damage",
+   "tags": [
+    "caster",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 220
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_dmg_1",
+   "group": "spell_dmg",
+   "family": "Spell Damage",
+   "name": "Spell Damage I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "(60-74)% increased Spell Damage",
+   "tags": [
+    "caster",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 100
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_spell_7",
+   "group": "fire_spell",
+   "family": "Fire Damage (spell)",
+   "name": "Fire Damage (spell) VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "Adds (2-3) to (4-6) Fire Damage",
+   "tags": [
+    "caster",
+    "fire",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_spell_6",
+   "group": "fire_spell",
+   "family": "Fire Damage (spell)",
+   "name": "Fire Damage (spell) VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "Adds (8-12) to (15-22) Fire Damage",
+   "tags": [
+    "caster",
+    "fire",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_spell_5",
+   "group": "fire_spell",
+   "family": "Fire Damage (spell)",
+   "name": "Fire Damage (spell) V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "Adds (14-21) to (25-38) Fire Damage",
+   "tags": [
+    "caster",
+    "fire",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 630
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_spell_4",
+   "group": "fire_spell",
+   "family": "Fire Damage (spell)",
+   "name": "Fire Damage (spell) IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "Adds (20-30) to (36-54) Fire Damage",
+   "tags": [
+    "caster",
+    "fire",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 455
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_spell_3",
+   "group": "fire_spell",
+   "family": "Fire Damage (spell)",
+   "name": "Fire Damage (spell) III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "Adds (25-38) to (47-70) Fire Damage",
+   "tags": [
+    "caster",
+    "fire",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 280
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_spell_2",
+   "group": "fire_spell",
+   "family": "Fire Damage (spell)",
+   "name": "Fire Damage (spell) II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "Adds (31-47) to (57-86) Fire Damage",
+   "tags": [
+    "caster",
+    "fire",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 154
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "fire_spell_1",
+   "group": "fire_spell",
+   "family": "Fire Damage (spell)",
+   "name": "Fire Damage (spell) I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "Adds (37-56) to (68-102) Fire Damage",
+   "tags": [
+    "caster",
+    "fire",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 70
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_spell_7",
+   "group": "cold_spell",
+   "family": "Cold Damage (spell)",
+   "name": "Cold Damage (spell) VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "Adds (2-3) to (3-5) Cold Damage",
+   "tags": [
+    "caster",
+    "cold",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_spell_6",
+   "group": "cold_spell",
+   "family": "Cold Damage (spell)",
+   "name": "Cold Damage (spell) VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "Adds (7-11) to (12-20) Cold Damage",
+   "tags": [
+    "caster",
+    "cold",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_spell_5",
+   "group": "cold_spell",
+   "family": "Cold Damage (spell)",
+   "name": "Cold Damage (spell) V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "Adds (12-19) to (22-34) Cold Damage",
+   "tags": [
+    "caster",
+    "cold",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 630
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_spell_4",
+   "group": "cold_spell",
+   "family": "Cold Damage (spell)",
+   "name": "Cold Damage (spell) IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "Adds (18-26) to (32-48) Cold Damage",
+   "tags": [
+    "caster",
+    "cold",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 455
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_spell_3",
+   "group": "cold_spell",
+   "family": "Cold Damage (spell)",
+   "name": "Cold Damage (spell) III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "Adds (23-34) to (41-63) Cold Damage",
+   "tags": [
+    "caster",
+    "cold",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 280
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_spell_2",
+   "group": "cold_spell",
+   "family": "Cold Damage (spell)",
+   "name": "Cold Damage (spell) II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "Adds (28-42) to (50-78) Cold Damage",
+   "tags": [
+    "caster",
+    "cold",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 154
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cold_spell_1",
+   "group": "cold_spell",
+   "family": "Cold Damage (spell)",
+   "name": "Cold Damage (spell) I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "Adds (33-50) to (60-92) Cold Damage",
+   "tags": [
+    "caster",
+    "cold",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 70
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "light_spell_7",
+   "group": "light_spell",
+   "family": "Lightning Damage (spell)",
+   "name": "Lightning Damage (spell) VII",
+   "slot": "prefix",
+   "level": 11,
+   "text": "Adds (1-2) to (5-8) Lightning Damage",
+   "tags": [
+    "caster",
+    "lightning",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "light_spell_6",
+   "group": "light_spell",
+   "family": "Lightning Damage (spell)",
+   "name": "Lightning Damage (spell) VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "Adds (8-13) to (18-28) Lightning Damage",
+   "tags": [
+    "caster",
+    "lightning",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "light_spell_5",
+   "group": "light_spell",
+   "family": "Lightning Damage (spell)",
+   "name": "Lightning Damage (spell) V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "Adds (16-25) to (32-49) Lightning Damage",
+   "tags": [
+    "caster",
+    "lightning",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 630
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "light_spell_4",
+   "group": "light_spell",
+   "family": "Lightning Damage (spell)",
+   "name": "Lightning Damage (spell) IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "Adds (24-36) to (46-69) Lightning Damage",
+   "tags": [
+    "caster",
+    "lightning",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 455
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "light_spell_3",
+   "group": "light_spell",
+   "family": "Lightning Damage (spell)",
+   "name": "Lightning Damage (spell) III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "Adds (31-47) to (59-89) Lightning Damage",
+   "tags": [
+    "caster",
+    "lightning",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 280
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "light_spell_2",
+   "group": "light_spell",
+   "family": "Lightning Damage (spell)",
+   "name": "Lightning Damage (spell) II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "Adds (38-59) to (72-110) Lightning Damage",
+   "tags": [
+    "caster",
+    "lightning",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 154
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "light_spell_1",
+   "group": "light_spell",
+   "family": "Lightning Damage (spell)",
+   "name": "Lightning Damage (spell) I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "Adds (46-70) to (86-130) Lightning Damage",
+   "tags": [
+    "caster",
+    "lightning",
+    "damage"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 70
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_wand_6",
+   "group": "phys_wand",
+   "family": "Physical Damage (wand)",
+   "name": "Physical Damage (wand) VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "(15-29)% increased Physical Damage",
+   "tags": [
+    "damage",
+    "physical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 500
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_wand_5",
+   "group": "phys_wand",
+   "family": "Physical Damage (wand)",
+   "name": "Physical Damage (wand) V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "(42-57)% increased Physical Damage",
+   "tags": [
+    "damage",
+    "physical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 450
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_wand_4",
+   "group": "phys_wand",
+   "family": "Physical Damage (wand)",
+   "name": "Physical Damage (wand) IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "(69-85)% increased Physical Damage",
+   "tags": [
+    "damage",
+    "physical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 325
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_wand_3",
+   "group": "phys_wand",
+   "family": "Physical Damage (wand)",
+   "name": "Physical Damage (wand) III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "(96-113)% increased Physical Damage",
+   "tags": [
+    "damage",
+    "physical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_wand_2",
+   "group": "phys_wand",
+   "family": "Physical Damage (wand)",
+   "name": "Physical Damage (wand) II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "(123-141)% increased Physical Damage",
+   "tags": [
+    "damage",
+    "physical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 110
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "phys_wand_1",
+   "group": "phys_wand",
+   "family": "Physical Damage (wand)",
+   "name": "Physical Damage (wand) I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "(150-169)% increased Physical Damage",
+   "tags": [
+    "damage",
+    "physical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 50
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_flat_6",
+   "group": "mana_flat",
+   "family": "Maximum Mana",
+   "name": "Maximum Mana VI",
+   "slot": "prefix",
+   "level": 22,
+   "text": "+(10-19) to maximum Mana",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_flat_5",
+   "group": "mana_flat",
+   "family": "Maximum Mana",
+   "name": "Maximum Mana V",
+   "slot": "prefix",
+   "level": 33,
+   "text": "+(26-37) to maximum Mana",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 630
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_flat_4",
+   "group": "mana_flat",
+   "family": "Maximum Mana",
+   "name": "Maximum Mana IV",
+   "slot": "prefix",
+   "level": 46,
+   "text": "+(42-55) to maximum Mana",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 455
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_flat_3",
+   "group": "mana_flat",
+   "family": "Maximum Mana",
+   "name": "Maximum Mana III",
+   "slot": "prefix",
+   "level": 58,
+   "text": "+(58-73) to maximum Mana",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 280
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_flat_2",
+   "group": "mana_flat",
+   "family": "Maximum Mana",
+   "name": "Maximum Mana II",
+   "slot": "prefix",
+   "level": 70,
+   "text": "+(74-91) to maximum Mana",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 154
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "mana_flat_1",
+   "group": "mana_flat",
+   "family": "Maximum Mana",
+   "name": "Maximum Mana I",
+   "slot": "prefix",
+   "level": 80,
+   "text": "+(90-109) to maximum Mana",
+   "tags": [
+    "mana"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 70
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cast_speed_6",
+   "group": "cast_speed",
+   "family": "Cast Speed",
+   "name": "Cast Speed VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "(8-11)% increased Cast Speed",
+   "tags": [
+    "caster",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 700
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cast_speed_5",
+   "group": "cast_speed",
+   "family": "Cast Speed",
+   "name": "Cast Speed V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "(12-15)% increased Cast Speed",
+   "tags": [
+    "caster",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 630
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cast_speed_4",
+   "group": "cast_speed",
+   "family": "Cast Speed",
+   "name": "Cast Speed IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "(16-20)% increased Cast Speed",
+   "tags": [
+    "caster",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 455
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cast_speed_3",
+   "group": "cast_speed",
+   "family": "Cast Speed",
+   "name": "Cast Speed III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "(20-24)% increased Cast Speed",
+   "tags": [
+    "caster",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 280
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cast_speed_2",
+   "group": "cast_speed",
+   "family": "Cast Speed",
+   "name": "Cast Speed II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "(24-29)% increased Cast Speed",
+   "tags": [
+    "caster",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 154
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "cast_speed_1",
+   "group": "cast_speed",
+   "family": "Cast Speed",
+   "name": "Cast Speed I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "(28-33)% increased Cast Speed",
+   "tags": [
+    "caster",
+    "speed"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 70
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_crit_6",
+   "group": "spell_crit",
+   "family": "Spell Critical Hit Chance",
+   "name": "Spell Critical Hit Chance VI",
+   "slot": "suffix",
+   "level": 22,
+   "text": "(10-19)% increased Critical Hit Chance for Spells",
+   "tags": [
+    "caster",
+    "critical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 600
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_crit_5",
+   "group": "spell_crit",
+   "family": "Spell Critical Hit Chance",
+   "name": "Spell Critical Hit Chance V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "(26-37)% increased Critical Hit Chance for Spells",
+   "tags": [
+    "caster",
+    "critical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 540
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_crit_4",
+   "group": "spell_crit",
+   "family": "Spell Critical Hit Chance",
+   "name": "Spell Critical Hit Chance IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "(42-55)% increased Critical Hit Chance for Spells",
+   "tags": [
+    "caster",
+    "critical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 390
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_crit_3",
+   "group": "spell_crit",
+   "family": "Spell Critical Hit Chance",
+   "name": "Spell Critical Hit Chance III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "(58-73)% increased Critical Hit Chance for Spells",
+   "tags": [
+    "caster",
+    "critical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 240
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_crit_2",
+   "group": "spell_crit",
+   "family": "Spell Critical Hit Chance",
+   "name": "Spell Critical Hit Chance II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "(74-91)% increased Critical Hit Chance for Spells",
+   "tags": [
+    "caster",
+    "critical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 132
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "spell_crit_1",
+   "group": "spell_crit",
+   "family": "Spell Critical Hit Chance",
+   "name": "Spell Critical Hit Chance I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "(90-109)% increased Critical Hit Chance for Spells",
+   "tags": [
+    "caster",
+    "critical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 60
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "crit_bonus_5",
+   "group": "crit_bonus",
+   "family": "Critical Damage Bonus",
+   "name": "Critical Damage Bonus V",
+   "slot": "suffix",
+   "level": 33,
+   "text": "(10-14)% increased Critical Damage Bonus",
+   "tags": [
+    "critical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 450
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "crit_bonus_4",
+   "group": "crit_bonus",
+   "family": "Critical Damage Bonus",
+   "name": "Critical Damage Bonus IV",
+   "slot": "suffix",
+   "level": 46,
+   "text": "(15-19)% increased Critical Damage Bonus",
+   "tags": [
+    "critical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 325
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "crit_bonus_3",
+   "group": "crit_bonus",
+   "family": "Critical Damage Bonus",
+   "name": "Critical Damage Bonus III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "(20-24)% increased Critical Damage Bonus",
+   "tags": [
+    "critical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 200
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "crit_bonus_2",
+   "group": "crit_bonus",
+   "family": "Critical Damage Bonus",
+   "name": "Critical Damage Bonus II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "(25-29)% increased Critical Damage Bonus",
+   "tags": [
+    "critical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 110
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "crit_bonus_1",
+   "group": "crit_bonus",
+   "family": "Critical Damage Bonus",
+   "name": "Critical Damage Bonus I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "(30-34)% increased Critical Damage Bonus",
+   "tags": [
+    "critical"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 50
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "skill_level_3",
+   "group": "skill_level",
+   "family": "Spell Skill Level",
+   "name": "Spell Skill Level III",
+   "slot": "suffix",
+   "level": 58,
+   "text": "+(1-1) to Level of all Spell Skills",
+   "tags": [
+    "caster"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 24
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "skill_level_2",
+   "group": "skill_level",
+   "family": "Spell Skill Level",
+   "name": "Spell Skill Level II",
+   "slot": "suffix",
+   "level": 70,
+   "text": "+(3-3) to Level of all Spell Skills",
+   "tags": [
+    "caster"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 13
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  },
+  {
+   "id": "skill_level_1",
+   "group": "skill_level",
+   "family": "Spell Skill Level",
+   "name": "Spell Skill Level I",
+   "slot": "suffix",
+   "level": 80,
+   "text": "+(5-5) to Level of all Spell Skills",
+   "tags": [
+    "caster"
+   ],
+   "spawn": [
+    {
+     "tag": "wand",
+     "weight": 6
+    },
+    {
+     "tag": "default",
+     "weight": 0
+    }
+   ]
+  }
+ ],
+ "currencies": [
+  {
+   "id": "transmute",
+   "label": "Orb of Transmutation",
+   "kind": "transmute",
+   "min_mod_level": 0,
+   "price_id": "transmute",
+   "default_enabled": true
+  },
+  {
+   "id": "transmute_greater",
+   "label": "Greater Orb of Transmutation",
+   "kind": "transmute",
+   "min_mod_level": 35,
+   "price_id": "transmute_greater",
+   "default_enabled": true
+  },
+  {
+   "id": "transmute_perfect",
+   "label": "Perfect Orb of Transmutation",
+   "kind": "transmute",
+   "min_mod_level": 50,
+   "price_id": "transmute_perfect",
+   "default_enabled": true
+  },
+  {
+   "id": "augment",
+   "label": "Orb of Augmentation",
+   "kind": "augment",
+   "min_mod_level": 0,
+   "price_id": "augment",
+   "default_enabled": true
+  },
+  {
+   "id": "augment_greater",
+   "label": "Greater Orb of Augmentation",
+   "kind": "augment",
+   "min_mod_level": 35,
+   "price_id": "augment_greater",
+   "default_enabled": true
+  },
+  {
+   "id": "augment_perfect",
+   "label": "Perfect Orb of Augmentation",
+   "kind": "augment",
+   "min_mod_level": 50,
+   "price_id": "augment_perfect",
+   "default_enabled": true
+  },
+  {
+   "id": "regal",
+   "label": "Regal Orb",
+   "kind": "regal",
+   "min_mod_level": 0,
+   "price_id": "regal",
+   "default_enabled": true
+  },
+  {
+   "id": "regal_greater",
+   "label": "Greater Regal Orb",
+   "kind": "regal",
+   "min_mod_level": 35,
+   "price_id": "regal_greater",
+   "default_enabled": true
+  },
+  {
+   "id": "regal_perfect",
+   "label": "Perfect Regal Orb",
+   "kind": "regal",
+   "min_mod_level": 50,
+   "price_id": "regal_perfect",
+   "default_enabled": true
+  },
+  {
+   "id": "alchemy",
+   "label": "Orb of Alchemy",
+   "kind": "alchemy",
+   "min_mod_level": 0,
+   "price_id": "alchemy",
+   "default_enabled": true
+  },
+  {
+   "id": "exalt",
+   "label": "Exalted Orb",
+   "kind": "exalt",
+   "min_mod_level": 0,
+   "price_id": "exalt",
+   "default_enabled": true
+  },
+  {
+   "id": "exalt_greater",
+   "label": "Greater Exalted Orb",
+   "kind": "exalt",
+   "min_mod_level": 35,
+   "price_id": "exalt_greater",
+   "default_enabled": true
+  },
+  {
+   "id": "exalt_perfect",
+   "label": "Perfect Exalted Orb",
+   "kind": "exalt",
+   "min_mod_level": 50,
+   "price_id": "exalt_perfect",
+   "default_enabled": true
+  },
+  {
+   "id": "chaos",
+   "label": "Chaos Orb",
+   "kind": "chaos",
+   "min_mod_level": 0,
+   "price_id": "chaos",
+   "default_enabled": true
+  },
+  {
+   "id": "chaos_greater",
+   "label": "Greater Chaos Orb",
+   "kind": "chaos",
+   "min_mod_level": 35,
+   "price_id": "chaos_greater",
+   "default_enabled": true
+  },
+  {
+   "id": "chaos_perfect",
+   "label": "Perfect Chaos Orb",
+   "kind": "chaos",
+   "min_mod_level": 50,
+   "price_id": "chaos_perfect",
+   "default_enabled": true
+  },
+  {
+   "id": "annul",
+   "label": "Orb of Annulment",
+   "kind": "annul",
+   "min_mod_level": 0,
+   "price_id": "annul",
+   "default_enabled": true
+  },
+  {
+   "id": "fracture",
+   "label": "Fracturing Orb",
+   "kind": "fracture",
+   "min_mod_level": 0,
+   "price_id": "fracture",
+   "default_enabled": true
+  }
+ ],
+ "omens": [
+  {
+   "id": "omen_sinistral_exaltation",
+   "label": "Omen of Sinistral Exaltation",
+   "add_slot": "prefix",
+   "remove_slot": null,
+   "applies_to": [
+    "exalt"
+   ],
+   "price_id": "omen_sinistral_exaltation"
+  },
+  {
+   "id": "omen_dextral_exaltation",
+   "label": "Omen of Dextral Exaltation",
+   "add_slot": "suffix",
+   "remove_slot": null,
+   "applies_to": [
+    "exalt"
+   ],
+   "price_id": "omen_dextral_exaltation"
+  },
+  {
+   "id": "omen_sinistral_annulment",
+   "label": "Omen of Sinistral Annulment",
+   "add_slot": null,
+   "remove_slot": "prefix",
+   "applies_to": [
+    "annul"
+   ],
+   "price_id": "omen_sinistral_annulment"
+  },
+  {
+   "id": "omen_dextral_annulment",
+   "label": "Omen of Dextral Annulment",
+   "add_slot": null,
+   "remove_slot": "suffix",
+   "applies_to": [
+    "annul"
+   ],
+   "price_id": "omen_dextral_annulment"
+  },
+  {
+   "id": "omen_sinistral_erasure",
+   "label": "Omen of Sinistral Erasure",
+   "add_slot": null,
+   "remove_slot": "prefix",
+   "applies_to": [
+    "chaos"
+   ],
+   "price_id": "omen_sinistral_erasure"
+  },
+  {
+   "id": "omen_dextral_erasure",
+   "label": "Omen of Dextral Erasure",
+   "add_slot": null,
+   "remove_slot": "suffix",
+   "applies_to": [
+    "chaos"
+   ],
+   "price_id": "omen_dextral_erasure"
+  }
+ ],
+ "prices": {
+  "base_white": 2.0,
+  "base_salvage": 0.0,
+  "transmute": 1.53,
+  "transmute_greater": 1.78,
+  "transmute_perfect": 15.5,
+  "augment": 2.88,
+  "augment_greater": 5.34,
+  "augment_perfect": 135.0,
+  "regal": 2.53,
+  "regal_greater": 2.7,
+  "regal_perfect": 19.7,
+  "alchemy": 3.17,
+  "exalt": 1.0,
+  "exalt_greater": 4.78,
+  "exalt_perfect": 1379.0,
+  "chaos": 56.4,
+  "chaos_greater": 167.0,
+  "chaos_perfect": 2814.0,
+  "annul": 304.0,
+  "fracture": 4024.0,
+  "omen_sinistral_exaltation": 37.6,
+  "omen_dextral_exaltation": 19.2,
+  "omen_sinistral_annulment": 7464.0,
+  "omen_dextral_annulment": 4066.0,
+  "omen_sinistral_erasure": 6979.0,
+  "omen_dextral_erasure": 3944.0
+ },
+ "price_sources": {
+  "transmute": {
+   "ninja_type": "Currency",
+   "ninja_id": "transmute"
+  },
+  "transmute_greater": {
+   "ninja_type": "Currency",
+   "ninja_id": "greater-orb-of-transmutation"
+  },
+  "transmute_perfect": {
+   "ninja_type": "Currency",
+   "ninja_id": "perfect-orb-of-transmutation"
+  },
+  "augment": {
+   "ninja_type": "Currency",
+   "ninja_id": "aug"
+  },
+  "augment_greater": {
+   "ninja_type": "Currency",
+   "ninja_id": "greater-orb-of-augmentation"
+  },
+  "augment_perfect": {
+   "ninja_type": "Currency",
+   "ninja_id": "perfect-orb-of-augmentation"
+  },
+  "regal": {
+   "ninja_type": "Currency",
+   "ninja_id": "regal"
+  },
+  "regal_greater": {
+   "ninja_type": "Currency",
+   "ninja_id": "greater-regal-orb"
+  },
+  "regal_perfect": {
+   "ninja_type": "Currency",
+   "ninja_id": "perfect-regal-orb"
+  },
+  "alchemy": {
+   "ninja_type": "Currency",
+   "ninja_id": "alch"
+  },
+  "exalt": {
+   "ninja_type": "Currency",
+   "ninja_id": "exalted"
+  },
+  "exalt_greater": {
+   "ninja_type": "Currency",
+   "ninja_id": "greater-exalted-orb"
+  },
+  "exalt_perfect": {
+   "ninja_type": "Currency",
+   "ninja_id": "perfect-exalted-orb"
+  },
+  "chaos": {
+   "ninja_type": "Currency",
+   "ninja_id": "chaos"
+  },
+  "chaos_greater": {
+   "ninja_type": "Currency",
+   "ninja_id": "greater-chaos-orb"
+  },
+  "chaos_perfect": {
+   "ninja_type": "Currency",
+   "ninja_id": "perfect-chaos-orb"
+  },
+  "annul": {
+   "ninja_type": "Currency",
+   "ninja_id": "annul"
+  },
+  "fracture": {
+   "ninja_type": "Currency",
+   "ninja_id": "fracturing-orb"
+  },
+  "omen_sinistral_exaltation": {
+   "ninja_type": "Ritual",
+   "ninja_id": "omen-of-sinistral-exaltation"
+  },
+  "omen_sinistral_annulment": {
+   "ninja_type": "Ritual",
+   "ninja_id": "omen-of-sinistral-annulment"
+  },
+  "omen_sinistral_erasure": {
+   "ninja_type": "Ritual",
+   "ninja_id": "omen-of-sinistral-erasure"
+  },
+  "omen_dextral_exaltation": {
+   "ninja_type": "Ritual",
+   "ninja_id": "omen-of-dextral-exaltation"
+  },
+  "omen_dextral_annulment": {
+   "ninja_type": "Ritual",
+   "ninja_id": "omen-of-dextral-annulment"
+  },
+  "omen_dextral_erasure": {
+   "ninja_type": "Ritual",
+   "ninja_id": "omen-of-dextral-erasure"
+  }
+ }
+}

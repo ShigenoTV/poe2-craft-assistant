@@ -1,0 +1,31 @@
+Item Class: Boots
+Rarity: Rare
+Spirit Road
+Shamanistic Leggings
+--------
+Quality: +20% (augmented)
+Armour: 244 (augmented)
+Energy Shield: 67 (augmented)
+--------
+Requires: Level 59, 42 (augmented) Str, 42 (augmented) Int
+--------
+Sockets: S 
+--------
+Item Level: 74
+--------
++18% to Cold Resistance (rune)
+--------
+{ Prefix Modifier "Gazelle's" (Tier: 3) — Speed }
+25% increased Movement Speed
+{ Prefix Modifier "Athlete's" (Tier: 1) — Life }
++126(120-149) to maximum Life
+{ Prefix Modifier "Infused" (Tier: 4) — Armour, Energy Shield }
+65(56-67)% increased Armour and Energy Shield
+{ Suffix Modifier "of the Lightning" (Tier: 2) — Elemental, Lightning, Resistance }
++38(36-40)% to Lightning Resistance
+{ Suffix Modifier "of Raiding" (Tier: 2) }
+13(11-14)% increased Rarity of Items found
+{ Desecrated Suffix Modifier "of Magma" (Tier: 2) — Elemental, Fire, Resistance }
++39(36-40)% to Fire Resistance
+--------
+Corrupted

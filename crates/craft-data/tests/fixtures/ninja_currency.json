@@ -1,0 +1,205 @@
+{
+ "core": {
+  "primary": "divine",
+  "secondary": "chaos",
+  "rates": {
+   "exalted": 470.6,
+   "chaos": 8.35
+  },
+  "items": [
+   {
+    "id": "divine",
+    "name": "Divine Orb",
+    "category": "Currency",
+    "detailsId": "divine-orb"
+   },
+   {
+    "id": "exalted",
+    "name": "Exalted Orb",
+    "category": "Currency",
+    "detailsId": "exalted-orb"
+   },
+   {
+    "id": "chaos",
+    "name": "Chaos Orb",
+    "category": "Currency",
+    "detailsId": "chaos-orb"
+   }
+  ]
+ },
+ "lines": [
+  {
+   "id": "alch",
+   "primaryValue": 0.00674
+  },
+  {
+   "id": "exalted",
+   "primaryValue": 0.002125
+  },
+  {
+   "id": "chaos",
+   "primaryValue": 0.1198
+  },
+  {
+   "id": "divine",
+   "primaryValue": 1
+  },
+  {
+   "id": "annul",
+   "primaryValue": 0.6469
+  },
+  {
+   "id": "aug",
+   "primaryValue": 0.006118
+  },
+  {
+   "id": "fracturing-orb",
+   "primaryValue": 8.55
+  },
+  {
+   "id": "greater-regal-orb",
+   "primaryValue": 0.005738
+  },
+  {
+   "id": "perfect-chaos-orb",
+   "primaryValue": 5.98
+  },
+  {
+   "id": "perfect-exalted-orb",
+   "primaryValue": 2.93
+  },
+  {
+   "id": "perfect-regal-orb",
+   "primaryValue": 0.04195
+  },
+  {
+   "id": "regal",
+   "primaryValue": 0.005384
+  },
+  {
+   "id": "greater-chaos-orb",
+   "primaryValue": 0.3559
+  },
+  {
+   "id": "greater-exalted-orb",
+   "primaryValue": 0.01015
+  },
+  {
+   "id": "greater-orb-of-augmentation",
+   "primaryValue": 0.01134
+  },
+  {
+   "id": "greater-orb-of-transmutation",
+   "primaryValue": 0.003786
+  },
+  {
+   "id": "perfect-orb-of-augmentation",
+   "primaryValue": 0.287
+  },
+  {
+   "id": "perfect-orb-of-transmutation",
+   "primaryValue": 0.03297
+  },
+  {
+   "id": "transmute",
+   "primaryValue": 0.003257
+  }
+ ],
+ "items": [
+  {
+   "id": "alch",
+   "name": "Orb of Alchemy",
+   "category": "Currency"
+  },
+  {
+   "id": "exalted",
+   "name": "Exalted Orb",
+   "category": "Currency"
+  },
+  {
+   "id": "chaos",
+   "name": "Chaos Orb",
+   "category": "Currency"
+  },
+  {
+   "id": "divine",
+   "name": "Divine Orb",
+   "category": "Currency"
+  },
+  {
+   "id": "annul",
+   "name": "Orb of Annulment",
+   "category": "Currency"
+  },
+  {
+   "id": "aug",
+   "name": "Orb of Augmentation",
+   "category": "Currency"
+  },
+  {
+   "id": "fracturing-orb",
+   "name": "Fracturing Orb",
+   "category": "Currency"
+  },
+  {
+   "id": "greater-regal-orb",
+   "name": "Greater Regal Orb",
+   "category": "Currency"
+  },
+  {
+   "id": "perfect-chaos-orb",
+   "name": "Perfect Chaos Orb",
+   "category": "Currency"
+  },
+  {
+   "id": "perfect-exalted-orb",
+   "name": "Perfect Exalted Orb",
+   "category": "Currency"
+  },
+  {
+   "id": "perfect-regal-orb",
+   "name": "Perfect Regal Orb",
+   "category": "Currency"
+  },
+  {
+   "id": "regal",
+   "name": "Regal Orb",
+   "category": "Currency"
+  },
+  {
+   "id": "greater-chaos-orb",
+   "name": "Greater Chaos Orb",
+   "category": "Currency"
+  },
+  {
+   "id": "greater-exalted-orb",
+   "name": "Greater Exalted Orb",
+   "category": "Currency"
+  },
+  {
+   "id": "greater-orb-of-augmentation",
+   "name": "Greater Orb of Augmentation",
+   "category": "Currency"
+  },
+  {
+   "id": "greater-orb-of-transmutation",
+   "name": "Greater Orb of Transmutation",
+   "category": "Currency"
+  },
+  {
+   "id": "perfect-orb-of-augmentation",
+   "name": "Perfect Orb of Augmentation",
+   "category": "Currency"
+  },
+  {
+   "id": "perfect-orb-of-transmutation",
+   "name": "Perfect Orb of Transmutation",
+   "category": "Currency"
+  },
+  {
+   "id": "transmute",
+   "name": "Orb of Transmutation",
+   "category": "Currency"
+  }
+ ]
+}

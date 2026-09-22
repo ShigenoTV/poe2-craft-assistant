@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schema/desktop-schema.json",
+  "identifier": "default",
+  "description": "Fenêtres principale et overlay",
+  "windows": ["main", "overlay"],
+  "permissions": ["core:default"]
+}

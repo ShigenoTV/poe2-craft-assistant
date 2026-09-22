@@ -1,0 +1,17 @@
+[package]
+name = "craft-api"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+craft-core = { path = "../craft-core" }
+craft-solver = { path = "../craft-solver" }
+craft-data = { path = "../craft-data" }
+serde.workspace = true
+serde_json.workspace = true
+rand.workspace = true
+rayon.workspace = true
+
+[[bin]]
+name = "craft-cli"
+path = "src/bin/craft.rs"

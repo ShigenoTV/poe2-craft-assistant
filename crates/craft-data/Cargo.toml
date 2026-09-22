@@ -1,0 +1,10 @@
+[package]
+name = "craft-data"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+craft-core = { path = "../craft-core" }
+serde.workspace = true
+serde_json.workspace = true
+regex = "1"

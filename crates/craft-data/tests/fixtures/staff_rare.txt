@@ -1,0 +1,28 @@
+Item Class: Staves
+Rarity: Rare
+Sorrow Spell
+Roaring Staff
+--------
+Requires: Level 50, 84 (augmented) Int
+--------
+Sockets: S S 
+--------
+Item Level: 49
+--------
+30% increased Spell Damage (rune)
++1 to Level of all Spell Skills (rune)
+--------
+Grants Skill: Level 12 Unleash
+--------
+{ Prefix Modifier "Occultist's" (Tier: 4) — Damage, Caster }
+131(129-148)% increased Spell Damage
+{ Prefix Modifier "Cobalt" (Tier: 10) — Mana }
++34(29-48) to maximum Mana
+{ Prefix Modifier "Cauterising" (Tier: 5) — Damage, Elemental, Fire }
+113(109-128)% increased Fire Damage
+{ Suffix Modifier "of Cinders" (Tier: 4) — Elemental, Fire, Caster, Gem }
++2 to Level of all Fire Spell Skills
+{ Suffix Modifier "of Ire" (Tier: 6) — Caster, Critical }
+21(15-21)% increased Critical Spell Damage Bonus
+{ Suffix Modifier "of the Augur" (Tier: 5) — Attribute }
++17(17-20) to Intelligence

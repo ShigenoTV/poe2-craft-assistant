@@ -1,0 +1,27 @@
+Item Class: Gloves
+Rarity: Rare
+Blood Fingers
+Ornate Cuffs
+--------
+Quality: +20% (augmented)
+Armour: 98 (augmented)
+Energy Shield: 28 (augmented)
+--------
+Requires: Level 59, 39 (augmented) Str, 39 (augmented) Int
+--------
+Sockets: S 
+--------
+Item Level: 78
+--------
+{ Prefix Modifier "Athlete's" (Tier: 1) — Life }
++136(120-149) to maximum Life
+{ Prefix Modifier "Focused" (Tier: 7) — Attack }
++76(61-84) to Accuracy Rating
+{ Prefix Modifier "Humming" (Tier: 9) — Damage, Elemental, Lightning, Attack }
+Adds 1 to 4(4-6) Lightning damage to Attacks
+{ Suffix Modifier "of the Kiln" (Tier: 5) — Elemental, Fire, Resistance }
++21(21-25)% to Fire Resistance
+{ Suffix Modifier "of the Narwhal" (Tier: 6) — Elemental, Cold, Resistance }
++20(16-20)% to Cold Resistance
+{ Suffix Modifier "of the Lightning" (Tier: 2) — Elemental, Lightning, Resistance }
++36(36-40)% to Lightning Resistance

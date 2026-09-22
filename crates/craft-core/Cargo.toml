@@ -1,0 +1,9 @@
+[package]
+name = "craft-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+rand.workspace = true
+rayon.workspace = true
