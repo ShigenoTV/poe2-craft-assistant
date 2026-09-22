@@ -68,7 +68,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEIzQzVDRTVCQUU3MzA5MzIKUldReUNYT3VXODdGcy8rS1ZjTitFRk5pQ0ZreWlkMENCaHkrK2RDSlpheFJiWW1jM1QzTVBzQW4K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQwNjAzMjkwOTU4MTREQ0UKUldUT1RZR1ZrREpnUUE5TTZ6OVViRVJrTFRDZG1vSTRQUzhCWnYzL2lFM3g5bVk3OUo3UjJPWjAK",
       "endpoints": [
         "https://github.com/ShigenoTV/poe2-craft-assistant/releases/latest/download/latest.json"
       ],
