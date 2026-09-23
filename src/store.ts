@@ -56,18 +56,29 @@ export const useStore = create<Store>((set, get) => ({
   ready: false,
   bootError: null,
   boot: async () => {
-    try {
-      const [info, actions, prices, settings] = await Promise.all([api.datasetInfo(), api.listActions(), api.getPrices(), api.getSettings()]);
-      const baseId = info.bases[0]?.id ?? "";
-      set({ info, actions, prices, baseId, ilvl: settings.defaultIlvl, enabled: actions.filter((a) => a.defaultEnabled).map((a) => a.id) });
-      if (baseId) await get().ensurePool(baseId);
-      set({ ready: true });
-      void api.appVersion().then((version) => set({ version }));
-      void listen("prices-updated", () => void get().reloadPrices());
-      if (settings.checkUpdatesOnStart) void get().checkUpdate(false);
-    } catch (e) {
-      set({ bootError: String(e), ready: true });
+    // Juste après le lancement, la fenêtre peut commencer à s'afficher avant que Tauri ait fini
+    // d'enregistrer son état interne côté Rust (course au démarrage, plus probable sur une machine
+    // lente ou un tout premier lancement) : quelques tentatives espacées suffisent à passer ce cap,
+    // sans laisser l'utilisateur bloqué sur une erreur qui se serait résolue une seconde plus tard.
+    const delays = [150, 300, 600, 1200, 2400];
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
+      try {
+        const [info, actions, prices, settings] = await Promise.all([api.datasetInfo(), api.listActions(), api.getPrices(), api.getSettings()]);
+        const baseId = info.bases[0]?.id ?? "";
+        set({ info, actions, prices, baseId, ilvl: settings.defaultIlvl, enabled: actions.filter((a) => a.defaultEnabled).map((a) => a.id) });
+        if (baseId) await get().ensurePool(baseId);
+        set({ ready: true });
+        void api.appVersion().then((version) => set({ version }));
+        void listen("prices-updated", () => void get().reloadPrices());
+        if (settings.checkUpdatesOnStart) void get().checkUpdate(false);
+        return;
+      } catch (e) {
+        lastError = e;
+        if (attempt < delays.length) await new Promise((r) => setTimeout(r, delays[attempt]));
+      }
     }
+    set({ bootError: String(lastError), ready: true });
   },
   ensurePool: async (baseId) => {
     const have = get().pools[baseId];

@@ -68,7 +68,15 @@ l'atteindre — impossible depuis l'environnement de développement sandboxé), 
 `tools/import_repoe.mjs` pour produire `data/sample/dataset.json`. Vérifie ensuite que l'application
 fonctionne toujours (`npm run tauri dev`) avant de commiter et publier une nouvelle version.
 
-État au 22/09/2026 (version 4.5.5.2 du jeu) : 53 bases, 1655 affixes, 177 groupes d'exclusion.
+État au 22/09/2026 : 53 bases, 1655 affixes, 177 groupes d'exclusion. Deux numéros de version coexistent et
+ne se correspondent pas terme à terme, à ne pas confondre :
+- **version RePoE** (celle qui compte pour savoir si les données sont à jour) : affichée dans le titre de
+  https://repoe-fork.github.io/poe2/ (« RePoE - PoE2 version X.Y.Z.W ») — au moment de la génération de ce
+  dataset : `4.5.5.2`. Probablement un numéro de build interne du jeu, pas le nom de patch public.
+- **nom de patch public du jeu** (communication marketing GGG) : `0.5.5`, « The Forbidden Rites ».
+
+`update-dataset.bat` ne capture aucun des deux automatiquement dans le fichier généré — seulement la date.
+Pour savoir si tes données sont à jour, compare le numéro RePoE affiché sur le site au moment de l'import.
 
 Ce que fait l'import, et pourquoi (voir aussi les commentaires en tête de `tools/import_repoe.mjs`) :
 - Mods retenus : `domain == "item"`, `generation_type` préfixe ou suffixe, hors mods réservés aux Essences.
