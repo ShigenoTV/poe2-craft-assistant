@@ -124,9 +124,12 @@ mod tests {
     #[test]
     fn every_priced_action_of_the_sample_dataset_has_a_source() {
         let ds = crate::Dataset::embedded();
-        // "base_*" et "essence_*" : prix estimés à la main (poe.ninja ne suit pas encore les Essences
-        // dans notre import), documenté dans meta.notice — exception volontaire, pas un oubli.
-        for key in ds.prices.keys().filter(|k| !k.starts_with("base_") && !k.starts_with("essence_")) {
+        // "base_*", "essence_*", "desecrate_*" et les Omens de Désécration : prix estimés à la main
+        // (poe.ninja ne suit pas encore ces mécaniques dans notre import), documenté dans meta.notice —
+        // exception volontaire, pas un oubli.
+        let manual: std::collections::HashSet<&str> =
+            ["omen_sovereign", "omen_liege", "omen_blackblooded", "omen_sinistral_necromancy", "omen_dextral_necromancy"].into_iter().collect();
+        for key in ds.prices.keys().filter(|k| !k.starts_with("base_") && !k.starts_with("essence_") && !k.starts_with("desecrate_") && !manual.contains(k.as_str())) {
             assert!(ds.price_sources.contains_key(key), "pas de source poe.ninja pour « {key} »");
         }
     }

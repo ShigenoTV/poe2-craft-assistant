@@ -4,7 +4,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 fn aff(id: String, group: u16, slot: Slot, tier: u8, w: u32) -> Affix {
-    Affix { id: id.clone(), name: id.clone(), family: id, text: String::new(), group, slot, tier, req_ilvl: 1, weight: w, tags: 0 }
+    Affix { id: id.clone(), name: id.clone(), family: id, text: String::new(), group, slot, tier, req_ilvl: 1, weight: w, tags: 0, desecrated: false }
 }
 
 /// Pool synthétique : 2 groupes voulus (1 préfixe, 1 suffixe) avec T1/T2, et beaucoup de groupes « inutiles »
@@ -28,7 +28,7 @@ fn cur(id: &str, kind: CurrencyKind, cost: f64) -> Action {
         id: id.into(),
         label: id.into(),
         cost,
-        kind: ActionKind::Currency(Currency { id: id.into(), label: id.into(), kind, min_mod_level: 0, add_slot: None, remove_slot: None, target: None, unit_cost: cost }),
+        kind: ActionKind::Currency(Currency { id: id.into(), label: id.into(), kind, min_mod_level: 0, add_slot: None, remove_slot: None, target: None, require_tag: None, unit_cost: cost }),
     }
 }
 

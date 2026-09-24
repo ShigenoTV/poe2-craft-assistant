@@ -15,11 +15,13 @@ pub struct MacroState {
     pub frac: u8,
     pub bad_p: u8,
     pub bad_s: u8,
+    /// un mod Désécré est déjà présent (un objet ne peut être désécré qu'une fois)
+    pub desecrated: bool,
 }
 
 impl MacroState {
     pub fn empty(rarity: Rarity) -> Self {
-        Self { rarity, held: 0, blocked: 0, frac: 0, bad_p: 0, bad_s: 0 }
+        Self { rarity, held: 0, blocked: 0, frac: 0, bad_p: 0, bad_s: 0, desecrated: false }
     }
     pub fn key(&self) -> String {
         let r = match self.rarity {
@@ -27,7 +29,7 @@ impl MacroState {
             Rarity::Magic => "m",
             Rarity::Rare => "r",
         };
-        format!("{r}:h{:06b}:b{:06b}:f{}:p{}:s{}", self.held, self.blocked, self.frac, self.bad_p, self.bad_s)
+        format!("{r}:h{:06b}:b{:06b}:f{}:p{}:s{}:d{}", self.held, self.blocked, self.frac, self.bad_p, self.bad_s, self.desecrated as u8)
     }
     pub fn total(&self) -> u32 {
         self.held.count_ones() + self.blocked.count_ones() + self.bad_p as u32 + self.bad_s as u32
@@ -39,6 +41,9 @@ impl MacroState {
 pub fn project(goal: &Goal, pool: &AffixPool, item: &ItemState) -> Option<MacroState> {
     let mut s = MacroState::empty(item.rarity);
     for m in item.mods() {
+        if pool.affixes[m.idx as usize].desecrated {
+            s.desecrated = true;
+        }
         match goal.classify(pool, m.idx) {
             Class::Wanted(k) => {
                 s.held |= 1 << k;

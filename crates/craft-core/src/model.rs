@@ -43,6 +43,11 @@ pub struct Affix {
     pub req_ilvl: u8,  // niveau de modificateur (ilvl requis)
     pub weight: u32,   // poids de spawn résolu pour CETTE base
     pub tags: u64,     // bitmask de tags
+    /// Domaine « desecrated » : jamais tirable par une monnaie normale (Transmute, Chaos, Exalt, ...),
+    /// uniquement par `CurrencyKind::Desecrate`. Empêche par construction le bug qu'on avait repéré :
+    /// laisser ces mods fuiter dans le pool normal fausserait silencieusement toutes les probabilités.
+    #[serde(default)]
+    pub desecrated: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -109,6 +114,10 @@ pub enum CurrencyKind {
     /// pas un tirage pondéré. Retenu uniquement si l'affixe cible respecte la place de slot disponible
     /// et n'entre pas en conflit de groupe avec un mod déjà présent (sinon `NotApplicable`).
     Essence,
+    /// Désécration : ajoute un mod « Désécré » non révélé (retire un mod au hasard si l'objet est plein
+    /// à 6). Tiré UNIQUEMENT dans le sous-pool `desecrated` (jamais le pool normal). Un objet portant
+    /// déjà un mod Désécré ne peut pas l'être une deuxième fois.
+    Desecrate,
 }
 
 /// Une « action de craft » : monnaie (éventuellement Greater/Perfect) + Omen éventuel.
@@ -131,6 +140,10 @@ pub struct Currency {
     /// pour toutes les autres monnaies et ignoré si `kind != Essence`.
     #[serde(default)]
     pub target: Option<AffixIdx>,
+    /// Omen « the Sovereign/Liege/Blackblooded » : restreint la Désécration à un sous-pool (Ulaman /
+    /// Amanamu / Kurgal). Ignoré pour tout autre `CurrencyKind`.
+    #[serde(default)]
+    pub require_tag: Option<u64>,
     pub unit_cost: f64,
 }
 
@@ -138,6 +151,11 @@ pub struct Currency {
 pub struct DrawFilter {
     pub min_mod_level: u8,
     pub force_slot: Option<Slot>,
+    /// `false` (monnaies normales) : exclut les affixes `desecrated`. `true` (Désécration) : ne tire
+    /// QUE parmi eux — jamais les deux pools mélangées.
+    pub require_desecrated: bool,
+    /// Omen « the Sovereign/Liege/Blackblooded » : restreint le tirage à un sous-pool via bitmask de tag.
+    pub require_tag: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -154,6 +172,10 @@ pub struct AffixPool {
 }
 
 impl AffixPool {
+    pub fn has_desecrated(&self, item: &ItemState) -> bool {
+        item.mods().iter().any(|m| self.affixes[m.idx as usize].desecrated)
+    }
+
     pub fn count(&self, item: &ItemState, slot: Slot) -> u8 {
         item.mods().iter().filter(|m| self.affixes[m.idx as usize].slot == slot).count() as u8
     }
@@ -171,8 +193,10 @@ impl AffixPool {
 
         let eligible = |a: &Affix| -> bool {
             a.weight > 0
+                && a.desecrated == f.require_desecrated
                 && a.req_ilvl <= item.ilvl
                 && a.req_ilvl >= f.min_mod_level
+                && f.require_tag.map_or(true, |t| a.tags & t != 0)
                 && match a.slot {
                     Slot::Prefix => open_p,
                     Slot::Suffix => open_s,
@@ -224,7 +248,7 @@ impl AffixPool {
 
     pub fn apply(&self, item: &mut ItemState, c: &Currency, rng: &mut impl Rng) -> Outcome {
         use CurrencyKind::*;
-        let f = DrawFilter { min_mod_level: c.min_mod_level, force_slot: c.add_slot };
+        let f = DrawFilter { min_mod_level: c.min_mod_level, force_slot: c.add_slot, ..Default::default() };
         let n = item.len();
         match c.kind {
             Transmute if item.rarity == Rarity::Normal => {
@@ -273,6 +297,16 @@ impl AffixPool {
                 }
                 item.rarity = Rarity::Rare;
                 item.push(Mod { idx: target, fractured: false });
+            }
+            Desecrate if item.rarity == Rarity::Rare && !self.has_desecrated(item) => {
+                if n == 6 && !self.remove_random(item, None, rng) {
+                    return Outcome::NotApplicable;
+                }
+                let f = DrawFilter { min_mod_level: 0, force_slot: c.add_slot, require_desecrated: true, require_tag: c.require_tag };
+                match self.draw(item, &f, rng) {
+                    Some(idx) => item.push(Mod { idx, fractured: false }),
+                    None => return Outcome::NotApplicable,
+                }
             }
             _ => return Outcome::NotApplicable,
         }

@@ -80,6 +80,9 @@ pub struct Model {
     other_pos: std::collections::HashMap<GroupId, usize>,
     surv_p: Vec<Vec<f64>>,
     surv_s: Vec<Vec<f64>>,
+    desec_other_pos: std::collections::HashMap<GroupId, usize>,
+    desec_surv_p: Vec<Vec<f64>>,
+    desec_surv_s: Vec<Vec<f64>>,
 }
 
 fn merge(v: &mut Vec<(MacroState, f64)>) {
@@ -103,21 +106,30 @@ impl Model {
         }
         let goal_mask = ((1u16 << goal.len()) - 1) as u8;
 
-        // groupes « inutiles » et leur poids plein (tous tiers éligibles à l'ilvl) : loi des mauvais affixes déjà posés
-        let mut other_pos = std::collections::HashMap::new();
-        let (mut gp, mut gs): (Vec<f64>, Vec<f64>) = (vec![], vec![]);
-        for a in pool.affixes.iter().filter(|a| a.weight > 0 && a.req_ilvl <= ilvl) {
-            if goal.group_index(a.group).is_some() {
-                continue;
+        // groupes « inutiles » et leur poids plein (tous tiers éligibles à l'ilvl) : loi des mauvais affixes déjà posés.
+        // Calculé SÉPARÉMENT pour le pool normal et le pool de Désécration : ce sont deux réservoirs de
+        // tirage disjoints (une monnaie normale ne peut jamais piocher un mod `desecrated`, et
+        // réciproquement), donc leurs tables de poids ne doivent jamais se mélanger sous peine de fausser
+        // l'approximation de champ moyen des DEUX côtés.
+        fn other_tables(pool: &AffixPool, goal: &Goal, ilvl: u8, desecrated: bool) -> (std::collections::HashMap<GroupId, usize>, Vec<Vec<f64>>, Vec<Vec<f64>>) {
+            let mut other_pos = std::collections::HashMap::new();
+            let (mut gp, mut gs): (Vec<f64>, Vec<f64>) = (vec![], vec![]);
+            for a in pool.affixes.iter().filter(|a| a.weight > 0 && a.req_ilvl <= ilvl && a.desecrated == desecrated) {
+                if goal.group_index(a.group).is_some() {
+                    continue;
+                }
+                let v = if a.slot == Slot::Prefix { &mut gp } else { &mut gs };
+                let pos = *other_pos.entry(a.group).or_insert_with(|| {
+                    v.push(0.0);
+                    v.len() - 1
+                });
+                v[pos] += a.weight as f64;
             }
-            let v = if a.slot == Slot::Prefix { &mut gp } else { &mut gs };
-            let pos = *other_pos.entry(a.group).or_insert_with(|| {
-                v.push(0.0);
-                v.len() - 1
-            });
-            v[pos] += a.weight as f64;
+            let (surv_p, surv_s) = (survival(&gp), survival(&gs));
+            (other_pos, surv_p, surv_s)
         }
-        let (surv_p, surv_s) = (survival(&gp), survival(&gs));
+        let (other_pos, surv_p, surv_s) = other_tables(&pool, &goal, ilvl, false);
+        let (desec_other_pos, desec_surv_p, desec_surv_s) = other_tables(&pool, &goal, ilvl, true);
 
         let mut m = Self {
             pool,
@@ -133,6 +145,9 @@ impl Model {
             other_pos,
             surv_p,
             surv_s,
+            desec_other_pos,
+            desec_surv_p,
+            desec_surv_s,
         };
         m.weights = m
             .actions
@@ -156,11 +171,23 @@ impl Model {
     }
 
     fn add_weights(&self, c: &Currency) -> AddW {
+        let desecrate = c.kind == CurrencyKind::Desecrate;
+        let (other_pos, surv_p, surv_s) = if desecrate {
+            (&self.desec_other_pos, &self.desec_surv_p, &self.desec_surv_s)
+        } else {
+            (&self.other_pos, &self.surv_p, &self.surv_s)
+        };
         let mut w = AddW::default();
-        let mut gp = vec![0.0f64; self.surv_p.first().map_or(0, |r| r.len())];
-        let mut gs = vec![0.0f64; self.surv_s.first().map_or(0, |r| r.len())];
+        let mut gp = vec![0.0f64; surv_p.first().map_or(0, |r| r.len())];
+        let mut gs = vec![0.0f64; surv_s.first().map_or(0, |r| r.len())];
         for (i, a) in self.pool.affixes.iter().enumerate() {
-            if a.weight == 0 || a.req_ilvl > self.ilvl || a.req_ilvl < c.min_mod_level || c.add_slot.map_or(false, |s| s != a.slot) {
+            if a.weight == 0
+                || a.req_ilvl > self.ilvl
+                || a.req_ilvl < c.min_mod_level
+                || c.add_slot.map_or(false, |s| s != a.slot)
+                || a.desecrated != desecrate
+                || c.require_tag.is_some_and(|t| a.tags & t == 0)
+            {
                 continue;
             }
             let wt = a.weight as f64;
@@ -168,7 +195,7 @@ impl Model {
                 Class::Wanted(k) => w.good[k] += wt,
                 Class::Blocked(k) => w.blocked[k] += wt,
                 Class::Other => {
-                    let pos = self.other_pos[&a.group];
+                    let pos = other_pos[&a.group];
                     match a.slot {
                         Slot::Prefix => gp[pos] += wt,
                         Slot::Suffix => gs[pos] += wt,
@@ -177,8 +204,8 @@ impl Model {
             }
         }
         for k in 0..4 {
-            w.other_p[k] = gp.iter().enumerate().map(|(j, g)| g * self.surv_p[k][j]).sum();
-            w.other_s[k] = gs.iter().enumerate().map(|(j, g)| g * self.surv_s[k][j]).sum();
+            w.other_p[k] = gp.iter().enumerate().map(|(j, g)| g * surv_p[k][j]).sum();
+            w.other_s[k] = gs.iter().enumerate().map(|(j, g)| g * surv_s[k][j]).sum();
         }
         w
     }
@@ -374,6 +401,22 @@ impl Model {
                             }
                             _ => {} // groupe voulu déjà occupé (held ou blocked) : Essence inapplicable
                         }
+                    }
+                }
+            }
+            Desecrate if s.rarity == Rarity::Rare && !s.desecrated => {
+                // ajoute un mod « Désécré » non révélé, tiré dans le pool restreint (Ulaman/Amanamu/
+                // Kurgal, éventuellement un seul via l'Omen the Sovereign/Liege/Blackblooded) ; retire
+                // un mod au hasard d'abord SEULEMENT si l'objet est déjà plein à 6.
+                let mut base: Vec<(MacroState, f64)> = vec![(s, 1.0)];
+                if n == 6 {
+                    let mut rm = Vec::new();
+                    base = if self.remove_outcomes(s, None, &mut rm) { rm } else { Vec::new() };
+                }
+                for (s1, p1) in base {
+                    let mut ad = Vec::new();
+                    if self.add_outcomes(s1, w, &mut ad) {
+                        v.extend(ad.into_iter().map(|(t, q)| (MacroState { desecrated: true, ..t }, p1 * q)));
                     }
                 }
             }

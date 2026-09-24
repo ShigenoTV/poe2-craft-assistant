@@ -45,6 +45,10 @@ pub struct ModDef {
     pub tags: Vec<String>,
     /// Convention PoE : le PREMIER `tag` présent sur la base fixe le poids ("default" en dernier).
     pub spawn: Vec<SpawnWeight>,
+    /// Domaine `desecrated` du jeu : jamais tirable par une monnaie normale, uniquement par
+    /// `CurrencyKind::Desecrate` (voir `docs/DATA.md`).
+    #[serde(default)]
+    pub desecrated: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -92,6 +96,10 @@ pub struct OmenDef {
     pub remove_slot: Option<Slot>,
     pub applies_to: Vec<CurrencyKind>,
     pub price_id: String,
+    /// Omen « the Sovereign/Liege/Blackblooded » : nom d'un tag (résolu via `Dataset.tags`) qui
+    /// restreint la Désécration à un sous-pool. Ignoré pour tout autre `CurrencyKind`.
+    #[serde(default)]
+    pub require_tag: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -222,6 +230,7 @@ impl Dataset {
                     req_ilvl: m.level,
                     weight: *w,
                     tags: m.tags.iter().filter_map(|t| tag_bit.get(t.as_str())).fold(0, |a, b| a | b),
+                    desecrated: m.desecrated,
                 });
                 tiers.push(TierInfo { tier: ti as u8 + 1, level: m.level, weight: *w, name: m.name.clone(), text: m.text.clone(), affix_idx: idx });
             }
@@ -241,6 +250,7 @@ impl Dataset {
     /// Liste des actions de craft (monnaies × Omens compatibles) avec coûts issus de `prices`.
     pub fn actions(&self, prices: &BTreeMap<String, f64>, enabled: Option<&HashSet<String>>) -> Result<Vec<Currency>, String> {
         let price = |id: &str| prices.get(id).copied().ok_or_else(|| format!("prix manquant : {id}"));
+        let tag_bit: HashMap<&str, u64> = self.tags.iter().enumerate().map(|(i, t)| (t.as_str(), 1u64 << i)).collect();
         let mut out = Vec::new();
         for c in &self.currencies {
             let base_price = price(&c.price_id)?;
@@ -253,6 +263,7 @@ impl Dataset {
                     add_slot: None,
                     remove_slot: None,
                     target: None,
+                    require_tag: None,
                     unit_cost: base_price,
                 });
             }
@@ -269,6 +280,7 @@ impl Dataset {
                     add_slot: o.add_slot,
                     remove_slot: o.remove_slot,
                     target: None,
+                    require_tag: o.require_tag.as_deref().and_then(|t| tag_bit.get(t)).copied(),
                     unit_cost: base_price + price(&o.price_id)?,
                 });
             }
@@ -302,6 +314,7 @@ impl Dataset {
                 add_slot: None,
                 remove_slot: None,
                 target: Some(idx as AffixIdx),
+                require_tag: None,
                 unit_cost: price(&e.price_id)?,
             });
         }

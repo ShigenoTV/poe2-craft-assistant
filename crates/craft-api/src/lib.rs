@@ -502,4 +502,42 @@ mod tests {
         assert!(plan.solver.converged, "le solveur doit converger sur ce cas simple");
         assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0, "coût attendu fini et positif, obtenu {}", plan.expected_cost);
     }
+
+    /// Bout en bout : le solveur doit pouvoir désécrer (Alchemy → Preserved Rib) pour atteindre un
+    /// objectif porté par un mod du domaine `desecrated`, sans que ce mod ne soit jamais accessible
+    /// via les monnaies normales (Alchemy, Exalt...) sur le même objet.
+    #[test]
+    fn solver_uses_desecration_to_reach_a_desecrated_only_target() {
+        let ds = Dataset::embedded();
+        let prices = ds.prices.clone();
+        let enabled: HashSet<String> = ["alchemy", "desecrate_rib"].iter().map(|s| s.to_string()).collect();
+        let req = PlanRequest {
+            base_id: "shield_str".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: "MaximumResistances".into(), max_tier: 1 }],
+            enabled_actions: Some(enabled.into_iter().collect()),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+        };
+        let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
+        assert!(
+            ctx.model.actions.iter().any(|a| matches!(&a.kind, ActionKind::Currency(c) if c.kind == CurrencyKind::Desecrate)),
+            "la Désécration doit apparaître dans les actions du modèle"
+        );
+        // note : « MaximumResistances » est aussi le groupe d'un mod normal (MaximumElementalResistance) —
+        // collision légitime du jeu, pas un bug : les deux s'excluent mutuellement en vrai. On vérifie
+        // juste qu'au moins un tier du groupe est bien un mod `desecrated` (celui qu'on vise).
+        let grp = ctx.bp.groups.iter().find(|g| g.key == "MaximumResistances").expect("le groupe cible doit exister dans le pool");
+        assert!(
+            grp.tiers.iter().any(|t| ctx.bp.pool.affixes[t.affix_idx as usize].desecrated),
+            "au moins un tier de MaximumResistances doit être un mod desecrated"
+        );
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged, "le solveur doit converger sur ce cas simple");
+        assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0, "coût attendu fini et positif, obtenu {}", plan.expected_cost);
+    }
 }
