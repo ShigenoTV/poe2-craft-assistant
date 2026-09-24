@@ -62,6 +62,26 @@ fn yes() -> bool {
     true
 }
 
+/// Une cible d'Essence pour une catégorie d'objet donnée : le premier `item_tags` qui matche au
+/// moins un tag de la base (même règle que le poids de spawn des mods) fixe le mod garanti.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EssenceTarget {
+    pub item_tags: Vec<String>,
+    /// identifiant d'un `ModDef` déjà présent dans `mods` (l'Essence garantit CE mod précis, au tier
+    /// que sa valeur réelle représente — pas un nouvel affixe inventé).
+    pub mod_id: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EssenceDef {
+    pub id: String,
+    pub label: String,
+    pub price_id: String,
+    #[serde(default = "yes")]
+    pub default_enabled: bool,
+    pub targets: Vec<EssenceTarget>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OmenDef {
     pub id: String,
@@ -82,6 +102,8 @@ pub struct Dataset {
     pub bases: Vec<BaseItem>,
     pub mods: Vec<ModDef>,
     pub currencies: Vec<CurrencyDef>,
+    #[serde(default)]
+    pub essences: Vec<EssenceDef>,
     #[serde(default)]
     pub omens: Vec<OmenDef>,
     #[serde(default)]
@@ -146,6 +168,14 @@ impl Dataset {
         }
         if self.bases.is_empty() || self.mods.is_empty() {
             return Err("dataset vide".into());
+        }
+        let mod_ids: HashSet<&str> = self.mods.iter().map(|m| m.id.as_str()).collect();
+        for e in &self.essences {
+            for t in &e.targets {
+                if !mod_ids.contains(t.mod_id.as_str()) {
+                    return Err(format!("essence « {} » : mod_id inconnu « {} »", e.id, t.mod_id));
+                }
+            }
         }
         Ok(())
     }
@@ -222,6 +252,7 @@ impl Dataset {
                     min_mod_level: c.min_mod_level,
                     add_slot: None,
                     remove_slot: None,
+                    target: None,
                     unit_cost: base_price,
                 });
             }
@@ -237,9 +268,42 @@ impl Dataset {
                     min_mod_level: c.min_mod_level,
                     add_slot: o.add_slot,
                     remove_slot: o.remove_slot,
+                    target: None,
                     unit_cost: base_price + price(&o.price_id)?,
                 });
             }
+        }
+        Ok(out)
+    }
+
+    /// Actions Essence pour une base donnée : résout, pour chaque Essence, le premier `target` dont
+    /// `item_tags` recoupe les tags de la base, puis retrouve l'affixe garanti dans le pool DÉJÀ
+    /// CONSTRUIT de cette base (donc jamais dans la liste base-indépendante d'`actions()`).
+    /// Une Essence sans cible correspondante, ou dont le mod garanti n'est pas dans le pool (poids nul
+    /// pour cette base), est silencieusement omise plutôt que de fausser le craft.
+    pub fn essence_currencies(&self, bp: &BasePool, prices: &BTreeMap<String, f64>, enabled: Option<&HashSet<String>>) -> Result<Vec<Currency>, String> {
+        let price = |id: &str| prices.get(id).copied().ok_or_else(|| format!("prix manquant : {id}"));
+        let mut out = Vec::new();
+        for e in &self.essences {
+            if !enabled.map_or(e.default_enabled, |en| en.contains(&e.id)) {
+                continue;
+            }
+            let Some(t) = e.targets.iter().find(|t| t.item_tags.iter().any(|tag| bp.base.tags.iter().any(|bt| bt == tag))) else {
+                continue;
+            };
+            let Some(idx) = bp.pool.affixes.iter().position(|a| a.id == t.mod_id) else {
+                continue;
+            };
+            out.push(Currency {
+                id: e.id.clone(),
+                label: e.label.clone(),
+                kind: CurrencyKind::Essence,
+                min_mod_level: 0,
+                add_slot: None,
+                remove_slot: None,
+                target: Some(idx as AffixIdx),
+                unit_cost: price(&e.price_id)?,
+            });
         }
         Ok(out)
     }
@@ -287,5 +351,21 @@ mod tests {
         assert_eq!(combo.add_slot, Some(Slot::Suffix));
         assert!((combo.unit_cost - (ds.prices["exalt_perfect"] + ds.prices["omen_dextral_exaltation"])).abs() < 1e-9);
         assert!(acts.iter().any(|a| a.id == "annul+omen_sinistral_annulment" && a.remove_slot == Some(Slot::Prefix)));
+    }
+
+    #[test]
+    fn essence_currencies_resolves_the_right_target_by_base_tags() {
+        let ds = Dataset::embedded();
+        let sword = ds.build_pool("sword_1h").unwrap();
+        let acts = ds.essence_currencies(&sword, &ds.prices, None).unwrap();
+        let e = acts.iter().find(|c| c.id == "essence_abrasion").expect("essence_abrasion doit s'appliquer à une épée une main (tag one_hand_weapon)");
+        assert_eq!(e.kind, CurrencyKind::Essence);
+        let idx = e.target.expect("une Essence résolue doit avoir une cible");
+        assert_eq!(sword.pool.affixes[idx as usize].id, "LocalAddedPhysicalDamage5");
+
+        // une baguette (arme de lanceur de sort, pas de dégâts physiques plats) ne doit RIEN résoudre
+        let wand = ds.build_pool("wand").unwrap();
+        let wand_acts = ds.essence_currencies(&wand, &ds.prices, None).unwrap();
+        assert!(wand_acts.iter().all(|c| c.id != "essence_abrasion"), "l'Essence d'Abrasion ne doit pas s'appliquer à une baguette");
     }
 }

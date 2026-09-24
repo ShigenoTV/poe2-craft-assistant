@@ -124,7 +124,9 @@ mod tests {
     #[test]
     fn every_priced_action_of_the_sample_dataset_has_a_source() {
         let ds = crate::Dataset::embedded();
-        for key in ds.prices.keys().filter(|k| !k.starts_with("base_")) {
+        // "base_*" et "essence_*" : prix estimés à la main (poe.ninja ne suit pas encore les Essences
+        // dans notre import), documenté dans meta.notice — exception volontaire, pas un oubli.
+        for key in ds.prices.keys().filter(|k| !k.starts_with("base_") && !k.starts_with("essence_")) {
             assert!(ds.price_sources.contains_key(key), "pas de source poe.ninja pour « {key} »");
         }
     }

@@ -105,6 +105,10 @@ pub enum CurrencyKind {
     Chaos,
     Annul,
     Fracture,
+    /// Essence : transforme un objet Magique en Rare en ajoutant un affixe GARANTI (`Currency.target`),
+    /// pas un tirage pondéré. Retenu uniquement si l'affixe cible respecte la place de slot disponible
+    /// et n'entre pas en conflit de groupe avec un mod déjà présent (sinon `NotApplicable`).
+    Essence,
 }
 
 /// Une « action de craft » : monnaie (éventuellement Greater/Perfect) + Omen éventuel.
@@ -123,6 +127,10 @@ pub struct Currency {
     /// Omen « Sinistral/Dextral Annulment/Erasure » : restreint le retrait à un slot.
     #[serde(default)]
     pub remove_slot: Option<Slot>,
+    /// Affixe garanti pour `CurrencyKind::Essence` — résolu par base (dépend du pool), donc absent
+    /// pour toutes les autres monnaies et ignoré si `kind != Essence`.
+    #[serde(default)]
+    pub target: Option<AffixIdx>,
     pub unit_cost: f64,
 }
 
@@ -250,6 +258,21 @@ impl AffixPool {
             Fracture if item.rarity == Rarity::Rare && n >= 4 && !item.has_fractured() => {
                 let pos = rng.gen_range(0..n);
                 item.set_fractured(pos);
+            }
+            Essence if item.rarity == Rarity::Magic => {
+                let Some(target) = c.target else { return Outcome::NotApplicable };
+                let a = &self.affixes[target as usize];
+                let (cap_p, cap_s) = Rarity::Rare.cap();
+                let room = match a.slot {
+                    Slot::Prefix => self.count(item, Slot::Prefix) < cap_p,
+                    Slot::Suffix => self.count(item, Slot::Suffix) < cap_s,
+                };
+                let held: Vec<GroupId> = item.mods().iter().map(|m| self.affixes[m.idx as usize].group).collect();
+                if !room || held.contains(&a.group) {
+                    return Outcome::NotApplicable;
+                }
+                item.rarity = Rarity::Rare;
+                item.push(Mod { idx: target, fractured: false });
             }
             _ => return Outcome::NotApplicable,
         }

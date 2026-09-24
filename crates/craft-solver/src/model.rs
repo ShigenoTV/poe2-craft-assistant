@@ -69,6 +69,9 @@ pub struct Model {
     pub ilvl: u8,
     pub actions: Vec<Action>,
     weights: Vec<Option<AddW>>,
+    /// Pour les actions `Essence` : (slot, classification) de l'affixe garanti, précalculé une fois
+    /// (ne dépend pas de l'état, contrairement aux monnaies à tirage pondéré).
+    essence_class: Vec<Option<(Slot, Class)>>,
     pub restart: MacroState,
     pub abandon_extra: f64,
     pub goal_mask: u8,
@@ -122,6 +125,7 @@ impl Model {
             ilvl,
             actions,
             weights: vec![],
+            essence_class: vec![],
             restart: MacroState::empty(Rarity::Normal),
             abandon_extra: (base_cost - salvage).max(0.0),
             goal_mask,
@@ -136,6 +140,16 @@ impl Model {
             .map(|a| match &a.kind {
                 ActionKind::Currency(c) => Some(m.add_weights(c)),
                 ActionKind::Abandon => None,
+            })
+            .collect();
+        m.essence_class = m
+            .actions
+            .iter()
+            .map(|a| match &a.kind {
+                ActionKind::Currency(c) if c.kind == CurrencyKind::Essence => {
+                    c.target.map(|t| (m.pool.affixes[t as usize].slot, m.goal.classify(&m.pool, t)))
+                }
+                _ => None,
             })
             .collect();
         m
@@ -333,6 +347,34 @@ impl Model {
                 let dead = (s.blocked.count_ones() + s.bad_p as u32 + s.bad_s as u32) as f64 / nf;
                 if dead > 0.0 {
                     out.push(Tr { to: self.restart, p: dead, extra: self.abandon_extra, abandon: true });
+                }
+            }
+            Essence if s.rarity == Rarity::Magic => {
+                if let Some((slot, class)) = self.essence_class[ai] {
+                    let (cap_p, cap_s) = Rarity::Rare.cap();
+                    let (np, ns) = self.counts(&s);
+                    let room = match slot {
+                        Slot::Prefix => np < cap_p,
+                        Slot::Suffix => ns < cap_s,
+                    };
+                    if room {
+                        match class {
+                            Class::Wanted(k) if s.held >> k & 1 == 0 && s.blocked >> k & 1 == 0 => {
+                                v.push((MacroState { rarity: Rarity::Rare, held: s.held | 1 << k, ..s }, 1.0));
+                            }
+                            Class::Blocked(k) if s.held >> k & 1 == 0 && s.blocked >> k & 1 == 0 => {
+                                v.push((MacroState { rarity: Rarity::Rare, blocked: s.blocked | 1 << k, ..s }, 1.0));
+                            }
+                            Class::Other => {
+                                let st = match slot {
+                                    Slot::Prefix => MacroState { rarity: Rarity::Rare, bad_p: s.bad_p + 1, ..s },
+                                    Slot::Suffix => MacroState { rarity: Rarity::Rare, bad_s: s.bad_s + 1, ..s },
+                                };
+                                v.push((st, 1.0));
+                            }
+                            _ => {} // groupe voulu déjà occupé (held ou blocked) : Essence inapplicable
+                        }
+                    }
                 }
             }
             _ => {}

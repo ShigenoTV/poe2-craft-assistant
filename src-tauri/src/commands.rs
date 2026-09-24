@@ -45,7 +45,7 @@ pub fn set_prices(st: St, overrides: BTreeMap<String, f64>) -> Result<(), String
 pub fn sandbox_apply(st: St, base_id: String, item: ItemView, currency_id: String) -> Result<ApplyResult, String> {
     let ds = st.dataset();
     let bp = ds.build_pool(&base_id)?;
-    let cur = find_currency(&ds, &st.prices(), &currency_id)?;
+    let cur = find_currency(&ds, &st.prices(), &bp, &currency_id)?;
     sandbox_apply_impl(&bp, &item, &cur)
 }
 

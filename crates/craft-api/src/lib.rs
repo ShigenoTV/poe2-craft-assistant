@@ -165,10 +165,15 @@ fn resolve_wanted(bp: &BasePool, wanted: &[WantedReq]) -> Result<(Vec<WantedAffi
     Ok((w, items))
 }
 
-/// Retrouve une action (monnaie éventuellement combinée à un Omen) par identifiant.
-pub fn find_currency(ds: &Dataset, prices: &BTreeMap<String, f64>, id: &str) -> Result<Currency, String> {
+/// Retrouve une action (monnaie éventuellement combinée à un Omen, ou Essence) par identifiant.
+/// `bp` est nécessaire pour résoudre une Essence (son affixe garanti dépend du pool de la base) ;
+/// les autres monnaies n'en ont pas besoin.
+pub fn find_currency(ds: &Dataset, prices: &BTreeMap<String, f64>, bp: &BasePool, id: &str) -> Result<Currency, String> {
     let all: HashSet<String> = list_actions(ds, prices)?.into_iter().map(|a| a.id).collect();
-    ds.actions(prices, Some(&all))?.into_iter().find(|c| c.id == id).ok_or_else(|| format!("monnaie inconnue : {id}"))
+    if let Some(c) = ds.actions(prices, Some(&all))?.into_iter().find(|c| c.id == id) {
+        return Ok(c);
+    }
+    ds.essence_currencies(bp, prices, None)?.into_iter().find(|c| c.id == id).ok_or_else(|| format!("monnaie inconnue : {id}"))
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -195,7 +200,7 @@ pub fn run_simulation(
     let bp = ds.build_pool(&req.base_id)?;
     let (wanted, _) = resolve_wanted(&bp, &req.wanted)?;
     let goal = Goal::new(&bp.pool, &wanted)?;
-    let cur = find_currency(ds, prices, &req.currency_id)?;
+    let cur = find_currency(ds, prices, &bp, &req.currency_id)?;
     let mut start = req.start.to_state(&bp.pool)?;
     start.ilvl = req.ilvl;
     let spec = SimSpec { start, currency: cur, goal, max_orbs: req.max_orbs.max(1), base_cost: req.base_cost };
@@ -267,6 +272,7 @@ pub fn build_context(ds: &Dataset, req: &PlanRequest, prices: &BTreeMap<String, 
     let mut actions: Vec<Action> = ds
         .actions(&prices, enabled.as_ref())?
         .into_iter()
+        .chain(ds.essence_currencies(&bp, &prices, enabled.as_ref())?)
         .map(|c| Action { id: c.id.clone(), label: c.label.clone(), cost: c.unit_cost, kind: ActionKind::Currency(c) })
         .collect();
     if actions.is_empty() {
@@ -461,4 +467,39 @@ pub struct PoolView {
 pub fn pool_view(ds: &Dataset, base_id: &str) -> Result<PoolView, String> {
     let bp = ds.build_pool(base_id)?;
     Ok(PoolView { base: BaseView::from(&bp.base), groups: bp.groups, affixes: bp.pool.affixes })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Bout en bout : le solveur doit pouvoir utiliser une Essence (Transmute → Essence garantie)
+    /// pour atteindre un objectif sur son affixe cible, et le coût doit rester fini.
+    #[test]
+    fn solver_uses_an_essence_action_to_reach_its_guaranteed_target() {
+        let ds = Dataset::embedded();
+        let prices = ds.prices.clone();
+        let enabled: HashSet<String> = ["transmute", "essence_abrasion"].iter().map(|s| s.to_string()).collect();
+        let req = PlanRequest {
+            base_id: "sword_1h".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: "PhysicalDamage".into(), max_tier: 5 }],
+            enabled_actions: Some(enabled.into_iter().collect()),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+        };
+        let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
+        assert!(
+            ctx.model.actions.iter().any(|a| matches!(&a.kind, ActionKind::Currency(c) if c.kind == CurrencyKind::Essence)),
+            "l'Essence doit apparaître dans les actions du modèle"
+        );
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged, "le solveur doit converger sur ce cas simple");
+        assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0, "coût attendu fini et positif, obtenu {}", plan.expected_cost);
+    }
 }
