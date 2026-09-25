@@ -48,7 +48,7 @@ const EQUIP_CLASSES = new Set([
   "Amulet", "Ring", "Belt", "Quiver", "Jewel",
   "Claw", "Dagger", "Wand", "One Hand Sword", "One Hand Axe", "One Hand Mace",
   "Bow", "Staff", "Two Hand Sword", "Two Hand Axe", "Two Hand Mace",
-  "Sceptre", "Spear", "Flail", "Warstaff", "Crossbow",
+  "Sceptre", "Spear", "Flail", "Warstaff", "Crossbow", "Talisman", "TrapTool",
 ]);
 const CLASS_TO_ID = {
   Gloves: "gloves", Boots: "boots", "Body Armour": "body_armour", Helmet: "helmet", Shield: "shield",
@@ -56,7 +56,7 @@ const CLASS_TO_ID = {
   Claw: "claw", Dagger: "dagger", Wand: "wand", "One Hand Sword": "sword_1h", "One Hand Axe": "axe_1h",
   "One Hand Mace": "mace_1h", Bow: "bow", Staff: "staff", "Two Hand Sword": "sword_2h", "Two Hand Axe": "axe_2h",
   "Two Hand Mace": "mace_2h", Sceptre: "sceptre", Spear: "spear", Flail: "flail", Warstaff: "warstaff",
-  Crossbow: "crossbow",
+  Crossbow: "crossbow", Talisman: "talisman", TrapTool: "trap",
 };
 
 function importMods(mods) {

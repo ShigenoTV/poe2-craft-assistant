@@ -607,3 +607,70 @@ mod jewel_tests {
         assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0, "coût attendu fini et positif, obtenu {}", plan.expected_cost);
     }
 }
+
+#[cfg(test)]
+mod liquid_emotion_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Bout en bout : Diluted Liquid Ire (Alchemy -> Rare, puis Liquid Ire garanti "increased Armour")
+    /// doit permettre au solveur d'atteindre l'objectif sur un joyau Rubis.
+    #[test]
+    fn solver_uses_a_liquid_emotion_on_a_ruby_jewel() {
+        let ds = Dataset::embedded();
+        let prices = ds.prices.clone();
+        let enabled: HashSet<String> = ["alchemy", "liquid_ire"].iter().map(|s| s.to_string()).collect();
+        let req = PlanRequest {
+            base_id: "jewel_strjewel".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: "IncreasedPhysicalDamageReductionRatingPercent".into(), max_tier: 1 }],
+            enabled_actions: Some(enabled.into_iter().collect()),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+        };
+        let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context sur Rubis");
+        assert!(
+            ctx.model.actions.iter().any(|a| matches!(&a.kind, ActionKind::Currency(c) if c.id == "liquid_ire")),
+            "liquid_ire doit apparaître dans les actions du modèle pour un Rubis"
+        );
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged, "le solveur doit converger");
+        assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0, "coût attendu fini et positif, obtenu {}", plan.expected_cost);
+    }
+}
+
+#[cfg(test)]
+mod weapon_class_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Bout en bout : les bases Talisman et Trap (nouvellement importées) doivent être utilisables.
+    #[test]
+    fn solver_works_on_talisman_and_trap_bases() {
+        let ds = Dataset::embedded();
+        let prices = ds.prices.clone();
+        for base_id in ["talisman", "trap"] {
+            let group = if base_id == "trap" { "Dexterity" } else { "Strength" };
+            let req = PlanRequest {
+                base_id: base_id.into(),
+                ilvl: 82,
+                wanted: vec![WantedReq { group: group.into(), max_tier: 1 }],
+                enabled_actions: None,
+                prices: None,
+                allow_abandon: true,
+                mc_trials: 0,
+                node_cap: 50,
+                seed: 1,
+                prices_label: None,
+            };
+            let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).unwrap_or_else(|e| panic!("build_context sur {base_id} : {e}"));
+            let plan = make_plan(&ctx, |_, _| true).unwrap_or_else(|e| panic!("make_plan sur {base_id} : {e}"));
+            assert!(plan.solver.converged, "le solveur doit converger sur {base_id}");
+            assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0, "coût fini et positif sur {base_id}");
+        }
+    }
+}

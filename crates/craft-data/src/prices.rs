@@ -143,7 +143,7 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        for key in ds.prices.keys().filter(|k| !k.starts_with("base_") && !k.starts_with("essence_") && !k.starts_with("desecrate_") && !manual.contains(k.as_str())) {
+        for key in ds.prices.keys().filter(|k| !k.starts_with("base_") && !k.starts_with("essence_") && !k.starts_with("desecrate_") && !k.starts_with("liquid_") && !manual.contains(k.as_str())) {
             assert!(ds.price_sources.contains_key(key), "pas de source poe.ninja pour « {key} »");
         }
     }
