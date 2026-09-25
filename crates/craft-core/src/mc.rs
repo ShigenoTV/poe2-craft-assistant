@@ -147,7 +147,7 @@ pub(crate) mod tests {
         }
     }
     pub fn cur(kind: CurrencyKind) -> Currency {
-        Currency { id: format!("{kind:?}"), label: format!("{kind:?}"), kind, min_mod_level: 0, add_slot: None, remove_slot: None, target: None, require_tag: None, remove_desecrated_only: false, remove_lowest_level: false, unit_cost: 1.0 }
+        Currency { id: format!("{kind:?}"), label: format!("{kind:?}"), kind, min_mod_level: 0, add_slot: None, remove_slot: None, target: None, require_tag: None, remove_desecrated_only: false, remove_lowest_level: false, requires_rare: false, unit_cost: 1.0 }
     }
 
     #[test]

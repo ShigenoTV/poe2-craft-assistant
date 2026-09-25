@@ -29,23 +29,30 @@ const BRACKET = /\[([^\]|]+)(?:\|([^\]]+))?\]/g;
 const clean = (t) => t.replace(BRACKET, (_, a, b) => b ?? a);
 const prettify = (key) => key.replace(/(?<!^)(?=[A-Z])/g, " ").replace(/\s+/g, " ").trim();
 
-const ARCHETYPE_TAGS = new Set(["str_armour", "dex_armour", "int_armour", "str_dex_armour", "str_int_armour", "dex_int_armour", "str_dex_int_armour"]);
+const ARCHETYPE_TAGS = new Set([
+  "str_armour", "dex_armour", "int_armour", "str_dex_armour", "str_int_armour", "dex_int_armour", "str_dex_int_armour",
+  "strjewel", "dexjewel", "intjewel",
+]);
 const ARCHETYPE_LABEL = {
   str_armour: "Armour", dex_armour: "Evasion", int_armour: "Energy Shield",
   str_dex_armour: "Armour/Evasion", str_int_armour: "Armour/ES", dex_int_armour: "Evasion/ES",
   str_dex_int_armour: "Armour/Evasion/ES",
+  strjewel: "Str", dexjewel: "Dex", intjewel: "Int",
 };
-const ARCHETYPE_SPLIT_CLASSES = new Set(["Gloves", "Boots", "Body Armour", "Helmet", "Shield"]);
+const ARCHETYPE_SPLIT_CLASSES = new Set(["Gloves", "Boots", "Body Armour", "Helmet", "Shield", "Jewel"]);
+// domaine "item" : affixes normaux d'équipement. "misc" : affixes de joyaux (jamais rangés sous "item"
+// dans les données du jeu, même si le mécanisme de craft — tirage pondéré par tag de base — est identique).
+const ALLOWED_MOD_DOMAINS = new Set(["item", "misc"]);
 const EQUIP_CLASSES = new Set([
   "Gloves", "Boots", "Body Armour", "Helmet", "Shield", "Buckler", "Focus",
-  "Amulet", "Ring", "Belt", "Quiver",
+  "Amulet", "Ring", "Belt", "Quiver", "Jewel",
   "Claw", "Dagger", "Wand", "One Hand Sword", "One Hand Axe", "One Hand Mace",
   "Bow", "Staff", "Two Hand Sword", "Two Hand Axe", "Two Hand Mace",
   "Sceptre", "Spear", "Flail", "Warstaff", "Crossbow",
 ]);
 const CLASS_TO_ID = {
   Gloves: "gloves", Boots: "boots", "Body Armour": "body_armour", Helmet: "helmet", Shield: "shield",
-  Buckler: "buckler", Focus: "focus", Amulet: "amulet", Ring: "ring", Belt: "belt", Quiver: "quiver",
+  Buckler: "buckler", Focus: "focus", Amulet: "amulet", Ring: "ring", Belt: "belt", Quiver: "quiver", Jewel: "jewel",
   Claw: "claw", Dagger: "dagger", Wand: "wand", "One Hand Sword": "sword_1h", "One Hand Axe": "axe_1h",
   "One Hand Mace": "mace_1h", Bow: "bow", Staff: "staff", "Two Hand Sword": "sword_2h", "Two Hand Axe": "axe_2h",
   "Two Hand Mace": "mace_2h", Sceptre: "sceptre", Spear: "spear", Flail: "flail", Warstaff: "warstaff",
@@ -54,7 +61,7 @@ const CLASS_TO_ID = {
 
 function importMods(mods) {
   const craft = Object.entries(mods).filter(
-    ([, v]) => v.domain === "item" && (v.generation_type === "prefix" || v.generation_type === "suffix") && !v.is_essence_only,
+    ([, v]) => ALLOWED_MOD_DOMAINS.has(v.domain) && (v.generation_type === "prefix" || v.generation_type === "suffix") && !v.is_essence_only,
   );
   const typeByGroup = new Map();
   for (const [, v] of craft) {
@@ -93,7 +100,7 @@ function importMods(mods) {
 }
 
 function importBases(items) {
-  const eq = Object.values(items).filter((v) => v.release_state === "released" && v.domain === "item" && EQUIP_CLASSES.has(v.item_class));
+  const eq = Object.values(items).filter((v) => v.release_state === "released" && ALLOWED_MOD_DOMAINS.has(v.domain) && EQUIP_CLASSES.has(v.item_class));
   const byKey = new Map();
   for (const v of eq) {
     const cls = v.item_class;
@@ -115,7 +122,9 @@ function importBases(items) {
     const rep = variants.reduce((a, b) => ((b.drop_level ?? 0) > (a.drop_level ?? 0) ? b : a));
     const baseId = CLASS_TO_ID[cls] + (arch.length ? "_" + arch.map((a) => a.replace("_armour", "")).join("_") : "");
     const label = arch.length === 1 ? (ARCHETYPE_LABEL[arch[0]] ?? "") : arch.length ? arch.map((a) => ARCHETYPE_LABEL[a] ?? a).join("/") : "";
-    const name = label ? `${label} ${cls}`.trim() : cls;
+    // les joyaux ont un vrai nom canonique bien connu (Ruby/Sapphire/Emerald/Diamond) — on le garde tel
+    // quel plutôt que de reconstruire un nom générique comme pour les autres classes.
+    const name = cls === "Jewel" ? rep.name : label ? `${label} ${cls}`.trim() : cls;
     bases.push({ id: baseId, name, item_class: cls, tags: rep.tags ?? [], implicit: null });
   }
   bases.sort((a, b) => (a.item_class + a.id).localeCompare(b.item_class + b.id));

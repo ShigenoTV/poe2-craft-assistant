@@ -541,3 +541,69 @@ mod tests {
         assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0, "coût attendu fini et positif, obtenu {}", plan.expected_cost);
     }
 }
+
+#[cfg(test)]
+mod alloy_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Bout en bout : le mécanisme "Essence sur objet Rare" (retire au hasard puis ajoute garanti,
+    /// utilisé par les Alloys Verisium et les futures Essences Perfect) doit permettre au solveur
+    /// d'atteindre un objectif, converger, et donner un coût fini.
+    #[test]
+    fn solver_uses_a_rare_essence_alloy_to_reach_its_target() {
+        let ds = Dataset::embedded();
+        let prices = ds.prices.clone();
+        let enabled: HashSet<String> = ["alchemy", "alloy_mystic"].iter().map(|s| s.to_string()).collect();
+        let req = PlanRequest {
+            base_id: "sword_1h".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: "PhysicalDamage".into(), max_tier: 5 }],
+            enabled_actions: Some(enabled.into_iter().collect()),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+        };
+        let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
+        assert!(
+            ctx.model.actions.iter().any(|a| matches!(&a.kind, ActionKind::Currency(c) if c.kind == CurrencyKind::Essence && c.requires_rare)),
+            "l'Alloy (Essence sur Rare) doit apparaître dans les actions du modèle"
+        );
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged, "le solveur doit converger sur ce cas simple");
+        assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0, "coût attendu fini et positif, obtenu {}", plan.expected_cost);
+    }
+}
+
+#[cfg(test)]
+mod jewel_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Bout en bout : les bases Joyau (nouvellement importées, domaine `misc` du jeu) doivent être
+    /// utilisables par le solveur comme n'importe quelle autre base.
+    #[test]
+    fn solver_works_on_a_jewel_base() {
+        let ds = Dataset::embedded();
+        let prices = ds.prices.clone();
+        let req = PlanRequest {
+            base_id: "jewel_strjewel".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: "AttackDamage".into(), max_tier: 1 }],
+            enabled_actions: None,
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+        };
+        let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context sur un joyau");
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged, "le solveur doit converger sur un joyau");
+        assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0, "coût attendu fini et positif, obtenu {}", plan.expected_cost);
+    }
+}

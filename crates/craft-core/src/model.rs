@@ -151,6 +151,11 @@ pub struct Currency {
     /// (déterministe), pas un tirage uniforme parmi les candidats.
     #[serde(default)]
     pub remove_lowest_level: bool,
+    /// `false` (Essence normale/Lesser/Greater) : Magique → Rare, ajoute l'affixe garanti.
+    /// `true` (Essence Perfect, Alloy Verisium) : objet déjà Rare, retire un mod au hasard PUIS ajoute
+    /// l'affixe garanti — jamais les deux comportements sur la même entrée, comme dans le vrai jeu.
+    #[serde(default)]
+    pub requires_rare: bool,
     pub unit_cost: f64,
 }
 
@@ -299,8 +304,11 @@ impl AffixPool {
                 let pos = rng.gen_range(0..n);
                 item.set_fractured(pos);
             }
-            Essence if item.rarity == Rarity::Magic => {
+            Essence if (item.rarity == Rarity::Magic && !c.requires_rare) || (item.rarity == Rarity::Rare && c.requires_rare) => {
                 let Some(target) = c.target else { return Outcome::NotApplicable };
+                if c.requires_rare && !self.remove_random(item, None, false, false, rng) {
+                    return Outcome::NotApplicable;
+                }
                 let a = &self.affixes[target as usize];
                 let (cap_p, cap_s) = Rarity::Rare.cap();
                 let room = match a.slot {

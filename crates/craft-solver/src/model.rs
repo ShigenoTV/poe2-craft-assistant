@@ -376,30 +376,38 @@ impl Model {
                     out.push(Tr { to: self.restart, p: dead, extra: self.abandon_extra, abandon: true });
                 }
             }
-            Essence if s.rarity == Rarity::Magic => {
+            Essence if (s.rarity == Rarity::Magic && !cur.requires_rare) || (s.rarity == Rarity::Rare && cur.requires_rare) => {
                 if let Some((slot, class)) = self.essence_class[ai] {
-                    let (cap_p, cap_s) = Rarity::Rare.cap();
-                    let (np, ns) = self.counts(&s);
-                    let room = match slot {
-                        Slot::Prefix => np < cap_p,
-                        Slot::Suffix => ns < cap_s,
-                    };
-                    if room {
+                    let mut base: Vec<(MacroState, f64)> = vec![(s, 1.0)];
+                    if cur.requires_rare {
+                        let mut rm = Vec::new();
+                        base = if self.remove_outcomes(s, None, &mut rm) { rm } else { Vec::new() };
+                    }
+                    for (s1, p1) in base {
+                        let (cap_p, cap_s) = Rarity::Rare.cap();
+                        let (np, ns) = self.counts(&s1);
+                        let room = match slot {
+                            Slot::Prefix => np < cap_p,
+                            Slot::Suffix => ns < cap_s,
+                        };
+                        if !room {
+                            continue;
+                        }
                         match class {
-                            Class::Wanted(k) if s.held >> k & 1 == 0 && s.blocked >> k & 1 == 0 => {
-                                v.push((MacroState { rarity: Rarity::Rare, held: s.held | 1 << k, ..s }, 1.0));
+                            Class::Wanted(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => {
+                                v.push((MacroState { rarity: Rarity::Rare, held: s1.held | 1 << k, ..s1 }, p1));
                             }
-                            Class::Blocked(k) if s.held >> k & 1 == 0 && s.blocked >> k & 1 == 0 => {
-                                v.push((MacroState { rarity: Rarity::Rare, blocked: s.blocked | 1 << k, ..s }, 1.0));
+                            Class::Blocked(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => {
+                                v.push((MacroState { rarity: Rarity::Rare, blocked: s1.blocked | 1 << k, ..s1 }, p1));
                             }
                             Class::Other => {
                                 let st = match slot {
-                                    Slot::Prefix => MacroState { rarity: Rarity::Rare, bad_p: s.bad_p + 1, ..s },
-                                    Slot::Suffix => MacroState { rarity: Rarity::Rare, bad_s: s.bad_s + 1, ..s },
+                                    Slot::Prefix => MacroState { rarity: Rarity::Rare, bad_p: s1.bad_p + 1, ..s1 },
+                                    Slot::Suffix => MacroState { rarity: Rarity::Rare, bad_s: s1.bad_s + 1, ..s1 },
                                 };
-                                v.push((st, 1.0));
+                                v.push((st, p1));
                             }
-                            _ => {} // groupe voulu déjà occupé (held ou blocked) : Essence inapplicable
+                            _ => {} // groupe voulu déjà occupé (held ou blocked) : Essence inapplicable pour cette branche
                         }
                     }
                 }

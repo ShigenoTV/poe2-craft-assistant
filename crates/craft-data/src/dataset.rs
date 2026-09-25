@@ -83,6 +83,10 @@ pub struct EssenceDef {
     pub price_id: String,
     #[serde(default = "yes")]
     pub default_enabled: bool,
+    /// `false` (Essence normale) : Magique → Rare. `true` (Essence Perfect, Alloy Verisium) : objet
+    /// déjà Rare, retire un mod au hasard puis ajoute l'affixe garanti.
+    #[serde(default)]
+    pub requires_rare: bool,
     pub targets: Vec<EssenceTarget>,
 }
 
@@ -272,6 +276,7 @@ impl Dataset {
                     require_tag: None,
                     remove_desecrated_only: false,
                     remove_lowest_level: false,
+                    requires_rare: false,
                     unit_cost: base_price,
                 });
             }
@@ -291,6 +296,7 @@ impl Dataset {
                     require_tag: o.require_tag.as_deref().and_then(|t| tag_bit.get(t)).copied(),
                     remove_desecrated_only: o.remove_desecrated_only,
                     remove_lowest_level: o.remove_lowest_level,
+                    requires_rare: false,
                     unit_cost: base_price + price(&o.price_id)?,
                 });
             }
@@ -327,6 +333,7 @@ impl Dataset {
                 require_tag: None,
                 remove_desecrated_only: false,
                 remove_lowest_level: false,
+                requires_rare: e.requires_rare,
                 unit_cost: price(&e.price_id)?,
             });
         }

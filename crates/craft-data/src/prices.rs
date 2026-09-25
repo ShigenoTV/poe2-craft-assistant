@@ -139,6 +139,7 @@ mod tests {
             "omen_dextral_erasure",
             "omen_light",
             "omen_whittling",
+            "alloy_mystic",
         ]
         .into_iter()
         .collect();

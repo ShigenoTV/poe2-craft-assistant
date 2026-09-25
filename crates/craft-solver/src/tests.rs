@@ -28,7 +28,7 @@ fn cur(id: &str, kind: CurrencyKind, cost: f64) -> Action {
         id: id.into(),
         label: id.into(),
         cost,
-        kind: ActionKind::Currency(Currency { id: id.into(), label: id.into(), kind, min_mod_level: 0, add_slot: None, remove_slot: None, target: None, require_tag: None, remove_desecrated_only: false, remove_lowest_level: false, unit_cost: cost }),
+        kind: ActionKind::Currency(Currency { id: id.into(), label: id.into(), kind, min_mod_level: 0, add_slot: None, remove_slot: None, target: None, require_tag: None, remove_desecrated_only: false, remove_lowest_level: false, requires_rare: false, unit_cost: cost }),
     }
 }
 

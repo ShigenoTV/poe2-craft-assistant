@@ -68,7 +68,8 @@ l'atteindre — impossible depuis l'environnement de développement sandboxé), 
 `tools/import_repoe.mjs` pour produire `data/sample/dataset.json`. Vérifie ensuite que l'application
 fonctionne toujours (`npm run tauri dev`) avant de commiter et publier une nouvelle version.
 
-État au 22/09/2026 : 53 bases, 1655 affixes, 177 groupes d'exclusion. Deux numéros de version coexistent et
+État au 25/09/2026 : 57 bases (dont 4 joyaux Basiques — Rubis/Saphir/Émeraude/Diamant, ajoutés le 25/09,
+domaine `misc` du jeu), 1978 affixes, 267 groupes d'exclusion. Deux numéros de version coexistent et
 ne se correspondent pas terme à terme, à ne pas confondre :
 - **version RePoE** (celle qui compte pour savoir si les données sont à jour) : affichée dans le titre de
   https://repoe-fork.github.io/poe2/ (« RePoE - PoE2 version X.Y.Z.W ») — au moment de la génération de ce
