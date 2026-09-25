@@ -195,6 +195,11 @@ details.box > div { padding: 4px 12px 12px; }
 .ov-goal div { display: flex; gap: 8px; align-items: center; font-size: 13px; }
 .ov-next { border: 1px solid #3a4c40; background: linear-gradient(#142219, #101a15); border-radius: 6px; padding: 9px 11px; }
 .ov-next .act { font: 600 17px/1.25 var(--font-item); color: #f3ecd4; }
+.ov-next-big { padding: 12px 14px; }
+.ov-next-big .act { font-size: 20px; }
+.ov-details { font-size: 12px; }
+.ov-details summary { cursor: pointer; padding: 4px 0; }
+.ov-details summary:hover { color: var(--text); }
 .ov-out { display: grid; grid-template-columns: 50px 1fr; gap: 6px; font-size: 12px; padding: 2px 0; }
 .ov-out b { text-align: right; }
 .ov-out.success b { color: var(--ok); } .ov-out.failure b { color: var(--bad); }

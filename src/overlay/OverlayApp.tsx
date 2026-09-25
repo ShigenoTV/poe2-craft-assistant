@@ -47,17 +47,20 @@ export function OverlayApp() {
                 <b>{a.parsed.name ?? "Objet"}</b>
                 <span>{rarityLabel[rarity]} · {a.parsed.baseType} · niv. {a.parsed.itemLevel ?? "?"}</span>
               </div>
+              {cap && <AdviceView cap={cap} compact />}
               {a.detail && (
-                <div>
-                  {a.detail.mods.map((m) => (
-                    <div key={m.affixIdx} className="mod" style={{ padding: "3px 0" }}>
-                      <span className="tier">T{m.tier}</span><span className="tx">{prettyText(m.text)}</span>{m.fractured && <span className="lock">◆</span>}
-                    </div>
-                  ))}
-                </div>
+                <details className="ov-details">
+                  <summary className="small muted">Mods actuels ({a.detail.mods.length})</summary>
+                  <div style={{ marginTop: 6 }}>
+                    {a.detail.mods.map((m) => (
+                      <div key={m.affixIdx} className="mod" style={{ padding: "3px 0" }}>
+                        <span className="tier">T{m.tier}</span><span className="tx">{prettyText(m.text)}</span>{m.fractured && <span className="lock">◆</span>}
+                      </div>
+                    ))}
+                  </div>
+                </details>
               )}
               {a.unmatched.length > 0 && <div className="ov-warn">{a.unmatched.length} ligne(s) non reconnue(s)</div>}
-              {cap && <AdviceView cap={cap} compact />}
             </>
           )}
         </div>
