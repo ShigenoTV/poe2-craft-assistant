@@ -36,7 +36,8 @@ export function GoalPicker({ pool, wanted, onChange }: Props) {
   const nS = sel.length - nP;
   const chosen = new Set(wanted.map((w) => w.group));
   const canAdd = (g: GroupInfo) => sel.length < MAX_WANTED && (g.slot === "prefix" ? nP < 3 : nS < 3);
-  const filtered = pool.groups.filter((g) => !chosen.has(g.key) && g.family.toLowerCase().includes(q.trim().toLowerCase()));
+  const qq = q.trim().toLowerCase();
+  const filtered = pool.groups.filter((g) => !chosen.has(g.key) && (g.family.toLowerCase().includes(qq) || g.tiers.some((t) => t.text.toLowerCase().includes(qq))));
 
   return (
     <div className="stack" style={{ gap: 10 }}>

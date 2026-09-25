@@ -100,6 +100,12 @@ pub struct OmenDef {
     /// restreint la Désécration à un sous-pool. Ignoré pour tout autre `CurrencyKind`.
     #[serde(default)]
     pub require_tag: Option<String>,
+    /// Omen of Light : le retrait ne peut cibler qu'un affixe `desecrated`.
+    #[serde(default)]
+    pub remove_desecrated_only: bool,
+    /// Omen of Whittling : le retrait cible toujours l'affixe tenu du niveau requis le plus bas.
+    #[serde(default)]
+    pub remove_lowest_level: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -264,6 +270,8 @@ impl Dataset {
                     remove_slot: None,
                     target: None,
                     require_tag: None,
+                    remove_desecrated_only: false,
+                    remove_lowest_level: false,
                     unit_cost: base_price,
                 });
             }
@@ -281,6 +289,8 @@ impl Dataset {
                     remove_slot: o.remove_slot,
                     target: None,
                     require_tag: o.require_tag.as_deref().and_then(|t| tag_bit.get(t)).copied(),
+                    remove_desecrated_only: o.remove_desecrated_only,
+                    remove_lowest_level: o.remove_lowest_level,
                     unit_cost: base_price + price(&o.price_id)?,
                 });
             }
@@ -315,6 +325,8 @@ impl Dataset {
                 remove_slot: None,
                 target: Some(idx as AffixIdx),
                 require_tag: None,
+                remove_desecrated_only: false,
+                remove_lowest_level: false,
                 unit_cost: price(&e.price_id)?,
             });
         }

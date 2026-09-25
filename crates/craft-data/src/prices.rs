@@ -127,8 +127,21 @@ mod tests {
         // "base_*", "essence_*", "desecrate_*" et les Omens de Désécration : prix estimés à la main
         // (poe.ninja ne suit pas encore ces mécaniques dans notre import), documenté dans meta.notice —
         // exception volontaire, pas un oubli.
-        let manual: std::collections::HashSet<&str> =
-            ["omen_sovereign", "omen_liege", "omen_blackblooded", "omen_sinistral_necromancy", "omen_dextral_necromancy"].into_iter().collect();
+        let manual: std::collections::HashSet<&str> = [
+            "omen_sovereign",
+            "omen_liege",
+            "omen_blackblooded",
+            "omen_sinistral_necromancy",
+            "omen_dextral_necromancy",
+            "omen_sinistral_coronation",
+            "omen_dextral_coronation",
+            "omen_sinistral_erasure",
+            "omen_dextral_erasure",
+            "omen_light",
+            "omen_whittling",
+        ]
+        .into_iter()
+        .collect();
         for key in ds.prices.keys().filter(|k| !k.starts_with("base_") && !k.starts_with("essence_") && !k.starts_with("desecrate_") && !manual.contains(k.as_str())) {
             assert!(ds.price_sources.contains_key(key), "pas de source poe.ninja pour « {key} »");
         }

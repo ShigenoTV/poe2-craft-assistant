@@ -147,7 +147,7 @@ pub(crate) mod tests {
         }
     }
     pub fn cur(kind: CurrencyKind) -> Currency {
-        Currency { id: format!("{kind:?}"), label: format!("{kind:?}"), kind, min_mod_level: 0, add_slot: None, remove_slot: None, target: None, require_tag: None, unit_cost: 1.0 }
+        Currency { id: format!("{kind:?}"), label: format!("{kind:?}"), kind, min_mod_level: 0, add_slot: None, remove_slot: None, target: None, require_tag: None, remove_desecrated_only: false, remove_lowest_level: false, unit_cost: 1.0 }
     }
 
     #[test]
@@ -215,6 +215,43 @@ pub(crate) mod tests {
             pool.apply(&mut it, &cur(CurrencyKind::Annul), &mut rng);
             pool.apply(&mut it, &cur(CurrencyKind::Chaos), &mut rng);
             assert!(it.mods().iter().any(|m| m.idx == keep && m.fractured));
+        }
+    }
+
+    #[test]
+    fn whittling_removes_the_lowest_level_held_affix() {
+        let mut affixes = vec![aff("A", 0, Slot::Prefix, 100), aff("B", 1, Slot::Prefix, 100), aff("C", 2, Slot::Prefix, 100)];
+        affixes[0].req_ilvl = 40;
+        affixes[1].req_ilvl = 10; // le plus bas : celui-là doit toujours partir
+        affixes[2].req_ilvl = 70;
+        let pool = AffixPool { affixes };
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(9);
+        for _ in 0..200 {
+            let mut it = ItemState::new(Rarity::Rare, 80);
+            for i in [0u16, 1, 2] {
+                it.push(Mod { idx: i, fractured: false });
+            }
+            // isolé du réajout de Chaos : on teste directement la sélection du retrait
+            assert!(pool.remove_random(&mut it, None, false, true, &mut rng));
+            assert!(!it.mods().iter().any(|m| m.idx == 1), "le mod du niveau le plus bas (idx 1) doit toujours être retiré");
+            assert_eq!(it.len(), 2);
+        }
+    }
+
+    #[test]
+    fn omen_of_light_only_removes_desecrated_affixes() {
+        let mut affixes = vec![aff("A", 0, Slot::Prefix, 100), aff("B", 1, Slot::Prefix, 100)];
+        affixes[1].desecrated = true; // seul candidat valide pour l'Omen of Light
+        let pool = AffixPool { affixes };
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(11);
+        for _ in 0..200 {
+            let mut it = ItemState::new(Rarity::Rare, 80);
+            it.push(Mod { idx: 0, fractured: false }); // normal, jamais ciblé
+            it.push(Mod { idx: 1, fractured: false }); // desecrated, seul retirable
+            let light = Currency { remove_desecrated_only: true, ..cur(CurrencyKind::Annul) };
+            assert_eq!(pool.apply(&mut it, &light, &mut rng), Outcome::Applied);
+            assert!(it.mods().iter().any(|m| m.idx == 0), "le mod normal ne doit jamais être retiré par Omen of Light");
+            assert!(!it.mods().iter().any(|m| m.idx == 1), "le mod desecrated doit avoir été retiré");
         }
     }
 }

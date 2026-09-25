@@ -144,6 +144,13 @@ pub struct Currency {
     /// Amanamu / Kurgal). Ignoré pour tout autre `CurrencyKind`.
     #[serde(default)]
     pub require_tag: Option<u64>,
+    /// Omen of Light : le retrait (Annulment) ne peut cibler qu'un affixe `desecrated`.
+    #[serde(default)]
+    pub remove_desecrated_only: bool,
+    /// Omen of Whittling : le retrait cible TOUJOURS l'affixe tenu du niveau requis le plus bas
+    /// (déterministe), pas un tirage uniforme parmi les candidats.
+    #[serde(default)]
+    pub remove_lowest_level: bool,
     pub unit_cost: f64,
 }
 
@@ -230,18 +237,27 @@ impl AffixPool {
     }
 
     /// Retire un affixe non fracturé (filtré par slot si Omen). `false` si aucun candidat.
-    fn remove_random(&self, item: &mut ItemState, slot: Option<Slot>, rng: &mut impl Rng) -> bool {
+    pub(crate) fn remove_random(&self, item: &mut ItemState, slot: Option<Slot>, desecrated_only: bool, lowest_level: bool, rng: &mut impl Rng) -> bool {
         let cands: Vec<usize> = item
             .mods()
             .iter()
             .enumerate()
-            .filter(|(_, m)| !m.fractured && slot.map_or(true, |s| self.affixes[m.idx as usize].slot == s))
+            .filter(|(_, m)| {
+                !m.fractured
+                    && slot.map_or(true, |s| self.affixes[m.idx as usize].slot == s)
+                    && (!desecrated_only || self.affixes[m.idx as usize].desecrated)
+            })
             .map(|(i, _)| i)
             .collect();
         if cands.is_empty() {
             return false;
         }
-        let pos = cands[rng.gen_range(0..cands.len())];
+        let pos = if lowest_level {
+            // déterministe : l'affixe TENU du niveau requis le plus bas (égalité -> le premier trouvé)
+            *cands.iter().min_by_key(|&&i| self.affixes[item.mods()[i].idx as usize].req_ilvl).unwrap()
+        } else {
+            cands[rng.gen_range(0..cands.len())]
+        };
         item.remove(pos);
         true
     }
@@ -269,13 +285,13 @@ impl AffixPool {
             Exalt if item.rarity == Rarity::Rare && n < 6 => self.add_random(item, &f, rng),
             Chaos if item.rarity == Rarity::Rare => {
                 // retrait PUIS ajout : le pool du tirage est calculé après le retrait
-                if !self.remove_random(item, c.remove_slot, rng) {
+                if !self.remove_random(item, c.remove_slot, c.remove_desecrated_only, c.remove_lowest_level, rng) {
                     return Outcome::NotApplicable;
                 }
                 self.add_random(item, &f, rng);
             }
             Annul if item.rarity != Rarity::Normal => {
-                if !self.remove_random(item, c.remove_slot, rng) {
+                if !self.remove_random(item, c.remove_slot, c.remove_desecrated_only, c.remove_lowest_level, rng) {
                     return Outcome::NotApplicable;
                 }
             }
@@ -299,7 +315,7 @@ impl AffixPool {
                 item.push(Mod { idx: target, fractured: false });
             }
             Desecrate if item.rarity == Rarity::Rare && !self.has_desecrated(item) => {
-                if n == 6 && !self.remove_random(item, None, rng) {
+                if n == 6 && !self.remove_random(item, None, false, false, rng) {
                     return Outcome::NotApplicable;
                 }
                 let f = DrawFilter { min_mod_level: 0, force_slot: c.add_slot, require_desecrated: true, require_tag: c.require_tag };

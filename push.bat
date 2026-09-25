@@ -17,6 +17,13 @@ if errorlevel 1 (
     goto :fail
 )
 
+set /p REFRESH=Rafraichir les donnees du jeu avant d'envoyer (update-dataset.bat) ? (o/N) :
+if /i "%REFRESH%"=="o" (
+    call update-dataset.bat
+    if errorlevel 1 goto :fail
+    echo.
+)
+
 echo.
 echo Fichiers modifies :
 git status --short
