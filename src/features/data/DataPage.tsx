@@ -10,7 +10,8 @@ export function DataPage() {
   useEffect(() => { if (baseId) void ensurePool(baseId); }, [baseId, ensurePool]);
   if (!info) return null;
 
-  const groups = (pool?.groups ?? []).filter((g) => g.family.toLowerCase().includes(q.toLowerCase()));
+  const qq = q.toLowerCase();
+  const groups = (pool?.groups ?? []).filter((g) => g.family.toLowerCase().includes(qq) || g.tiers.some((t) => t.text.toLowerCase().includes(qq)));
 
   return (
     <div className="page">
@@ -27,7 +28,7 @@ export function DataPage() {
         <label className="f" style={{ width: 300 }}>Base
           <select value={baseId} onChange={(e) => setBaseId(e.target.value)}>{info.bases.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.itemClass})</option>)}</select>
         </label>
-        <label className="f grow" style={{ maxWidth: 320 }}>Filtrer<input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nom d'affixe…" /></label>
+        <label className="f grow" style={{ maxWidth: 320 }}>Filtrer<input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nom d'affixe ou texte d'un mod…" /></label>
       </div>
       <div className="panel">
         {groups.map((g) => (

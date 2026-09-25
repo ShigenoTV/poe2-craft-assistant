@@ -1,7 +1,7 @@
 {
   "name": "poe2-craft-assistant",
   "private": true,
-  "version": "0.2.13",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
