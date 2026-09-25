@@ -129,8 +129,6 @@ export async function handle(cmd: string, a: Record<string, unknown>): Promise<u
       ch.onmessage({ stage: "installing", downloaded: 0, total: null });
       return null;
     }
-    case "import_dataset":
-    case "reset_dataset": return get("dataset_info");
     default: throw new Error(`commande factice inconnue : ${cmd}`);
   }
 }

@@ -1,22 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/store";
-import { api } from "@/lib/ipc";
 import { pct, prettyText } from "@/lib/format";
 
 export function DataPage() {
-  const { info, pools, ensurePool, setDatasetInfo } = useStore();
+  const { info, pools, ensurePool } = useStore();
   const [baseId, setBaseId] = useState(info?.bases[0]?.id ?? "");
   const [q, setQ] = useState("");
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const file = useRef<HTMLInputElement>(null);
   const pool = pools[baseId];
   useEffect(() => { if (baseId) void ensurePool(baseId); }, [baseId, ensurePool]);
   if (!info) return null;
 
-  const importFile = async (f: File) => {
-    try { await setDatasetInfo(await api.importDataset(await f.text())); setMsg({ ok: true, text: `Données importées : ${f.name}` }); }
-    catch (e) { setMsg({ ok: false, text: String(e) }); }
-  };
   const groups = (pool?.groups ?? []).filter((g) => g.family.toLowerCase().includes(q.toLowerCase()));
 
   return (
@@ -28,11 +21,7 @@ export function DataPage() {
             <b>{info.source}</b> <span className="muted">· {info.modCount} modificateurs · version du jeu {info.gameVersion || "?"} · générées le {info.generatedAt}</span>
             {info.notice && <p className="note small" style={{ marginTop: 6 }}>{info.notice}</p>}
           </div>
-          <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => e.target.files?.[0] && void importFile(e.target.files[0])} />
-          <button className="btn" onClick={() => file.current?.click()}>Importer un fichier…</button>
-          <button className="btn" onClick={() => void api.resetDataset().then(setDatasetInfo).then(() => setMsg({ ok: true, text: "Données d'exemple restaurées." }))}>Restaurer l'exemple</button>
         </div>
-        {msg && <div className={msg.ok ? "note" : "err"}>{msg.text}</div>}
       </div>
       <div className="row" style={{ marginBottom: 12 }}>
         <label className="f" style={{ width: 300 }}>Base

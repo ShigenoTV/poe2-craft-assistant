@@ -17,7 +17,6 @@ interface Store {
   boot: () => Promise<void>;
   ensurePool: (baseId: string) => Promise<PoolView>;
   reloadPrices: () => Promise<void>;
-  setDatasetInfo: (i: DatasetInfo) => Promise<void>;
 
   // formulaire du planificateur (persiste quand on change de page)
   baseId: string;
@@ -90,12 +89,6 @@ export const useStore = create<Store>((set, get) => ({
   reloadPrices: async () => {
     const [prices, actions] = await Promise.all([api.getPrices(), api.listActions()]);
     set({ prices, actions });
-  },
-  setDatasetInfo: async (info) => {
-    const [actions, prices] = await Promise.all([api.listActions(), api.getPrices()]);
-    const baseId = info.bases[0]?.id ?? "";
-    set({ info, actions, prices, pools: {}, baseId, wanted: [], plan: null, enabled: actions.filter((a) => a.defaultEnabled).map((a) => a.id) });
-    if (baseId) await get().ensurePool(baseId);
   },
 
   baseId: "",

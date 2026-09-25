@@ -74,9 +74,9 @@ fait aussi automatiquement au démarrage si les prix ont plus d'une heure). Tu p
 ## Les données de craft
 
 Le jeu de données utilisé pour les calculs (quels affixes existent, leurs poids, leurs tiers) est un
-vrai export du jeu, embarqué directement dans l'application. Le bandeau orange dans la barre de gauche,
-s'il apparaît, indique qu'un jeu de données personnalisé (importé via **Données → Importer un fichier**)
-diffère de celui embarqué par défaut.
+vrai export du jeu, embarqué directement dans l'application — il n'y a rien à importer ni à configurer
+de ton côté. La version affichée dans l'écran **Données** correspond à l'export utilisé au moment de la
+publication de cette version de l'application.
 
 ## Mises à jour
 

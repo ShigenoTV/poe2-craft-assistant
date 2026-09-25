@@ -126,38 +126,67 @@ function parseArgs(argv) {
   const pos = [];
   let out = "data/sample/dataset.json";
   let carry = "data/sample/dataset.json";
+  let indexFile = null;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "-o" || argv[i] === "--out") out = argv[++i];
     else if (argv[i] === "--carry-prices-from") carry = argv[++i];
+    else if (argv[i] === "--index") indexFile = argv[++i];
     else pos.push(argv[i]);
   }
   if (pos.length < 2) {
-    console.error("usage: node tools/import_repoe.mjs <mods.min.json> <base_items.min.json> [-o data/sample/dataset.json]");
+    console.error("usage: node tools/import_repoe.mjs <mods.min.json> <base_items.min.json> [-o data/sample/dataset.json] [--index index.html]");
     process.exit(2);
   }
-  return { modsFile: pos[0], baseItemsFile: pos[1], out, carry };
+  return { modsFile: pos[0], baseItemsFile: pos[1], out, carry, indexFile };
 }
 
 function main() {
-  const { modsFile, baseItemsFile, out, carry } = parseArgs(process.argv.slice(2));
+  const { modsFile, baseItemsFile, out, carry, indexFile } = parseArgs(process.argv.slice(2));
   const mods = JSON.parse(readFileSync(modsFile, "utf8"));
   const items = JSON.parse(readFileSync(baseItemsFile, "utf8"));
   const outMods = importMods(mods);
   const outBases = importBases(items);
 
+  // le titre de la page d'accueil de RePoE contient son propre numéro de version, ex.
+  // « RePoE - PoE2 version 4.5.5.2 » — à distinguer du nom de patch public du jeu (voir docs/DATA.md).
+  let gameVersion = "inconnue (page d'accueil non fournie à l'import — voir https://repoe-fork.github.io/poe2/)";
+  if (indexFile) {
+    try {
+      const html = readFileSync(indexFile, "utf8");
+      const m = html.match(/PoE2\s+version\s+([\d.]+)/i);
+      if (m) gameVersion = m[1];
+      else console.error(`! numéro de version introuvable dans ${indexFile} (page RePoE modifiée ?)`);
+    } catch {
+      console.error(`! ${indexFile} introuvable : version RePoE inconnue`);
+    }
+  }
+
   let carried = {};
   try {
     carried = JSON.parse(readFileSync(carry, "utf8"));
   } catch {
-    console.error(`! ${carry} introuvable : currencies/omens/prices seront vides (à compléter à la main)`);
+    console.error(`! ${carry} introuvable : currencies/omens/prices/mods « desecrated » seront vides (à compléter à la main)`);
   }
 
-  const usedTags = [...new Set([...outMods.flatMap((m) => m.tags), ...outBases.flatMap((b) => b.tags)])].sort().slice(0, 64);
+  // les mods du domaine `desecrated` n'apparaissent JAMAIS dans un import brut (`importMods` les exclut
+  // volontairement, voir plus haut) : ceux déjà présents dans le dataset précédent sont donc à la main
+  // et doivent être reportés, sous peine de perdre silencieusement la Désécration à chaque régénération.
+  const carriedDesecrated = (carried.mods ?? []).filter((m) => m.desecrated);
+  const knownIds = new Set(outMods.map((m) => m.id));
+  for (const m of carriedDesecrated) {
+    if (!knownIds.has(m.id)) outMods.push(m);
+  }
+
+  // seuls les tags RÉFÉRENCÉS PAR AU MOINS UN MOD comptent : c'est la seule chose que lit le bitmask
+  // (`Affix.tags`) construit à partir d'eux. Les tags de BASE (item_class, archétype...) sont filtrés
+  // et comparés en texte brut ailleurs, jamais via ce bitmask — les y inclure ne fait que gâcher les
+  // 64 bits disponibles (`tags: u64`, un bit par tag) pour rien.
+  const usedTags = [...new Set(outMods.flatMap((m) => m.tags))].sort().slice(0, 64);
   const dataset = {
     meta: {
       schema: 1,
       source: "repoe-fork.github.io/poe2 (mods.min.json + base_items.min.json)",
-      game_version: "voir https://repoe-fork.github.io/poe2/ pour la version exacte",
+      game_version: gameVersion,
       generated_at: new Date().toISOString().slice(0, 10),
       notice: "Données réelles du jeu (poids de spawn, niveaux, tiers). Les prix restent ceux de poe.ninja/l'onglet Réglages.",
       price_unit: "Exalted Orb",
@@ -166,6 +195,7 @@ function main() {
     bases: outBases,
     mods: outMods,
     currencies: carried.currencies ?? [],
+    essences: carried.essences ?? [],
     omens: carried.omens ?? [],
     prices: carried.prices ?? {},
     price_sources: carried.price_sources ?? {},
@@ -179,6 +209,7 @@ function main() {
   console.log(`→ ${out}`);
   console.log(`  ${outBases.length} bases, ${outMods.length} affixes, ${famSizes.size} groupes d'exclusion`);
   console.log(`  monnaies : ${dataset.currencies.length}, Omens : ${dataset.omens.length}, prix : ${Object.keys(dataset.prices).length}`);
+  console.log(`  version RePoE : ${gameVersion}`);
 }
 
 main();

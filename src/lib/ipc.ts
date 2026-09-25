@@ -52,8 +52,6 @@ export const api = {
   overlayToggle: () => call<void>("overlay_toggle"),
   overlaySetInteractive: (value: boolean) => call<void>("overlay_set_interactive", { value }),
   overlayState: () => call<[boolean, boolean]>("overlay_state"),
-  importDataset: (json: string) => call<T.DatasetInfo>("import_dataset", { json }),
-  resetDataset: () => call<T.DatasetInfo>("reset_dataset"),
   appVersion: () => call<string>("app_version"),
   checkUpdate: () => call<T.UpdateInfo | null>("check_update"),
   installUpdate: (onProgress?: (p: T.UpdateProgress) => void) =>

@@ -78,8 +78,6 @@ pub fn run() {
             commands::overlay_toggle,
             commands::overlay_set_interactive,
             commands::overlay_state,
-            commands::import_dataset,
-            commands::reset_dataset,
             commands::check_update,
             commands::install_update,
             commands::app_version,

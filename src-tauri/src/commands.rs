@@ -192,23 +192,6 @@ pub fn overlay_state(st: St) -> (bool, bool) {
     (st.overlay_wanted.load(Relaxed), st.overlay_interactive.load(Relaxed))
 }
 
-#[tauri::command]
-pub fn import_dataset(st: St, json: String) -> Result<DatasetInfo, String> {
-    let ds = Dataset::from_json(&json)?;
-    std::fs::write(st.data_dir.join("dataset.json"), &json).map_err(|e| e.to_string())?;
-    *st.ds.write().unwrap() = Arc::new(ds);
-    *st.active.lock().unwrap() = None; // les indices d'affixes changent : le plan actif n'est plus valable
-    Ok(craft_api::dataset_info(&st.dataset()))
-}
-
-#[tauri::command]
-pub fn reset_dataset(st: St) -> DatasetInfo {
-    let _ = std::fs::remove_file(st.data_dir.join("dataset.json"));
-    *st.ds.write().unwrap() = Arc::new(Dataset::embedded());
-    *st.active.lock().unwrap() = None;
-    craft_api::dataset_info(&st.dataset())
-}
-
 #[allow(dead_code)]
 type _Unused = Advice;
 

@@ -1,8 +1,8 @@
 # Données de jeu
 
 Tout le moteur lit un fichier JSON unique (schéma `1`). Le fichier embarqué, `data/sample/dataset.json`, est
-**illustratif** : poids, niveaux de mods et prix sont inventés (généré par `tools/build_sample_dataset.py`).
-Pour de vrais calculs, importe un jeu de données réel depuis l'écran « Données » (bouton « Importer un fichier »).
+un vrai export du jeu (RePoE) — pas un exemple. Il n'y a rien à importer depuis l'application : pour le
+rafraîchir après une mise à jour de Path of Exile 2, voir `update-dataset.bat` plus bas.
 
 ## Schéma
 

@@ -86,7 +86,9 @@ impl AppState {
     pub fn load(data_dir: PathBuf) -> Self {
         let _ = std::fs::create_dir_all(&data_dir);
         let settings: Settings = read_json(&data_dir.join("settings.json")).unwrap_or_default();
-        let ds = std::fs::read_to_string(data_dir.join("dataset.json")).ok().and_then(|s| Dataset::from_json(&s).ok()).unwrap_or_else(Dataset::embedded);
+        // le dataset embarqué (`data/sample/dataset.json`) est désormais la seule source : plus
+        // d'import/réinitialisation depuis l'application (voir update-dataset.bat pour le rafraîchir).
+        let ds = Dataset::embedded();
         let prices = read_json(&data_dir.join("prices.json")).unwrap_or_default();
         let market: Option<crate::prices::MarketPrices> = read_json(&data_dir.join("market_prices.json"));
         Self {
