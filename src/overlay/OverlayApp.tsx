@@ -33,7 +33,7 @@ export function OverlayApp() {
           {interactive && (
             <>
               <button className="btn sm" onClick={() => void api.overlaySetInteractive(false)}>Verrouiller</button>
-              <button className="btn sm" onClick={() => void api.overlayToggle()}>Fermer</button>
+              <button className="ov-close" title="Fermer l'overlay" onClick={() => void api.overlayToggle()}>✕</button>
             </>
           )}
         </div>

@@ -185,6 +185,8 @@ details.box > div { padding: 4px 12px 12px; }
 .ov-top .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
 .ov-top .dot.live { background: var(--ok); }
 .ov-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+.ov-close { width: 20px; height: 20px; border-radius: 4px; border: 1px solid #34464c; background: transparent; color: var(--muted); cursor: pointer; line-height: 1; font-size: 13px; }
+.ov-close:hover { background: #3a1e1a; border-color: #5c2f26; color: var(--bad); }
 .ov-name { text-align: center; }
 .ov-name b { display: block; font: 600 17px/1.25 var(--font-item); }
 .ov-name span { color: var(--muted); font-size: 12px; }
