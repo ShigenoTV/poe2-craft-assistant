@@ -207,6 +207,19 @@ impl Dataset {
     pub fn build_pool(&self, base_id: &str) -> Result<BasePool, String> {
         let base = self.base(base_id).ok_or_else(|| format!("base inconnue : {base_id}"))?.clone();
         let tag_bit: HashMap<&str, u64> = self.tags.iter().enumerate().map(|(i, t)| (t.as_str(), 1u64 << i)).collect();
+        // certains mods (cibles d'Alloy/Essence exclusives, ex. AlloyMaximumElementalInfusions1) ont un
+        // poids nul PARTOUT dans les vraies données du jeu : jamais tirés au hasard, uniquement obtenus
+        // via une monnaie qui les ajoute de force. Il faut quand même leur réserver une entrée dans le
+        // pool (poids 0, donc jamais piochée normalement) pour que la résolution de cible les trouve —
+        // mais UNIQUEMENT sur les bases où ils sont vraiment une cible (via `item_tags`), sinon un mod
+        // comme « +Vie » se retrouverait listé même sur une baguette, qui n'en a jamais en vrai jeu.
+        let essence_target_ids: HashSet<&str> = self
+            .essences
+            .iter()
+            .flat_map(|e| e.targets.iter())
+            .filter(|t| t.item_tags.iter().any(|tag| base.tags.iter().any(|bt| bt == tag)))
+            .map(|t| t.mod_id.as_str())
+            .collect();
 
         let mut by_group: BTreeMap<&str, Vec<(&ModDef, u32)>> = BTreeMap::new();
         for m in &self.mods {
@@ -216,7 +229,7 @@ impl Dataset {
                 .find(|s| s.tag == "default" || base.tags.iter().any(|t| *t == s.tag))
                 .map(|s| s.weight)
                 .unwrap_or(0);
-            if w > 0 {
+            if w > 0 || essence_target_ids.contains(m.id.as_str()) {
                 by_group.entry(m.group.as_str()).or_default().push((m, w));
             }
         }

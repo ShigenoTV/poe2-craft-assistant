@@ -68,7 +68,7 @@ l'atteindre — impossible depuis l'environnement de développement sandboxé), 
 `tools/import_repoe.mjs` pour produire `data/sample/dataset.json`. Vérifie ensuite que l'application
 fonctionne toujours (`npm run tauri dev`) avant de commiter et publier une nouvelle version.
 
-État au 25/09/2026 : 59 bases (dont 4 joyaux Basiques et 2 classes d'arme ajoutées le 25/09 — Talisman et
+État au 25/09/2026 : 59 bases (dont 4 joyaux Basiques et 2 classes d'arme ajoutées le 25/09, 30 Essences vérifiées ajoutées le 26/09 — Talisman et
 Trap, trouvées via l'arborescence poe2db plutôt que via l'export RePoE), 1978 affixes, 267 groupes
 d'exclusion. Deux numéros de version coexistent et
 ne se correspondent pas terme à terme, à ne pas confondre :

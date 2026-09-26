@@ -556,9 +556,9 @@ mod alloy_tests {
         let prices = ds.prices.clone();
         let enabled: HashSet<String> = ["alchemy", "alloy_mystic"].iter().map(|s| s.to_string()).collect();
         let req = PlanRequest {
-            base_id: "sword_1h".into(),
+            base_id: "helmet_str".into(),
             ilvl: 82,
-            wanted: vec![WantedReq { group: "PhysicalDamage".into(), max_tier: 5 }],
+            wanted: vec![WantedReq { group: "AlloySpellAoE".into(), max_tier: 1 }],
             enabled_actions: Some(enabled.into_iter().collect()),
             prices: None,
             allow_abandon: true,
