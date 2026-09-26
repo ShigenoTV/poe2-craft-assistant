@@ -66,6 +66,45 @@ function Ledger() {
   );
 }
 
+function StartingItemPicker() {
+  const { startingItem, startingItemAnalysis, startingItemError, analyzingStartingItem, analyzeStartingItem, clearStartingItem } = useStore();
+  const [text, setText] = useState("");
+  return (
+    <details className="box">
+      <summary>Objet de départ {startingItem ? "(objet existant)" : "(base neuve)"}</summary>
+      <div className="stack" style={{ gap: 8 }}>
+        <p className="muted small">
+          Colle le texte d'un objet déjà en ta possession (Ctrl+Alt+C en jeu) pour que le plan reparte de
+          là où tu en es, au lieu d'une base neuve. Laisse vide pour repartir d'une base neuve, comme avant.
+        </p>
+        {startingItem ? (
+          <div className="stack" style={{ gap: 6 }}>
+            <div className="small">
+              {startingItemAnalysis?.detail?.mods.length ?? 0} mod(s) reconnu(s), objet {startingItem.rarity === "rare" ? "Rare" : startingItem.rarity === "magic" ? "Magique" : "Normal"}.
+            </div>
+            {startingItemAnalysis?.detail?.mods.map((m) => (
+              <div key={m.affixIdx} className="mod" style={{ padding: "2px 0" }}>
+                <span className="tier">T{m.tier}</span><span className="tx">{m.text}</span>
+              </div>
+            ))}
+            <button className="btn sm" onClick={() => { clearStartingItem(); setText(""); }}>Repartir d'une base neuve</button>
+          </div>
+        ) : (
+          <>
+            <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder="Colle ici le texte de l'objet…" />
+            <div className="row">
+              <button className="btn sm" disabled={!text.trim() || analyzingStartingItem} onClick={() => void analyzeStartingItem(text)}>
+                {analyzingStartingItem ? "Analyse…" : "Analyser"}
+              </button>
+            </div>
+            {startingItemError && <div className="err small">{startingItemError}</div>}
+          </>
+        )}
+      </div>
+    </details>
+  );
+}
+
 export function PlannerPage() {
   const s = useStore();
   const { info, pools, baseId, ilvl, wanted, setPlanner, plan, solving, progress, solveError } = s;
@@ -86,7 +125,7 @@ export function PlannerPage() {
           <div className="panel pad stack">
             <div className="row">
               <label className="f grow">Base
-                <select value={baseId} onChange={(e) => setPlanner({ baseId: e.target.value, wanted: [] })}>
+                <select value={baseId} onChange={(e) => setPlanner({ baseId: e.target.value, wanted: [], startingItem: null })}>
                   {info?.bases.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.itemClass})</option>)}
                 </select>
               </label>
@@ -96,6 +135,7 @@ export function PlannerPage() {
             </div>
             {pool ? <GoalPicker pool={pool} wanted={wanted} onChange={(w) => setPlanner({ wanted: w })} /> : <p className="muted">Chargement de la base…</p>}
           </div>
+          <StartingItemPicker />
           <ActionsPicker />
           <div className="panel pad stack" style={{ gap: 10 }}>
             <label className="row small"><input type="checkbox" checked={s.activate} onChange={(e) => setPlanner({ activate: e.target.checked })} /> Utiliser ce plan dans l'overlay en jeu</label>

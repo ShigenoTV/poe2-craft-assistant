@@ -230,6 +230,10 @@ pub struct PlanRequest {
     /// libellé de l'origine des prix, affiché avec le plan (ex. « poe.ninja, ligue X »)
     #[serde(default)]
     pub prices_label: Option<String>,
+    /// Objet déjà existant dont on veut repartir (au lieu d'une base neuve). Doit être compatible avec
+    /// `base_id` (mêmes affixes résolubles) ; `None` = objet neuf (Normal, aucun mod), comme avant.
+    #[serde(default)]
+    pub starting_item: Option<ItemView>,
 }
 fn d_true() -> bool {
     true
@@ -252,6 +256,10 @@ pub struct PlanContext {
     pub salvage: f64,
     pub prices_source: String,
     pub solution: Solution,
+    /// État de départ réellement résolu (objet neuf, ou projection de `req.starting_item`) — celui sur
+    /// lequel `ctx.solution` a été calculée. `make_plan`/`verify_policy` doivent repartir d'ici, jamais
+    /// d'un `MacroState::empty` recalculé indépendamment, sous peine d'ignorer un objet déjà existant.
+    pub start: MacroState,
     extra: Mutex<HashMap<MacroState, Arc<Solution>>>,
 }
 
@@ -283,8 +291,14 @@ pub fn build_context(ds: &Dataset, req: &PlanRequest, prices: &BTreeMap<String, 
     }
     let base_cost = prices.get("base_white").copied().unwrap_or(1.0);
     let salvage = prices.get("base_salvage").copied().unwrap_or(0.0);
-    let model = Arc::new(Model::new(pool, goal, req.ilvl, actions, base_cost, salvage));
-    let start = MacroState::empty(Rarity::Normal);
+    let model = Arc::new(Model::new(pool.clone(), goal.clone(), req.ilvl, actions, base_cost, salvage));
+    let start = match &req.starting_item {
+        Some(view) => {
+            let item = view.to_state(&pool).map_err(|e| format!("objet de départ invalide : {e}"))?;
+            craft_solver::project(&goal, &pool, &item).ok_or_else(|| "objet de départ incompatible avec cet objectif (affixe fracturé non voulu, ou hors de ce que le solveur sait représenter)".to_string())?
+        }
+        None => MacroState::empty(Rarity::Normal),
+    };
     let solution = solve(&model, &[start], &SolveConfig::default(), cancel)?;
     Ok(PlanContext {
         req: req.clone(),
@@ -296,14 +310,16 @@ pub fn build_context(ds: &Dataset, req: &PlanRequest, prices: &BTreeMap<String, 
         salvage,
         prices_source: req.prices_label.clone().unwrap_or_else(|| format!("{} ({})", ds.meta.source, ds.meta.generated_at)),
         solution,
+        start,
         extra: Mutex::new(HashMap::new()),
     })
 }
 
-/// Construit le graphe de plan depuis une base neuve, puis vérifie la politique par Monte-Carlo (moteur exact).
+/// Construit le graphe de plan depuis l'état de départ déjà résolu par `build_context` (objet neuf, ou
+/// objet existant fourni), puis vérifie la politique par Monte-Carlo (moteur exact).
 /// À appeler dans `pool.install(..)` pour borner le parallélisme.
 pub fn make_plan(ctx: &PlanContext, on_progress: impl FnMut(u64, u64) -> bool) -> Result<CraftPlan, String> {
-    let start = MacroState::empty(Rarity::Normal);
+    let start = ctx.start;
     let inputs = PlanInputs {
         model: &ctx.model,
         sol: &ctx.solution,
@@ -316,7 +332,11 @@ pub fn make_plan(ctx: &PlanContext, on_progress: impl FnMut(u64, u64) -> bool) -
     };
     let mut plan = build_plan(&inputs, &PlanConfig { node_cap: ctx.req.node_cap, ..Default::default() })?;
     if ctx.req.mc_trials > 0 {
-        plan.mc = verify_policy(&ctx.model, &ctx.solution, ItemState::new(Rarity::Normal, ctx.req.ilvl), ctx.req.mc_trials, 20_000, ctx.req.seed, on_progress);
+        let start_item = match &ctx.req.starting_item {
+            Some(view) => view.to_state(&ctx.model.pool)?,
+            None => ItemState::new(Rarity::Normal, ctx.req.ilvl),
+        };
+        plan.mc = verify_policy(&ctx.model, &ctx.solution, start_item, ctx.req.mc_trials, 20_000, ctx.req.seed, on_progress);
     }
     Ok(plan)
 }
@@ -492,6 +512,7 @@ mod tests {
             node_cap: 50,
             seed: 1,
             prices_label: None,
+                starting_item: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
         assert!(
@@ -522,6 +543,7 @@ mod tests {
             node_cap: 50,
             seed: 1,
             prices_label: None,
+                starting_item: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
         assert!(
@@ -566,6 +588,7 @@ mod alloy_tests {
             node_cap: 50,
             seed: 1,
             prices_label: None,
+                starting_item: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
         assert!(
@@ -600,6 +623,7 @@ mod jewel_tests {
             node_cap: 50,
             seed: 1,
             prices_label: None,
+                starting_item: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context sur un joyau");
         let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
@@ -631,6 +655,7 @@ mod liquid_emotion_tests {
             node_cap: 50,
             seed: 1,
             prices_label: None,
+                starting_item: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context sur Rubis");
         assert!(
@@ -666,11 +691,57 @@ mod weapon_class_tests {
                 node_cap: 50,
                 seed: 1,
                 prices_label: None,
+                starting_item: None,
             };
             let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).unwrap_or_else(|e| panic!("build_context sur {base_id} : {e}"));
             let plan = make_plan(&ctx, |_, _| true).unwrap_or_else(|e| panic!("make_plan sur {base_id} : {e}"));
             assert!(plan.solver.converged, "le solveur doit converger sur {base_id}");
             assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0, "coût fini et positif sur {base_id}");
         }
+    }
+}
+
+#[cfg(test)]
+mod starting_item_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Bout en bout : partir d'un objet déjà Magique avec un bon mod garanti doit coûter, en moyenne,
+    /// moins cher que partir d'un objet neuf pour atteindre le même objectif.
+    #[test]
+    fn solver_starts_from_an_existing_item_instead_of_a_fresh_base() {
+        let ds = Dataset::embedded();
+        let prices = ds.prices.clone();
+        let bp = ds.build_pool("sword_1h").unwrap();
+        let target_idx = bp.pool.affixes.iter().position(|a| a.id == "LocalAddedPhysicalDamage5").expect("cible de test introuvable dans le pool");
+
+        let base_req = PlanRequest {
+            base_id: "sword_1h".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: "PhysicalDamage".into(), max_tier: 5 }],
+            enabled_actions: None,
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 100,
+            seed: 1,
+            prices_label: None,
+            starting_item: None,
+        };
+        let fresh = build_context(&ds, &base_req, &prices, &AtomicBool::new(false)).expect("build_context (neuf)");
+        let fresh_plan = make_plan(&fresh, |_, _| true).expect("make_plan (neuf)");
+
+        let mut with_start = base_req.clone();
+        with_start.starting_item = Some(ItemView { rarity: Rarity::Magic, ilvl: 82, mods: vec![ModView { affix_idx: target_idx as u16, fractured: false }] });
+        let ctx2 = build_context(&ds, &with_start, &prices, &AtomicBool::new(false)).expect("build_context (objet existant)");
+        let plan2 = make_plan(&ctx2, |_, _| true).expect("make_plan (objet existant)");
+
+        assert!(plan2.solver.converged);
+        assert!(
+            plan2.expected_cost < fresh_plan.expected_cost,
+            "partir d'un objet qui a déjà le bon mod (Magique, T5 garanti) devrait coûter moins cher ({} vs objet neuf {})",
+            plan2.expected_cost,
+            fresh_plan.expected_cost
+        );
     }
 }

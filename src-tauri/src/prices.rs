@@ -127,6 +127,31 @@ pub fn refresh(st: &AppState) -> Result<PriceState, String> {
     Ok(state_of(st, None))
 }
 
+/// Recalcule le plan actif avec les prix les plus récents, en repartant du dernier objet capturé
+/// compatible (ou de l'objet de départ d'origine, ou d'une base neuve si aucun des deux). Échoue vite et
+/// sans rien changer si l'objectif est devenu impossible depuis cet objet (`build_context` renvoie une
+/// erreur avant même de lancer le calcul coûteux) — c'est le comportement voulu, pas une panne.
+pub(crate) fn refresh_active_plan(app: &tauri::AppHandle, st: &AppState) {
+    use tauri::Emitter;
+    let Some(ctx) = st.active.lock().unwrap().clone() else { return };
+    let mut req = ctx.req.clone();
+    if let Some((base, view)) = st.last_item.lock().unwrap().clone() {
+        if base == req.base_id {
+            req.starting_item = Some(view);
+        }
+    }
+    let (ds, prices) = (st.dataset(), st.prices());
+    match craft_api::build_context(&ds, &req, &prices, &std::sync::atomic::AtomicBool::new(false)) {
+        Ok(new_ctx) => {
+            *st.active.lock().unwrap() = Some(std::sync::Arc::new(new_ctx));
+            let _ = app.emit("plan-refreshed", ());
+        }
+        // objectif devenu impossible depuis le dernier objet connu, ou autre souci : le plan actif
+        // reste tel quel plutôt que d'être remplacé par une erreur.
+        Err(e) => eprintln!("recalcul du plan actif (prix rafraîchis) : {e}"),
+    }
+}
+
 /// Au démarrage : actualisation silencieuse si les prix ont plus d'une heure (ou n'existent pas encore).
 pub fn spawn_startup_refresh(app: tauri::AppHandle, st: std::sync::Arc<AppState>) {
     use tauri::Emitter;
@@ -142,6 +167,7 @@ pub fn spawn_startup_refresh(app: tauri::AppHandle, st: std::sync::Arc<AppState>
         match refresh(&st) {
             Ok(s) => {
                 let _ = app.emit("prices-updated", s);
+                refresh_active_plan(&app, &st);
             }
             Err(e) => eprintln!("prix poe.ninja : {e}"),
         }

@@ -46,7 +46,7 @@ fn main() {
                 }
                 i += 1;
             }
-            let req = PlanRequest { base_id: base, ilvl, wanted, enabled_actions: None, prices: None, allow_abandon: true, mc_trials: trials, node_cap: 220, seed: 42, prices_label: None };
+            let req = PlanRequest { base_id: base, ilvl, wanted, enabled_actions: None, prices: None, allow_abandon: true, mc_trials: trials, node_cap: 220, seed: 42, prices_label: None, starting_item: None };
             let t0 = std::time::Instant::now();
             let ctx = build_context(&ds, &req, &ds.prices, &AtomicBool::new(false)).unwrap_or_else(|e| {
                 eprintln!("erreur : {e}");
@@ -105,6 +105,7 @@ fn main() {
                 node_cap: 220,
                 seed: 42,
                 prices_label: None,
+                starting_item: None,
             };
             let ctx = build_context(&ds, &req, &ds.prices, &AtomicBool::new(false)).unwrap();
             w("plan.json", &make_plan(&ctx, |_, _| true).unwrap());

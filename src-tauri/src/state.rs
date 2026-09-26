@@ -60,6 +60,9 @@ pub struct AppState {
     pub market: Mutex<Option<crate::prices::MarketPrices>>,
     pub settings: Mutex<Settings>,
     pub active: Mutex<Option<Arc<PlanContext>>>,
+    /// dernier objet capturé compatible avec le plan actif (base, objet) : sert de point de départ quand
+    /// le plan est recalculé (prix rafraîchis) plutôt que de reconsidérer une base neuve.
+    pub last_item: Mutex<Option<(String, craft_api::ItemView)>>,
     pub cpu: Mutex<Arc<rayon::ThreadPool>>,
     pub cancel: Mutex<Arc<AtomicBool>>,
     pub overlay_wanted: AtomicBool,
@@ -99,6 +102,7 @@ impl AppState {
             market: Mutex::new(market),
             settings: Mutex::new(settings),
             active: Mutex::new(None),
+            last_item: Mutex::new(None),
             cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
             overlay_wanted: AtomicBool::new(false),
             overlay_interactive: AtomicBool::new(false),

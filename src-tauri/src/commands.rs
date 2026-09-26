@@ -148,6 +148,13 @@ pub async fn submit_item_text(app: AppHandle, st: St<'_>, text: String) -> Resul
     tauri::async_runtime::spawn_blocking(move || crate::capture::process_text(&app, &st, &text)).await.map_err(|e| e.to_string())
 }
 
+/// Analyse pure d'un texte d'objet, sans toucher à l'overlay ni au plan actif — utilisé pour repartir
+/// d'un objet déjà existant dans le Reverse-crafting (au lieu d'une base neuve).
+#[tauri::command]
+pub fn analyze_item_text(st: St, text: String, base_hint: Option<String>, fallback_ilvl: u8) -> craft_api::ItemAnalysis {
+    craft_api::analyze_item(&st.dataset(), &text, base_hint.as_deref(), fallback_ilvl)
+}
+
 #[tauri::command]
 pub fn last_clipboard(st: St) -> String {
     st.last_clipboard.lock().unwrap().clone()
@@ -276,11 +283,20 @@ pub fn price_state(st: St) -> crate::prices::PriceState {
     crate::prices::state_of(&st, None)
 }
 
-/// Actualise les prix depuis poe.ninja (espacé d'au moins 5 minutes). Le plan déjà calculé doit être relancé pour en tenir compte.
+/// Actualise les prix depuis poe.ninja (espacé d'au moins 5 minutes), et relance le plan actif avec.
 #[tauri::command]
-pub async fn refresh_prices(st: St<'_>) -> Result<crate::prices::PriceState, String> {
+pub async fn refresh_prices(app: AppHandle, st: St<'_>) -> Result<crate::prices::PriceState, String> {
     let st = st.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || crate::prices::refresh(&st)).await.map_err(|e| e.to_string())?
+    let out = tauri::async_runtime::spawn_blocking({
+        let st = st.clone();
+        move || crate::prices::refresh(&st)
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    if out.is_ok() {
+        crate::prices::refresh_active_plan(&app, &st);
+    }
+    out
 }
 
 /// Origine des prix affichée avec le plan : « poe.ninja, ligue X (il y a N min) » + nombre de prix saisis à la main.

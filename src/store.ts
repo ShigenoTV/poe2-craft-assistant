@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { api, listen } from "@/lib/ipc";
-import type { ActionView, CraftPlan, DatasetInfo, PoolView, Progress, UpdateInfo, WantedReq } from "@/lib/types";
+import type { ActionView, CraftPlan, DatasetInfo, ItemAnalysis, ItemView, PoolView, Progress, UpdateInfo, WantedReq } from "@/lib/types";
 
 export type Page = "planner" | "sandbox" | "item" | "data" | "settings";
 
@@ -25,7 +25,14 @@ interface Store {
   enabled: string[];
   activate: boolean;
   mcTrials: number;
-  setPlanner: (p: Partial<Pick<Store, "baseId" | "ilvl" | "wanted" | "enabled" | "activate" | "mcTrials">>) => void;
+  /** Objet déjà existant dont on repart (au lieu d'une base neuve) ; `null` = base neuve, comme avant. */
+  startingItem: ItemView | null;
+  startingItemAnalysis: ItemAnalysis | null;
+  startingItemError: string | null;
+  analyzingStartingItem: boolean;
+  setPlanner: (p: Partial<Pick<Store, "baseId" | "ilvl" | "wanted" | "enabled" | "activate" | "mcTrials" | "startingItem">>) => void;
+  analyzeStartingItem: (text: string) => Promise<void>;
+  clearStartingItem: () => void;
 
   plan: CraftPlan | null;
   progress: Progress | null;
@@ -97,7 +104,23 @@ export const useStore = create<Store>((set, get) => ({
   enabled: [],
   activate: true,
   mcTrials: 20000,
+  startingItem: null,
+  startingItemAnalysis: null,
+  startingItemError: null,
+  analyzingStartingItem: false,
   setPlanner: (p) => set(p),
+  analyzeStartingItem: async (text) => {
+    set({ analyzingStartingItem: true, startingItemError: null });
+    try {
+      const a = await api.analyzeItemText(text, get().baseId, get().ilvl);
+      if (a.error) { set({ startingItemError: a.error, analyzingStartingItem: false }); return; }
+      if (!a.detail) { set({ startingItemError: "Base non reconnue — sélectionne-la à la main puis réessaie.", analyzingStartingItem: false }); return; }
+      set({ startingItem: a.detail.view, startingItemAnalysis: a, startingItemError: null, analyzingStartingItem: false, baseId: a.baseId ?? get().baseId });
+    } catch (e) {
+      set({ startingItemError: String(e), analyzingStartingItem: false });
+    }
+  },
+  clearStartingItem: () => set({ startingItem: null, startingItemAnalysis: null, startingItemError: null }),
 
   plan: null,
   progress: null,
@@ -109,7 +132,7 @@ export const useStore = create<Store>((set, get) => ({
     set({ solving: true, solveError: null, progress: { stage: "solving", done: 0, total: 0 } });
     try {
       const plan = await api.solvePlan(
-        { baseId: s.baseId, ilvl: s.ilvl, wanted: s.wanted, enabledActions: s.enabled, allowAbandon: true, mcTrials: s.mcTrials, nodeCap: 220, seed: 42 },
+        { baseId: s.baseId, ilvl: s.ilvl, wanted: s.wanted, enabledActions: s.enabled, allowAbandon: true, mcTrials: s.mcTrials, nodeCap: 220, seed: 42, startingItem: s.startingItem },
         s.activate,
         (progress) => set({ progress }),
       );

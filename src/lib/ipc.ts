@@ -45,6 +45,7 @@ export const api = {
   activePlan: () => call<T.ActiveInfo | null>("active_plan"),
   clearActivePlan: () => call<void>("clear_active_plan"),
   submitItemText: (text: string) => call<T.ItemCaptured>("submit_item_text", { text }),
+  analyzeItemText: (text: string, baseHint: string | null, fallbackIlvl: number) => call<T.ItemAnalysis>("analyze_item_text", { text, baseHint, fallbackIlvl }),
   lastClipboard: () => call<string>("last_clipboard"),
   getSettings: () => call<T.Settings>("get_settings"),
   setSettings: (settings: T.Settings) => call<void>("set_settings", { settings }),

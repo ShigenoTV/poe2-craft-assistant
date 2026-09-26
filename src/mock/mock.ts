@@ -106,6 +106,7 @@ export async function handle(cmd: string, a: Record<string, unknown>): Promise<u
     case "active_plan": return null;
     case "clear_active_plan": return null;
     case "submit_item_text": return get("capture") ?? null;
+    case "analyze_item_text": return (get("capture") as { analysis?: T.ItemAnalysis } | null)?.analysis ?? { parsed: { itemClass: null, rarityLabel: null, rarity: null, name: null, baseType: null, itemLevel: null, corrupted: false, advanced: false, mods: [] }, baseId: null, detail: null, unmatched: [], error: "Mode démo : analyse d'objet non simulée." };
     case "last_clipboard": return "";
     case "get_settings": return settings;
     case "set_settings": settings = a.settings as T.Settings; return null;

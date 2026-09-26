@@ -37,6 +37,7 @@ export interface PlanRequest {
   baseId: string; ilvl: number; wanted: WantedReq[];
   enabledActions?: string[] | null; prices?: Record<string, number> | null;
   allowAbandon: boolean; mcTrials: number; nodeCap: number; seed: number;
+  startingItem?: ItemView | null;
 }
 export interface SimRequest {
   baseId: string; ilvl: number; start: ItemView; wanted: WantedReq[]; currencyId: string;

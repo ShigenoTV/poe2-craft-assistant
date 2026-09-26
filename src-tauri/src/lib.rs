@@ -72,6 +72,7 @@ pub fn run() {
             commands::active_plan,
             commands::clear_active_plan,
             commands::submit_item_text,
+            commands::analyze_item_text,
             commands::last_clipboard,
             commands::get_settings,
             commands::set_settings,
