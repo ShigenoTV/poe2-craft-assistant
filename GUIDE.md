@@ -22,6 +22,11 @@ L'écran principal. Tu choisis une base d'objet, un niveau d'objet, et les affix
 (jusqu'à 6, au maximum 3 préfixes et 3 suffixes). Pour chaque affixe, une barre de tiers permet de choisir
 le tier minimum accepté : « T3 » veut dire T1, T2 ou T3 acceptés.
 
+Par défaut, le plan repart d'une base neuve. Si tu as déjà un objet en cours (déjà Magique ou Rare, avec
+des affixes déjà présents), ouvre **Objet de départ** et colle son texte (Ctrl+Alt+C en jeu) : le plan
+recalculé prendra en compte ce qui est déjà là, sans repartir de zéro. Change de base manuellement
+réinitialise cet objet de départ, puisque ses affixes ne correspondraient plus.
+
 Une fois l'objectif défini, clique sur **Calculer le plan**. L'application cherche la suite de monnaies
 qui coûte le moins cher en moyenne pour l'obtenir, et affiche :
 - un résumé en haut (coût moyen, coût médian, budget qui suffit 9 fois sur 10) ;
