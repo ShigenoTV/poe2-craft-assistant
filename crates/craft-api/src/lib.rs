@@ -745,3 +745,35 @@ mod starting_item_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod remaining_alloy_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Bout en bout : Sovereign Alloy sur un Focus doit résoudre vers la cible "armure" (Ward), jamais
+    /// vers la cible "arme" — vérifie que le tag générique `weapon` n'empiète pas sur focus/staff/wand.
+    #[test]
+    fn sovereign_alloy_targets_armour_not_weapon_on_a_focus() {
+        let ds = Dataset::embedded();
+        let prices = ds.prices.clone();
+        let enabled: HashSet<String> = ["alchemy", "alloy_sovereign"].iter().map(|s| s.to_string()).collect();
+        let req = PlanRequest {
+            base_id: "focus".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: "AlloyWardPercent".into(), max_tier: 1 }],
+            enabled_actions: Some(enabled.into_iter().collect()),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: None,
+        };
+        let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context sur focus");
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged, "doit converger : Sovereign Alloy doit bien cibler le Ward sur focus");
+        assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0);
+    }
+}
