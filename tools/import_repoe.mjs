@@ -180,9 +180,15 @@ function main() {
   // les mods du domaine `desecrated` n'apparaissent JAMAIS dans un import brut (`importMods` les exclut
   // volontairement, voir plus haut) : ceux déjà présents dans le dataset précédent sont donc à la main
   // et doivent être reportés, sous peine de perdre silencieusement la Désécration à chaque régénération.
-  const carriedDesecrated = (carried.mods ?? []).filter((m) => m.desecrated);
+  // Même chose pour les mods exclusifs aux Alloys/Essences Perfect (poids nul partout dans les vraies
+  // données, ex. AlloyMysticHelmet) : ils ne peuvent jamais venir de l'import brut non plus. Règle
+  // générale et robuste : on reporte tout mod du dataset précédent qui est `desecrated` OU référencé
+  // comme cible par au moins une Essence — cette deuxième condition couvre tous les mods exclusifs sans
+  // avoir à deviner leur nature un par un.
   const knownIds = new Set(outMods.map((m) => m.id));
-  for (const m of carriedDesecrated) {
+  const carriedEssenceTargetIds = new Set((carried.essences ?? []).flatMap((e) => e.targets.map((t) => t.mod_id)));
+  const toCarry = (carried.mods ?? []).filter((m) => m.desecrated || carriedEssenceTargetIds.has(m.id));
+  for (const m of toCarry) {
     if (!knownIds.has(m.id)) outMods.push(m);
   }
 
