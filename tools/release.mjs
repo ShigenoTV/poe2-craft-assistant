@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 // Publie une version : met à jour les numéros, commit, tag vX.Y.Z, push. GitHub Actions construit et publie ensuite
-// l'installeur signé + latest.json. Usage : node tools/release.mjs 0.2.0 [--dry-run]
+// l'installeur signé + latest.json. Usage : node tools/release.mjs 0.2.0 [--dry-run] [--no-tag]
+// --no-tag : commit + push sans tag (environnement qui ne peut pas pousser de tag, ex. Claude en cloud) ;
+// la Release se lance ensuite par « Run workflow » sur build-windows.yml avec « publish » coché.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const [version, flag] = process.argv.slice(2);
-const dry = flag === "--dry-run";
+const [version, ...flags] = process.argv.slice(2);
+const dry = flags.includes("--dry-run");
+const noTag = flags.includes("--no-tag");
 const fail = (m) => { console.error(`\nERREUR : ${m}\n`); process.exit(1); };
 if (!/^\d+\.\d+\.\d+$/.test(version ?? "")) fail("donne un numéro de version de la forme 0.2.0");
 
@@ -34,9 +37,13 @@ console.log(dry ? `(essai à blanc) numéros de version qui seraient écrits : $
 const git = (...a) => { console.log(`> git ${a.join(" ")}`); if (!dry) execFileSync("git", a, { cwd: root, stdio: "inherit" }); };
 git("add", "-A");
 git("commit", "-m", `Version ${version}`);
-git("tag", "-a", `v${version}`, "-m", `Version ${version}`); // annoté : nécessaire, --follow-tags ignore les tags légers
+if (!noTag) git("tag", "-a", `v${version}`, "-m", `Version ${version}`); // annoté : nécessaire, --follow-tags ignore les tags légers
 git("push", "origin", "HEAD");
-git("push", "origin", `v${version}`); // poussé explicitement : ne dépend plus du comportement de --follow-tags
+if (!noTag) git("push", "origin", `v${version}`); // poussé explicitement : ne dépend plus du comportement de --follow-tags
+if (noTag && !dry) {
+  console.log(`\nPoussé sans tag. Lance « Run workflow » sur build-windows.yml avec « publish » coché pour publier v${version}.`);
+  process.exit(0);
+}
 console.log(dry
   ? "\n(essai à blanc : rien n'a été commité ni poussé)"
   : `\nPoussé. Suis la construction ici : onglet « Actions » de ton dépôt. Comptez ~15 minutes, puis la Release v${version} apparaît.`);
