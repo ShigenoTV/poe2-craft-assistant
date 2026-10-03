@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useStore } from "@/store";
-import { baseLabel, pct, prettyText } from "@/lib/format";
+import { pct, prettyText } from "@/lib/format";
+import { BaseSelect } from "@/components/BaseSelect";
 
 export function DataPage() {
   const { info, pools, ensurePool } = useStore();
@@ -24,11 +25,13 @@ export function DataPage() {
           </div>
         </div>
       </div>
-      <div className="row" style={{ marginBottom: 12 }}>
-        <label className="f" style={{ width: 300 }}>Base
-          <select value={baseId} onChange={(e) => setBaseId(e.target.value)}>{info.bases.map((b) => <option key={b.id} value={b.id}>{baseLabel(b, true)}</option>)}</select>
-        </label>
-        <label className="f grow" style={{ maxWidth: 320 }}>Filtrer<input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nom d'affixe ou texte d'un mod…" /></label>
+      <div className="stack" style={{ marginBottom: 12, maxWidth: 640 }}>
+        <BaseSelect
+          bases={info.bases}
+          value={baseId}
+          onChange={setBaseId}
+          aside={<label className="f grow">Filtrer<input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nom d'affixe ou texte d'un mod…" /></label>}
+        />
       </div>
       <div className="panel">
         {groups.map((g) => (

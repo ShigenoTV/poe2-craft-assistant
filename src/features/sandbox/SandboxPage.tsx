@@ -3,7 +3,8 @@ import { useStore } from "@/store";
 import { api } from "@/lib/ipc";
 import { GoalPicker } from "@/components/GoalPicker";
 import { goalFamilies, ItemCard } from "@/components/ItemCard";
-import { baseLabel, cost, num, pct, shortUnit } from "@/lib/format";
+import { cost, num, pct, shortUnit } from "@/lib/format";
+import { BaseSelect } from "@/components/BaseSelect";
 import type { ActionView, ItemDetail, SimResult, WantedReq } from "@/lib/types";
 
 const blank = (ilvl: number): ItemDetail => ({ view: { rarity: "normal", ilvl, mods: [] }, mods: [] });
@@ -74,15 +75,17 @@ export function SandboxPage() {
       <div className="page-head"><h1>Simulateur</h1><p>Applique des monnaies une à une sur un objet, ou mesure la probabilité d'obtenir tes affixes en répétant une monnaie.</p></div>
       <div className="grid2">
         <div className="stack">
-          <div className="panel pad row">
-            <label className="f grow">Base
-              <select value={baseId} onChange={(e) => { setBaseId(e.target.value); setWanted([]); reset(); }}>
-                {info?.bases.map((b) => <option key={b.id} value={b.id}>{baseLabel(b)}</option>)}
-              </select>
-            </label>
-            <label className="f" style={{ width: 90 }}>Niveau d'objet
-              <input type="number" min={1} max={100} value={ilvl} onChange={(e) => { const v = Math.max(1, Math.min(100, +e.target.value || 1)); setIlvl(v); reset(v); }} />
-            </label>
+          <div className="panel pad stack">
+            <BaseSelect
+              bases={info?.bases ?? []}
+              value={baseId}
+              onChange={(id) => { setBaseId(id); setWanted([]); reset(); }}
+              aside={
+                <label className="f" style={{ width: 90 }}>Niveau d'objet
+                  <input type="number" min={1} max={100} value={ilvl} onChange={(e) => { const v = Math.max(1, Math.min(100, +e.target.value || 1)); setIlvl(v); reset(v); }} />
+                </label>
+              }
+            />
           </div>
           <ItemCard item={item} title={pool ? pool.base.name : ""} goal={{ families: fam }} />
           <div className="panel pad stack" style={{ gap: 10 }}>

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/store";
 import { GoalPicker } from "@/components/GoalPicker";
-import { baseLabel, cost, num, pct, shortUnit } from "@/lib/format";
+import { cost, num, pct, shortUnit } from "@/lib/format";
+import { BaseSelect } from "@/components/BaseSelect";
 import { PlanGraph } from "./PlanGraph";
 import { ShoppingList } from "./ShoppingList";
 import type { ActionView } from "@/lib/types";
@@ -123,16 +124,16 @@ export function PlannerPage() {
       <div className="planner">
         <aside className="stack">
           <div className="panel pad stack">
-            <div className="row">
-              <label className="f grow">Base
-                <select value={baseId} onChange={(e) => setPlanner({ baseId: e.target.value, wanted: [], startingItem: null })}>
-                  {info?.bases.map((b) => <option key={b.id} value={b.id}>{baseLabel(b, true)}</option>)}
-                </select>
-              </label>
-              <label className="f" style={{ width: 84 }}>Niveau d'objet
-                <input type="number" min={1} max={100} value={ilvl} onChange={(e) => setPlanner({ ilvl: Math.max(1, Math.min(100, +e.target.value || 1)) })} />
-              </label>
-            </div>
+            <BaseSelect
+              bases={info?.bases ?? []}
+              value={baseId}
+              onChange={(id) => setPlanner({ baseId: id, wanted: [], startingItem: null })}
+              aside={
+                <label className="f" style={{ width: 84 }}>Niveau d'objet
+                  <input type="number" min={1} max={100} value={ilvl} onChange={(e) => setPlanner({ ilvl: Math.max(1, Math.min(100, +e.target.value || 1)) })} />
+                </label>
+              }
+            />
             {pool ? <GoalPicker pool={pool} wanted={wanted} onChange={(w) => setPlanner({ wanted: w })} /> : <p className="muted">Chargement de la base…</p>}
           </div>
           <StartingItemPicker />
