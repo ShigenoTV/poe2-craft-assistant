@@ -91,10 +91,12 @@ Ce que fait l'import, et pourquoi (voir aussi les commentaires en tête de `tool
   seul représentant par classe, au plus haut niveau de drop (l'équivalent « fin de jeu »).
 - Bijoux (Anneau, Amulette, Ceinture, Carquois) : chaque vraie base est importée avec son implicite
   (champ `implicits`, affiché à côté du nom et utilisé pour reconnaître la variante d'un objet collé,
-  ex. les trois Two-Stone Ring). Sur RePoE 4.5.5.2 : 24 anneaux sur 28, 16 amulettes sur 25, 19
-  ceintures, 11 carquois. Les 13 bases dont l'implicite change le nombre de préfixes/suffixes autorisés
-  (Dusk/Gloam/Penumbra/Tenebrous Ring et Amulet, Lament, Portent, Absent, Twisted, Distorted Amulet)
-  sont omises et listées par l'import : le solveur fixe ce plafond selon la seule rareté.
+  ex. les trois Two-Stone Ring). Sur RePoE 4.5.5.2 : 28 anneaux, 25 amulettes, 19 ceintures, 11 carquois.
+  Les 13 bases dont l'implicite change le nombre de préfixes/suffixes autorisés (Dusk/Gloam/Penumbra/
+  Tenebrous Ring et Amulet, Lament, Portent, Absent, Twisted, Distorted Amulet) portent ce décalage dans
+  `prefix_cap_delta` / `suffix_cap_delta` (ex. Penumbra +2/-2 : 5 préfixes / 1 suffixe en Rare). Le
+  moteur et le solveur l'appliquent au plafond de la rareté, Magique compris (ex. Dusk Ring Magique :
+  2 préfixes / 0 suffixe) — ce dernier point est déduit de la stat, pas confirmé en jeu.
 - Non importé : Essences, mods de corruption, mods d'objets uniques.
 
 `tools/import_repoe.mjs` (Node, pas de dépendance en plus) est appelé automatiquement par

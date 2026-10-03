@@ -20,7 +20,7 @@ pub enum Rarity {
 }
 
 impl Rarity {
-    /// (max préfixes, max suffixes)
+    /// (max préfixes, max suffixes) d'une base ordinaire ; une base peut les décaler (voir `AffixPool::cap`).
     pub const fn cap(self) -> (u8, u8) {
         match self {
             Rarity::Normal => (0, 0),
@@ -178,12 +178,36 @@ pub enum Outcome {
 
 // ───────────────────────── Pool d'affixes ─────────────────────────
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct AffixPool {
     pub affixes: Vec<Affix>,
+    /// Décalage du nombre de préfixes / suffixes autorisés propre à la base (implicites
+    /// `local_maximum_prefixes_allowed_+` / `local_maximum_suffixes_allowed_+`, ex. Dusk Ring : +1 / -1).
+    pub cap_delta: (i8, i8),
 }
 
 impl AffixPool {
+    pub fn new(affixes: Vec<Affix>) -> Self {
+        Self { affixes, cap_delta: (0, 0) }
+    }
+
+    /// (max préfixes, max suffixes) pour cette base à cette rareté : plafond de la rareté décalé par
+    /// l'implicite de la base. Un objet Normal reste sans affixe.
+    pub fn cap(&self, rarity: Rarity) -> (u8, u8) {
+        let (p, s) = rarity.cap();
+        if rarity == Rarity::Normal {
+            return (p, s);
+        }
+        let shift = |base: u8, d: i8| (base as i16 + d as i16).clamp(0, 6) as u8;
+        (shift(p, self.cap_delta.0), shift(s, self.cap_delta.1))
+    }
+
+    /// Nombre total d'affixes autorisés à cette rareté (objet « plein »).
+    pub fn max_mods(&self, rarity: Rarity) -> usize {
+        let (p, s) = self.cap(rarity);
+        (p + s).min(6) as usize
+    }
+
     pub fn has_desecrated(&self, item: &ItemState) -> bool {
         item.mods().iter().any(|m| self.affixes[m.idx as usize].desecrated)
     }
@@ -194,7 +218,7 @@ impl AffixPool {
 
     /// Tirage pondéré exact parmi les affixes éligibles dans l'état courant.
     pub fn draw(&self, item: &ItemState, f: &DrawFilter, rng: &mut impl Rng) -> Option<AffixIdx> {
-        let (cap_p, cap_s) = item.rarity.cap();
+        let (cap_p, cap_s) = self.cap(item.rarity);
         let open_p = self.count(item, Slot::Prefix) < cap_p;
         let open_s = self.count(item, Slot::Suffix) < cap_s;
 
@@ -276,7 +300,7 @@ impl AffixPool {
                 item.rarity = Rarity::Magic;
                 self.add_random(item, &f, rng);
             }
-            Augment if item.rarity == Rarity::Magic && n < 2 => self.add_random(item, &f, rng),
+            Augment if item.rarity == Rarity::Magic && n < self.max_mods(Rarity::Magic) => self.add_random(item, &f, rng),
             Regal if item.rarity == Rarity::Magic => {
                 item.rarity = Rarity::Rare;
                 self.add_random(item, &f, rng);
@@ -287,7 +311,7 @@ impl AffixPool {
                     self.add_random(item, &f, rng);
                 }
             }
-            Exalt if item.rarity == Rarity::Rare && n < 6 => self.add_random(item, &f, rng),
+            Exalt if item.rarity == Rarity::Rare && n < self.max_mods(Rarity::Rare) => self.add_random(item, &f, rng),
             Chaos if item.rarity == Rarity::Rare => {
                 // retrait PUIS ajout : le pool du tirage est calculé après le retrait
                 if !self.remove_random(item, c.remove_slot, c.remove_desecrated_only, c.remove_lowest_level, rng) {
@@ -310,7 +334,7 @@ impl AffixPool {
                     return Outcome::NotApplicable;
                 }
                 let a = &self.affixes[target as usize];
-                let (cap_p, cap_s) = Rarity::Rare.cap();
+                let (cap_p, cap_s) = self.cap(Rarity::Rare);
                 let room = match a.slot {
                     Slot::Prefix => self.count(item, Slot::Prefix) < cap_p,
                     Slot::Suffix => self.count(item, Slot::Suffix) < cap_s,
@@ -323,7 +347,7 @@ impl AffixPool {
                 item.push(Mod { idx: target, fractured: false });
             }
             Desecrate if item.rarity == Rarity::Rare && !self.has_desecrated(item) => {
-                if n == 6 && !self.remove_random(item, None, false, false, rng) {
+                if n >= self.max_mods(Rarity::Rare) && !self.remove_random(item, None, false, false, rng) {
                     return Outcome::NotApplicable;
                 }
                 let f = DrawFilter { min_mod_level: 0, force_slot: c.add_slot, require_desecrated: true, require_tag: c.require_tag };

@@ -164,7 +164,7 @@ export function PlannerPage() {
           {!plan && !solving && (
             <div className="panel empty">
               <h3 className="hd" style={{ marginBottom: 6 }}>Aucun plan pour l'instant</h3>
-              Ajoute de 1 à 6 affixes (3 préfixes et 3 suffixes au maximum) puis lance le calcul. Tu obtiens le coût moyen, un budget sûr, la liste d'achats et l'arbre des décisions à suivre selon les tirages.
+              Ajoute de 1 à 6 affixes (3 préfixes et 3 suffixes au maximum, sauf bases qui changent ce plafond) puis lance le calcul. Tu obtiens le coût moyen, un budget sûr, la liste d'achats et l'arbre des décisions à suivre selon les tirages.
             </div>
           )}
           {plan && (

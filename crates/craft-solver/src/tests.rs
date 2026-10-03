@@ -20,7 +20,7 @@ fn pool(n_bad: u16) -> AffixPool {
         v.push(aff(format!("bp{i}"), 100 + i, Slot::Prefix, 1, 100));
         v.push(aff(format!("bs{i}"), 500 + i, Slot::Suffix, 1, 100));
     }
-    AffixPool { affixes: v }
+    AffixPool::new(v)
 }
 
 fn cur(id: &str, kind: CurrencyKind, cost: f64) -> Action {
@@ -159,4 +159,39 @@ fn advise_from_a_mid_craft_item() {
     let adv = advise(&m, &s2, &st, &["P".into(), "S".into()]).unwrap();
     assert!(adv.action.is_some() && adv.cost_to_go.unwrap() > 0.0);
     let _ = s;
+}
+
+/// Bout en bout, base à plafond décalé (Penumbra : 5 préfixes / 1 suffixe en Rare) : un objectif à 4
+/// préfixes, impossible sur une base ordinaire, devient atteignable ; le coût du solveur colle à celui
+/// mesuré sur le moteur exact, qui applique le même plafond.
+#[test]
+fn shifted_base_cap_allows_four_prefixes_and_matches_monte_carlo() {
+    let mut v: Vec<Affix> = (1..=4).map(|g| aff(format!("P{g}"), g, Slot::Prefix, 1, 600)).collect();
+    for i in 0..12 {
+        v.push(aff(format!("bp{i}"), 100 + i, Slot::Prefix, 1, 100));
+        v.push(aff(format!("bs{i}"), 500 + i, Slot::Suffix, 1, 100));
+    }
+    let wanted: Vec<WantedAffix> = (1..=4).map(|g| WantedAffix { group: g, max_tier: 1 }).collect();
+    assert!(Goal::new(&AffixPool::new(v.clone()), &wanted).is_err(), "4 préfixes impossibles sur une base 3/3");
+
+    let pool = Arc::new(AffixPool { affixes: v, cap_delta: (2, -2) });
+    let goal = Arc::new(Goal::new(&pool, &wanted).unwrap());
+    let mut actions = vec![
+        cur("transmute", CurrencyKind::Transmute, 0.1),
+        cur("augment", CurrencyKind::Augment, 0.1),
+        cur("regal", CurrencyKind::Regal, 0.3),
+        cur("exalt", CurrencyKind::Exalt, 1.0),
+        cur("chaos", CurrencyKind::Chaos, 0.8),
+        cur("annul", CurrencyKind::Annul, 2.0),
+    ];
+    actions.push(Action { id: "abandon".into(), label: "Abandon".into(), cost: 0.0, kind: ActionKind::Abandon });
+    let m = Model::new(pool, goal, 80, actions, 0.5, 0.0);
+    let s = solve(&m, &[MacroState::empty(Rarity::Normal)], &SolveConfig::default(), &AtomicBool::new(false)).unwrap();
+    assert!(s.converged);
+    let v0 = s.value[start_id(&m, &s)];
+    assert!(v0.is_finite() && v0 > 0.0);
+    let mc = verify_policy(&m, &s, ItemState::new(Rarity::Normal, 80), 40_000, 5_000, 4321, |_, _| true).unwrap();
+    assert!(mc.censored == 0);
+    let rel = (mc.mean_cost - v0).abs() / v0;
+    assert!(rel < 0.07, "V={v0:.3} MC={:.3} (écart {:.1} %)", mc.mean_cost, rel * 100.0);
 }

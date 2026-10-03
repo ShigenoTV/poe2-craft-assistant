@@ -29,6 +29,12 @@ pub struct BaseItem {
     /// emplacement de préfixe/suffixe et ne change pas le pool d'affixes.
     #[serde(default)]
     pub implicits: Vec<String>,
+    /// Décalage du nombre de préfixes / suffixes autorisés venant de l'implicite (ex. Dusk Ring : 1 / -1,
+    /// Absent Amulet : -1 / -1). 0 sur une base ordinaire.
+    #[serde(default)]
+    pub prefix_cap_delta: i8,
+    #[serde(default)]
+    pub suffix_cap_delta: i8,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -272,7 +278,8 @@ impl Dataset {
             });
         }
         groups.sort_by(|a, b| (a.slot as u8, &a.family).cmp(&(b.slot as u8, &b.family)));
-        Ok(BasePool { base, pool: AffixPool { affixes }, groups })
+        let cap_delta = (base.prefix_cap_delta, base.suffix_cap_delta);
+        Ok(BasePool { base, pool: AffixPool { affixes, cap_delta }, groups })
     }
 
     /// Liste des actions de craft (monnaies × Omens compatibles) avec coûts issus de `prices`.
@@ -382,14 +389,13 @@ mod tests {
     }
 
     /// Chaque vraie base de bijou (RePoE 4.5.5.2 : Anneau 28, Amulette 25, Ceinture 19, Carquois 11) est
-    /// importée avec son implicite, SAUF celles qui changent le plafond de préfixes/suffixes (4 anneaux,
-    /// 9 amulettes), omises tant que le solveur fixe ce plafond selon la seule rareté.
+    /// importée avec son implicite ; les 13 qui changent le plafond de préfixes/suffixes le portent.
     #[test]
     fn every_real_jewellery_base_is_imported_with_its_implicit() {
         let ds = Dataset::embedded();
         let count = |cls: &str| ds.bases.iter().filter(|b| b.item_class == cls).count();
-        assert_eq!(count("Ring"), 28 - 4);
-        assert_eq!(count("Amulet"), 25 - 9);
+        assert_eq!(count("Ring"), 28);
+        assert_eq!(count("Amulet"), 25);
         assert_eq!(count("Belt"), 19);
         assert_eq!(count("Quiver"), 11);
         let mut ids = HashSet::new();
@@ -397,11 +403,17 @@ mod tests {
             assert!(ids.insert(&b.id), "identifiant dupliqué : {}", b.id);
             // seule exception : la base « Ring » (FourRingBase) n'a aucun implicite dans les données du jeu
             assert!(!b.implicits.is_empty() || b.id == "ring", "{} sans implicite", b.id);
-            assert!(b.implicits.iter().all(|t| !t.contains("Modifier allowed") && !t.contains('[')), "{}: {:?}", b.id, b.implicits);
+            assert!(b.implicits.iter().all(|t| !t.contains('[')), "{}: {:?}", b.id, b.implicits);
+            // décalage de plafond présent si et seulement si l'implicite le dit
+            let says = b.implicits.iter().any(|t| t.contains("Modifier allowed") || t.contains("Modifiers allowed"));
+            assert_eq!(says, (b.prefix_cap_delta, b.suffix_cap_delta) != (0, 0), "{}", b.id);
         }
-        for omitted in ["Dusk Ring", "Gloam Ring", "Penumbra Ring", "Tenebrous Ring", "Lament Amulet", "Portent Amulet", "Absent Amulet", "Twisted Amulet", "Distorted Amulet"] {
-            assert!(ds.bases.iter().all(|b| b.name != omitted), "{omitted} change le plafond d'affixes : doit être omise");
+        let caps: Vec<(&str, i8, i8)> = ds.bases.iter().filter(|b| (b.prefix_cap_delta, b.suffix_cap_delta) != (0, 0)).map(|b| (b.id.as_str(), b.prefix_cap_delta, b.suffix_cap_delta)).collect();
+        assert_eq!(caps.len(), 13, "{caps:?}");
+        for expected in [("dusk_ring", 1, -1), ("penumbra_amulet", 2, -2), ("absent_amulet", -1, -1), ("lament_amulet", -1, 0), ("distorted_amulet", 0, -1)] {
+            assert!(caps.contains(&expected), "{expected:?} absent de {caps:?}");
         }
+        assert_eq!(ds.build_pool("tenebrous_ring").unwrap().pool.cap(Rarity::Rare), (1, 5));
         let two_stone: Vec<_> = ds.bases.iter().filter(|b| b.name == "Two-Stone Ring").collect();
         assert_eq!(two_stone.len(), 3);
         assert!(two_stone.iter().any(|b| b.implicits == ["+(12-16)% to Fire and Cold Resistances"]));

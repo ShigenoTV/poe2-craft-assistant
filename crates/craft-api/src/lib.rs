@@ -468,11 +468,23 @@ pub struct BaseView {
     pub item_class: String,
     pub tags: Vec<String>,
     pub implicits: Vec<String>,
+    /// plafond d'un objet Rare de cette base (3/3 sauf implicite qui le décale)
+    pub max_prefixes: u8,
+    pub max_suffixes: u8,
 }
 
 impl From<&BaseItem> for BaseView {
     fn from(b: &BaseItem) -> Self {
-        Self { id: b.id.clone(), name: b.name.clone(), item_class: b.item_class.clone(), tags: b.tags.clone(), implicits: b.implicits.clone() }
+        let (max_prefixes, max_suffixes) = AffixPool { affixes: vec![], cap_delta: (b.prefix_cap_delta, b.suffix_cap_delta) }.cap(Rarity::Rare);
+        Self {
+            id: b.id.clone(),
+            name: b.name.clone(),
+            item_class: b.item_class.clone(),
+            tags: b.tags.clone(),
+            implicits: b.implicits.clone(),
+            max_prefixes,
+            max_suffixes,
+        }
     }
 }
 
@@ -844,5 +856,40 @@ mod jewellery_base_tests {
         // nom de base le plus long : « Sapphire Ring » et pas « Ring » dans un nom d'objet Magique
         let magic = "Item Class: Rings\nRarity: Magic\nGlowing Sapphire Ring of the Fox\n--------\nItem Level: 82\n";
         assert_eq!(analyze_item(&ds, magic, None, 82).base_id.as_deref(), Some("sapphire_ring"));
+    }
+}
+
+#[cfg(test)]
+mod base_cap_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Bout en bout sur les vraies données : 4 préfixes voulus sont refusés sur une Sapphire Ring (3/3)
+    /// mais planifiés sur une Penumbra Ring (+2 préfixes / -2 suffixes, soit 5/1 en Rare).
+    #[test]
+    fn four_prefixes_are_planned_on_a_penumbra_ring_only() {
+        let ds = Dataset::embedded();
+        let prices = ds.prices.clone();
+        let req = |base: &str| PlanRequest {
+            base_id: base.into(),
+            ilvl: 82,
+            wanted: ["IncreasedLife", "IncreasedMana", "FireDamage", "ColdDamage"].iter().map(|g| WantedReq { group: g.to_string(), max_tier: 20 }).collect(),
+            enabled_actions: None,
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: None,
+        };
+        assert!(build_context(&ds, &req("sapphire_ring"), &prices, &AtomicBool::new(false)).is_err(), "4 préfixes impossibles sur une base 3/3");
+        let ctx = build_context(&ds, &req("penumbra_ring"), &prices, &AtomicBool::new(false)).expect("build_context sur Penumbra Ring");
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged);
+        assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0);
+        let info = dataset_info(&ds);
+        let b = info.bases.iter().find(|b| b.id == "penumbra_ring").unwrap();
+        assert_eq!((b.max_prefixes, b.max_suffixes), (5, 1));
     }
 }
