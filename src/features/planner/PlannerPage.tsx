@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/store";
 import { GoalPicker } from "@/components/GoalPicker";
-import { cost, num, pct, shortUnit } from "@/lib/format";
+import { baseLabel, cost, num, pct, shortUnit } from "@/lib/format";
 import { PlanGraph } from "./PlanGraph";
 import { ShoppingList } from "./ShoppingList";
 import type { ActionView } from "@/lib/types";
@@ -126,7 +126,7 @@ export function PlannerPage() {
             <div className="row">
               <label className="f grow">Base
                 <select value={baseId} onChange={(e) => setPlanner({ baseId: e.target.value, wanted: [], startingItem: null })}>
-                  {info?.bases.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.itemClass})</option>)}
+                  {info?.bases.map((b) => <option key={b.id} value={b.id}>{baseLabel(b, true)}</option>)}
                 </select>
               </label>
               <label className="f" style={{ width: 84 }}>Niveau d'objet

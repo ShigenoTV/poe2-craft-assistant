@@ -24,6 +24,11 @@ pub struct BaseItem {
     pub name: String,
     pub item_class: String,
     pub tags: Vec<String>,
+    /// Textes des implicites propres à cette base (bijoux : chaque vraie base est importée avec le
+    /// sien). Affichage et reconnaissance d'un objet collé seulement : un implicite n'occupe aucun
+    /// emplacement de préfixe/suffixe et ne change pas le pool d'affixes.
+    #[serde(default)]
+    pub implicits: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -373,6 +378,42 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    /// Chaque vraie base de bijou (RePoE 4.5.5.2 : Anneau 28, Amulette 25, Ceinture 19, Carquois 11) est
+    /// importée avec son implicite, SAUF celles qui changent le plafond de préfixes/suffixes (4 anneaux,
+    /// 9 amulettes), omises tant que le solveur fixe ce plafond selon la seule rareté.
+    #[test]
+    fn every_real_jewellery_base_is_imported_with_its_implicit() {
+        let ds = Dataset::embedded();
+        let count = |cls: &str| ds.bases.iter().filter(|b| b.item_class == cls).count();
+        assert_eq!(count("Ring"), 28 - 4);
+        assert_eq!(count("Amulet"), 25 - 9);
+        assert_eq!(count("Belt"), 19);
+        assert_eq!(count("Quiver"), 11);
+        let mut ids = HashSet::new();
+        for b in ds.bases.iter().filter(|b| ["Ring", "Amulet", "Belt", "Quiver"].contains(&b.item_class.as_str())) {
+            assert!(ids.insert(&b.id), "identifiant dupliqué : {}", b.id);
+            // seule exception : la base « Ring » (FourRingBase) n'a aucun implicite dans les données du jeu
+            assert!(!b.implicits.is_empty() || b.id == "ring", "{} sans implicite", b.id);
+            assert!(b.implicits.iter().all(|t| !t.contains("Modifier allowed") && !t.contains('[')), "{}: {:?}", b.id, b.implicits);
+        }
+        for omitted in ["Dusk Ring", "Gloam Ring", "Penumbra Ring", "Tenebrous Ring", "Lament Amulet", "Portent Amulet", "Absent Amulet", "Twisted Amulet", "Distorted Amulet"] {
+            assert!(ds.bases.iter().all(|b| b.name != omitted), "{omitted} change le plafond d'affixes : doit être omise");
+        }
+        let two_stone: Vec<_> = ds.bases.iter().filter(|b| b.name == "Two-Stone Ring").collect();
+        assert_eq!(two_stone.len(), 3);
+        assert!(two_stone.iter().any(|b| b.implicits == ["+(12-16)% to Fire and Cold Resistances"]));
+        // un implicite ne change pas le pool : toutes les bases d'une même classe de bijou ont les mêmes groupes
+        for cls in ["Ring", "Amulet", "Belt", "Quiver"] {
+            let pools: Vec<Vec<String>> = ds
+                .bases
+                .iter()
+                .filter(|b| b.item_class == cls)
+                .map(|b| ds.build_pool(&b.id).unwrap().groups.iter().map(|g| g.key.clone()).collect())
+                .collect();
+            assert!(pools.windows(2).all(|w| w[0] == w[1]), "{cls} : pools différents selon la base");
         }
     }
 

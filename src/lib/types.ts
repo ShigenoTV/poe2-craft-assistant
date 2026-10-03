@@ -4,7 +4,7 @@ export type Slot = "prefix" | "suffix";
 export type Rarity = "normal" | "magic" | "rare";
 export type CurrencyKind = "transmute" | "augment" | "regal" | "alchemy" | "exalt" | "chaos" | "annul" | "fracture";
 
-export interface BaseView { id: string; name: string; itemClass: string; tags: string[] }
+export interface BaseView { id: string; name: string; itemClass: string; tags: string[]; implicits: string[] }
 export interface DatasetInfo {
   source: string; gameVersion: string; generatedAt: string; notice: string; priceUnit: string;
   modCount: number; bases: BaseView[];

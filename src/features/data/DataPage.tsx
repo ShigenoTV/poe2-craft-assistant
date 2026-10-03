@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useStore } from "@/store";
-import { pct, prettyText } from "@/lib/format";
+import { baseLabel, pct, prettyText } from "@/lib/format";
 
 export function DataPage() {
   const { info, pools, ensurePool } = useStore();
@@ -26,7 +26,7 @@ export function DataPage() {
       </div>
       <div className="row" style={{ marginBottom: 12 }}>
         <label className="f" style={{ width: 300 }}>Base
-          <select value={baseId} onChange={(e) => setBaseId(e.target.value)}>{info.bases.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.itemClass})</option>)}</select>
+          <select value={baseId} onChange={(e) => setBaseId(e.target.value)}>{info.bases.map((b) => <option key={b.id} value={b.id}>{baseLabel(b, true)}</option>)}</select>
         </label>
         <label className="f grow" style={{ maxWidth: 320 }}>Filtrer<input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nom d'affixe ou texte d'un mod…" /></label>
       </div>

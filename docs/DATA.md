@@ -89,6 +89,12 @@ Ce que fait l'import, et pourquoi (voir aussi les commentaires en tête de `tool
 - Bases retenues : équipement uniquement, `release_state == "released"`. Les 4 classes d'armure
   principales + Shield sont scindées par archétype d'attribut (str/dex/int et hybrides) ; le reste a un
   seul représentant par classe, au plus haut niveau de drop (l'équivalent « fin de jeu »).
+- Bijoux (Anneau, Amulette, Ceinture, Carquois) : chaque vraie base est importée avec son implicite
+  (champ `implicits`, affiché à côté du nom et utilisé pour reconnaître la variante d'un objet collé,
+  ex. les trois Two-Stone Ring). Sur RePoE 4.5.5.2 : 24 anneaux sur 28, 16 amulettes sur 25, 19
+  ceintures, 11 carquois. Les 13 bases dont l'implicite change le nombre de préfixes/suffixes autorisés
+  (Dusk/Gloam/Penumbra/Tenebrous Ring et Amulet, Lament, Portent, Absent, Twisted, Distorted Amulet)
+  sont omises et listées par l'import : le solveur fixe ce plafond selon la seule rareté.
 - Non importé : Essences, mods de corruption, mods d'objets uniques.
 
 `tools/import_repoe.mjs` (Node, pas de dépendance en plus) est appelé automatiquement par
