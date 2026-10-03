@@ -30,6 +30,7 @@
 //   moteur et le solveur au plafond de la rareté.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { applyCoeWeights, parseCoe, report as reportWeights } from "./coe_weights.mjs";
 
 const BRACKET = /\[([^\]|]+)(?:\|([^\]]+))?\]/g;
 const clean = (t) => t.replace(BRACKET, (_, a, b) => b ?? a);
@@ -199,21 +200,23 @@ function parseArgs(argv) {
   let out = "data/sample/dataset.json";
   let carry = "data/sample/dataset.json";
   let indexFile = null;
+  let coeFile = null;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "-o" || argv[i] === "--out") out = argv[++i];
     else if (argv[i] === "--carry-prices-from") carry = argv[++i];
     else if (argv[i] === "--index") indexFile = argv[++i];
+    else if (argv[i] === "--coe") coeFile = argv[++i];
     else pos.push(argv[i]);
   }
   if (pos.length < 2) {
-    console.error("usage: node tools/import_repoe.mjs <mods.min.json> <base_items.min.json> [-o data/sample/dataset.json] [--index index.html]");
+    console.error("usage: node tools/import_repoe.mjs <mods.min.json> <base_items.min.json> [-o data/sample/dataset.json] [--index index.html] [--coe poec_data.json]");
     process.exit(2);
   }
-  return { modsFile: pos[0], baseItemsFile: pos[1], out, carry, indexFile };
+  return { modsFile: pos[0], baseItemsFile: pos[1], out, carry, indexFile, coeFile };
 }
 
 function main() {
-  const { modsFile, baseItemsFile, out, carry, indexFile } = parseArgs(process.argv.slice(2));
+  const { modsFile, baseItemsFile, out, carry, indexFile, coeFile } = parseArgs(process.argv.slice(2));
   const mods = JSON.parse(readFileSync(modsFile, "utf8"));
   const items = JSON.parse(readFileSync(baseItemsFile, "utf8"));
   const outMods = importMods(mods);
@@ -278,6 +281,20 @@ function main() {
     prices: carried.prices ?? {},
     price_sources: carried.price_sources ?? {},
   };
+
+  // poids d'apparition : Craft of Exile (voir tools/coe_weights.mjs) ; sans fichier fourni, on reprend
+  // ceux du dataset précédent, pour ne pas revenir en silence à des tiers tous équiprobables
+  if (coeFile) {
+    reportWeights(applyCoeWeights(dataset, parseCoe(readFileSync(coeFile, "utf8"))));
+    dataset.meta.weights_source = `craftofexile.com (poec_data.json, ${dataset.meta.generated_at})`;
+  } else if (carried.meta?.weights_source) {
+    const keys = new Map((carried.bases ?? []).filter((b) => b.weight_key).map((b) => [b.id, b.weight_key]));
+    const weights = new Map((carried.mods ?? []).filter((m) => m.weights).map((m) => [m.id, m.weights]));
+    for (const b of dataset.bases) if (keys.has(b.id)) b.weight_key = keys.get(b.id);
+    for (const m of dataset.mods) if (weights.has(m.id)) m.weights = weights.get(m.id);
+    dataset.meta.weights_source = carried.meta.weights_source;
+    console.error(`! pas de --coe : poids Craft of Exile repris du dataset précédent (${carried.meta.weights_source}) ; les mods nouveaux restent à 1`);
+  }
 
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify(dataset));

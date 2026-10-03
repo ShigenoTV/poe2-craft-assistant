@@ -16,6 +16,9 @@ pub struct Meta {
     pub notice: String,
     #[serde(default)]
     pub price_unit: String,
+    /// origine des poids d'apparition (vide = poids du jeu, tous égaux en PoE2)
+    #[serde(default)]
+    pub weights_source: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -35,6 +38,10 @@ pub struct BaseItem {
     pub prefix_cap_delta: i8,
     #[serde(default)]
     pub suffix_cap_delta: i8,
+    /// Base Craft of Exile dont cette base prend les poids d'apparition (`ModDef::weights`). Absent :
+    /// pas de poids connus, la base garde ceux du jeu (tous égaux).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight_key: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -60,6 +67,11 @@ pub struct ModDef {
     /// `CurrencyKind::Desecrate` (voir `docs/DATA.md`).
     #[serde(default)]
     pub desecrated: bool,
+    /// Poids estimés par Craft of Exile, par `BaseItem::weight_key` ; « * » = valeur par défaut. Remplace
+    /// le poids du jeu (toujours 1 en PoE2) sur une base qui a un `weight_key`, seulement là où le jeu
+    /// autorise le mod (poids > 0).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub weights: BTreeMap<String, u32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -244,6 +256,10 @@ impl Dataset {
                 .find(|s| s.tag == "default" || base.tags.iter().any(|t| *t == s.tag))
                 .map(|s| s.weight)
                 .unwrap_or(0);
+            let w = match &base.weight_key {
+                Some(k) if w > 0 => m.weights.get(k).or_else(|| m.weights.get("*")).copied().unwrap_or(w),
+                _ => w,
+            };
             if w > 0 || essence_target_ids.contains(m.id.as_str()) {
                 by_group.entry(m.group.as_str()).or_default().push((m, w));
             }
@@ -482,5 +498,27 @@ mod tests {
         let wand = ds.build_pool("wand").unwrap();
         let wand_acts = ds.essence_currencies(&wand, &ds.prices, None).unwrap();
         assert!(wand_acts.iter().all(|c| c.id != "essence_abrasion"), "l'Essence d'Abrasion ne doit pas s'appliquer à une baguette");
+    }
+
+    /// Poids Craft of Exile (poec_data.json, 2026-10-03) : « niveau de tous les sorts de feu » sur baguette
+    /// = 1000/750/500/250/100 du T5 au T1, comme sur leur site ; une base sans poids connus (griffe) garde
+    /// les poids du jeu ; et sur toute base pondérée, aucun mod normal n'est resté au poids 1 du jeu.
+    #[test]
+    fn craftofexile_weights_are_applied_per_base() {
+        let ds = Dataset::embedded();
+        assert!(ds.meta.weights_source.starts_with("craftofexile.com"));
+        let wand = ds.build_pool("wand").unwrap();
+        let fire = wand.groups.iter().find(|g| g.family == "+# to Level of all Fire Spell Skills").unwrap();
+        assert_eq!(fire.tiers.iter().map(|t| t.weight).collect::<Vec<_>>(), vec![100, 250, 500, 750, 1000]);
+        // Strength : 1000 sur une ceinture, 500 sur des gants str/dex, 250 sur un sceptre
+        let str1 = |base: &str| ds.build_pool(base).unwrap().pool.affixes.iter().find(|a| a.id == "Strength1").map(|a| a.weight);
+        assert_eq!((str1("double_belt"), str1("gloves_str_dex"), str1("sceptre")), (Some(1000), Some(500), Some(250)));
+        let claw = ds.build_pool("claw").unwrap();
+        assert!(claw.pool.affixes.iter().all(|a| a.weight <= 1), "griffe : pas de poids connus, poids du jeu");
+        for b in ds.bases.iter().filter(|b| b.weight_key.is_some()) {
+            let bp = ds.build_pool(&b.id).unwrap();
+            let stale: Vec<_> = bp.pool.affixes.iter().filter(|a| !a.desecrated && a.weight == 1).map(|a| a.id.as_str()).collect();
+            assert!(stale.is_empty(), "{} : mods restés au poids 1 du jeu : {stale:?}", b.id);
+        }
     }
 }

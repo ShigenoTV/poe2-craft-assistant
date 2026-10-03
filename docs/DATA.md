@@ -90,6 +90,16 @@ Ce que fait l'import, et pourquoi (voir aussi les commentaires en tête de `tool
   Spell Skills »). Deux familles d'un même groupe restent mutuellement exclusives sur l'objet. Clé
   d'objectif : `Groupe::Famille` quand le groupe a plusieurs familles sur la base, sinon `Groupe` ; une
   ancienne clé `Groupe` seule retombe sur la famille du groupe qui a le plus de tiers.
+- Poids d'apparition : les données du jeu PoE2 (RePoE, poe2db) donnent 1 à tous les tiers, GGG ne publie
+  pas les vrais poids. Ils viennent donc des estimations de Craft of Exile (recombinateur, communauté
+  Prohibited Library : https://www.craftofexile.com/weightings?game=poe2), fichier
+  `https://www.craftofexile.com/json/poe2/main/poec_data.json`, reporté par `tools/coe_weights.mjs`
+  (appelé par `import_repoe.mjs --coe <fichier>`). Chaque base reçoit `weight_key` (la base Craft of
+  Exile équivalente) et chaque mod `weights` (`"*"` = défaut, plus les exceptions par base). Le jeu
+  décide toujours si un mod est possible sur une base ; Craft of Exile ne fait que le pondérer. Restent
+  aux poids du jeu (tous égaux) : les bases sans équivalent (armures str/dex/int, joyau prismatique,
+  piège) et celles où Craft of Exile n'a aucun poids (griffe, dague, fléau, épées et haches). Sans
+  `--coe`, l'import reprend les poids du dataset précédent. `meta.weights_source` dit d'où ils viennent.
 - Bases retenues : équipement uniquement, `release_state == "released"`. Les 4 classes d'armure
   principales + Shield sont scindées par archétype d'attribut (str/dex/int et hybrides) ; le reste a un
   seul représentant par classe, au plus haut niveau de drop (l'équivalent « fin de jeu »).

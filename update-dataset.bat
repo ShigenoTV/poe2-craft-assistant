@@ -22,32 +22,39 @@ if errorlevel 1 (
 set "TMPDIR=%TEMP%\poe2-craft-dataset-update"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"
 
-echo [1/4] mods.min.json...
+echo [1/5] mods.min.json...
 curl -L -f -o "%TMPDIR%\mods.min.json" "https://repoe-fork.github.io/poe2/mods.min.json"
 if errorlevel 1 (
     echo Echec du telechargement. Verifie ta connexion, ou que le site est bien accessible dans un navigateur.
     goto :fail
 )
 
-echo [2/4] base_items.min.json...
+echo [2/5] base_items.min.json...
 curl -L -f -o "%TMPDIR%\base_items.min.json" "https://repoe-fork.github.io/poe2/base_items.min.json"
 if errorlevel 1 (
     echo Echec du telechargement. Verifie ta connexion, ou que le site est bien accessible dans un navigateur.
     goto :fail
 )
 
-echo [3/4] Numero de version RePoE (page d'accueil)...
+echo [3/5] Numero de version RePoE (page d'accueil)...
 curl -L -f -s -o "%TMPDIR%\index.html" "https://repoe-fork.github.io/poe2/"
 if errorlevel 1 (
     echo   ^(echec, tant pis : le numero de version sera juste marque "inconnue"^)
 )
 
-echo [4/4] Conversion...
-if exist "%TMPDIR%\index.html" (
-    node tools\import_repoe.mjs "%TMPDIR%\mods.min.json" "%TMPDIR%\base_items.min.json" --index "%TMPDIR%\index.html" -o data\sample\dataset.json
+echo [4/5] Poids d'apparition estimes ^(craftofexile.com^)...
+set "COEARG="
+curl -L -f -s -o "%TMPDIR%\poec_data.json" "https://www.craftofexile.com/json/poe2/main/poec_data.json"
+if errorlevel 1 (
+    echo   ^(echec : les poids du jeu de donnees actuel seront repris^)
 ) else (
-    node tools\import_repoe.mjs "%TMPDIR%\mods.min.json" "%TMPDIR%\base_items.min.json" -o data\sample\dataset.json
+    set "COEARG=--coe "%TMPDIR%\poec_data.json""
 )
+
+echo [5/5] Conversion...
+set "INDEXARG="
+if exist "%TMPDIR%\index.html" set "INDEXARG=--index "%TMPDIR%\index.html""
+node tools\import_repoe.mjs "%TMPDIR%\mods.min.json" "%TMPDIR%\base_items.min.json" !INDEXARG! !COEARG! -o data\sample\dataset.json
 if errorlevel 1 goto :fail
 
 echo.
