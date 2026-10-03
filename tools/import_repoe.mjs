@@ -22,6 +22,14 @@
 //   d'attribut (str/dex/int et hybrides) devient une base séparée ; pour le reste, un seul représentant
 //   par classe. Dans chaque groupe, on garde la variante au plus haut drop_level (l'équivalent « fin de
 //   jeu ») : c'est elle qui compte pour un craft à haut niveau d'objet.
+// - Bijoux (Anneau, Amulette, Ceinture, Carquois) : CHAQUE vraie base est importée séparément avec son
+//   implicite propre (texte dans `implicits`), au lieu d'un représentant par classe. Leur pool d'affixes
+//   est le même au sein d'une classe (tags ring/amulet/belt/quiver + default), mais l'implicite change
+//   l'objet réellement crafté et permet de reconnaître la base exacte d'un objet collé.
+//   Les bases dont l'implicite change le nombre de préfixes/suffixes autorisés (stats
+//   `local_maximum_prefixes_allowed_+` / `local_maximum_suffixes_allowed_+`, ex. Dusk Ring +1/-1, Absent
+//   Amulet -1/-1) portent ce décalage dans `prefix_cap_delta` / `suffix_cap_delta`, appliqué par le
+//   moteur et le solveur au plafond de la rareté.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
@@ -99,11 +107,60 @@ function importMods(mods) {
   return out;
 }
 
-function importBases(items) {
-  const eq = Object.values(items).filter((v) => v.release_state === "released" && ALLOWED_MOD_DOMAINS.has(v.domain) && EQUIP_CLASSES.has(v.item_class));
+// classes où chaque vraie base est importée telle quelle (voir l'en-tête) plutôt qu'un représentant
+const PER_BASE_CLASSES = new Set(["Ring", "Amulet", "Belt", "Quiver"]);
+const AFFIX_CAP_STATS = new Set(["local_maximum_prefixes_allowed_+", "local_maximum_suffixes_allowed_+"]);
+const slug = (s) => s.replace(/(?<=[a-z0-9])(?=[A-Z])/g, " ").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+
+// décalage du plafond porté par les implicites ; valeur fixe dans les données (min == max), sinon on refuse
+function capDelta(v, mods, statId) {
+  let d = 0;
+  for (const id of v.implicits ?? []) {
+    for (const s of mods[id]?.stats ?? []) {
+      if (s.id !== statId) continue;
+      if (s.min !== s.max) throw new Error(`${v.name} : ${statId} variable (${s.min}..${s.max}), non géré`);
+      d += s.min;
+    }
+  }
+  return d;
+}
+
+function importJewelleryBases(eq, mods) {
+  const bases = [];
+  const capped = [];
+  const kept = eq.filter(([, v]) => PER_BASE_CLASSES.has(v.item_class));
+  const byName = new Map();
+  for (const e of kept) byName.set(e[1].name, [...(byName.get(e[1].name) ?? []), e]);
+  for (const [name, variants] of byName) {
+    for (const [, v] of variants) {
+      let id = slug(name);
+      // plusieurs vraies bases au même nom (Two-Stone Ring, Runemastered ...) : suffixe tiré de
+      // l'implicite qui les distingue, pour un identifiant lisible et stable d'un import à l'autre
+      if (variants.length > 1) {
+        const own = (v.implicits ?? []).filter((i) => variants.every(([, o]) => o === v || !(o.implicits ?? []).includes(i)));
+        const key = (own[0] ?? v.implicits?.[0] ?? "").replace(/^.*Implicit/, "").replace(/\d+$/, "");
+        id += "_" + slug(key);
+      }
+      const implicits = (v.implicits ?? []).map((i) => mods[i]?.text).filter(Boolean).map((t) => clean(t).replace(/\n/g, " / "));
+      const base = { id, name, item_class: v.item_class, tags: v.tags ?? [], implicits };
+      const [dp, ds] = [...AFFIX_CAP_STATS].map((st) => capDelta(v, mods, st));
+      if (dp || ds) {
+        Object.assign(base, { prefix_cap_delta: dp, suffix_cap_delta: ds });
+        capped.push(`${name} ${3 + dp}/${3 + ds}`);
+      }
+      bases.push(base);
+    }
+  }
+  return { bases, capped };
+}
+
+function importBases(items, mods) {
+  const eq = Object.entries(items).filter(([, v]) => v.release_state === "released" && ALLOWED_MOD_DOMAINS.has(v.domain) && EQUIP_CLASSES.has(v.item_class));
+  const jewellery = importJewelleryBases(eq, mods);
   const byKey = new Map();
-  for (const v of eq) {
+  for (const [, v] of eq) {
     const cls = v.item_class;
+    if (PER_BASE_CLASSES.has(cls)) continue;
     let key;
     if (ARCHETYPE_SPLIT_CLASSES.has(cls)) {
       const arch = [...new Set(v.tags ?? [])].filter((t) => ARCHETYPE_TAGS.has(t)).sort();
@@ -125,10 +182,13 @@ function importBases(items) {
     // les joyaux ont un vrai nom canonique bien connu (Ruby/Sapphire/Emerald/Diamond) — on le garde tel
     // quel plutôt que de reconstruire un nom générique comme pour les autres classes.
     const name = cls === "Jewel" ? rep.name : label ? `${label} ${cls}`.trim() : cls;
-    bases.push({ id: baseId, name, item_class: cls, tags: rep.tags ?? [], implicit: null });
+    bases.push({ id: baseId, name, item_class: cls, tags: rep.tags ?? [], implicits: [] });
   }
+  bases.push(...jewellery.bases);
+  const ids = new Set(bases.map((b) => b.id));
+  if (ids.size !== bases.length) throw new Error(`identifiants de base dupliqués : ${bases.map((b) => b.id).filter((id, i, a) => a.indexOf(id) !== i)}`);
   bases.sort((a, b) => (a.item_class + a.id).localeCompare(b.item_class + b.id));
-  return bases;
+  return { bases, capped: jewellery.capped };
 }
 
 function parseArgs(argv) {
@@ -154,7 +214,7 @@ function main() {
   const mods = JSON.parse(readFileSync(modsFile, "utf8"));
   const items = JSON.parse(readFileSync(baseItemsFile, "utf8"));
   const outMods = importMods(mods);
-  const outBases = importBases(items);
+  const { bases: outBases, capped: cappedBases } = importBases(items, mods);
 
   // le titre de la page d'accueil de RePoE contient son propre numéro de version, ex.
   // « RePoE - PoE2 version 4.5.5.2 » — à distinguer du nom de patch public du jeu (voir docs/DATA.md).
@@ -225,6 +285,9 @@ function main() {
   console.log(`  ${outBases.length} bases, ${outMods.length} affixes, ${famSizes.size} groupes d'exclusion`);
   console.log(`  monnaies : ${dataset.currencies.length}, Omens : ${dataset.omens.length}, prix : ${Object.keys(dataset.prices).length}`);
   console.log(`  version RePoE : ${gameVersion}`);
+  if (cappedBases.length) {
+    console.log(`  ${cappedBases.length} bases à plafond préfixes/suffixes propre (Rare) : ${cappedBases.join(", ")}`);
+  }
 }
 
 main();

@@ -393,13 +393,36 @@ pub struct ItemAnalysis {
     pub error: Option<String>,
 }
 
-pub fn detect_base(ds: &Dataset, parsed: &ParsedItem) -> Option<String> {
+/// Base d'un objet collé : nom exact, sinon le nom de base le PLUS LONG contenu dans la ligne de type
+/// (un objet Magique s'appelle « Glowing Sapphire Ring of the Fox » : « Sapphire Ring » doit l'emporter
+/// sur « Ring »). Plusieurs bases portent le même nom (Two-Stone Ring, Runemastered ...) : on garde
+/// `hint` s'il en fait partie, sinon celle dont les implicites correspondent à ceux de l'objet.
+pub fn detect_base(ds: &Dataset, parsed: &ParsedItem, hint: Option<&str>) -> Option<String> {
     let bt = parsed.base_type.as_deref()?.to_lowercase();
-    ds.bases
+    let name = ds
+        .bases
         .iter()
         .find(|b| b.name.to_lowercase() == bt)
-        .or_else(|| ds.bases.iter().find(|b| bt.contains(&b.name.to_lowercase())))
+        .or_else(|| ds.bases.iter().filter(|b| bt.contains(&b.name.to_lowercase())).max_by_key(|b| b.name.len()))?
+        .name
+        .clone();
+    let same: Vec<&BaseItem> = ds.bases.iter().filter(|b| b.name == name).collect();
+    if let Some(h) = hint.and_then(|h| same.iter().find(|b| b.id == h)) {
+        return Some(h.id.clone());
+    }
+    let shape = |t: &str| implicit_shape().replace_all(t, "#").to_lowercase();
+    let item_implicits: Vec<String> = parsed.mods.iter().filter(|m| m.kind == ModKind::Implicit).flat_map(|m| m.lines.iter().map(|l| shape(l))).collect();
+    same.iter()
+        .find(|b| !b.implicits.is_empty() && b.implicits.iter().flat_map(|t| t.split(" / ")).all(|t| item_implicits.contains(&shape(t))))
+        .or(same.first())
         .map(|b| b.id.clone())
+}
+
+/// Nombres et plages (« 14 », « (12-16) », « 14(12-16) » du format avancé, « 0.5 ») remplacés par « # » pour comparer un implicite
+/// réel (valeur tirée) au gabarit de la base (plage).
+fn implicit_shape() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| regex::Regex::new(r"(?:\d+(?:\.\d+)?)?\(\d+(?:\.\d+)?[-–—]\d+(?:\.\d+)?\)|\d+(?:\.\d+)?").unwrap())
 }
 
 pub fn analyze_item(ds: &Dataset, text: &str, base_hint: Option<&str>, fallback_ilvl: u8) -> ItemAnalysis {
@@ -415,7 +438,7 @@ pub fn analyze_item(ds: &Dataset, text: &str, base_hint: Option<&str>, fallback_
             }
         }
     };
-    let base_id = detect_base(ds, &parsed).or_else(|| base_hint.map(|s| s.to_string()));
+    let base_id = detect_base(ds, &parsed, base_hint).or_else(|| base_hint.map(|s| s.to_string()));
     let (mut detail, mut unmatched, mut error) = (None, vec![], None);
     match base_id.as_deref().map(|b| ds.build_pool(b)) {
         Some(Ok(bp)) => match resolve(&parsed, &bp, fallback_ilvl) {
@@ -444,11 +467,24 @@ pub struct BaseView {
     pub name: String,
     pub item_class: String,
     pub tags: Vec<String>,
+    pub implicits: Vec<String>,
+    /// plafond d'un objet Rare de cette base (3/3 sauf implicite qui le décale)
+    pub max_prefixes: u8,
+    pub max_suffixes: u8,
 }
 
 impl From<&BaseItem> for BaseView {
     fn from(b: &BaseItem) -> Self {
-        Self { id: b.id.clone(), name: b.name.clone(), item_class: b.item_class.clone(), tags: b.tags.clone() }
+        let (max_prefixes, max_suffixes) = AffixPool { affixes: vec![], cap_delta: (b.prefix_cap_delta, b.suffix_cap_delta) }.cap(Rarity::Rare);
+        Self {
+            id: b.id.clone(),
+            name: b.name.clone(),
+            item_class: b.item_class.clone(),
+            tags: b.tags.clone(),
+            implicits: b.implicits.clone(),
+            max_prefixes,
+            max_suffixes,
+        }
     }
 }
 
@@ -775,5 +811,85 @@ mod remaining_alloy_tests {
         let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
         assert!(plan.solver.converged, "doit converger : Sovereign Alloy doit bien cibler le Ward sur focus");
         assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0);
+    }
+}
+
+#[cfg(test)]
+mod jewellery_base_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Bout en bout : le solveur calcule un plan sur une base de bijou nouvellement importée (une des
+    /// trois Two-Stone Ring), et un objet collé de cette base est reconnu comme CETTE variante — par son
+    /// implicite, ou par le plan actif quand il s'agit d'une base au même nom.
+    #[test]
+    fn solver_and_item_detection_on_a_specific_jewellery_base() {
+        let ds = Dataset::embedded();
+        let prices = ds.prices.clone();
+        let base_id = "two_stone_ring_fire_lightning_resistance";
+        let req = PlanRequest {
+            base_id: base_id.into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: "IncreasedLife".into(), max_tier: 2 }],
+            enabled_actions: None,
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: None,
+        };
+        let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged);
+        assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0);
+
+        let advanced = "Item Class: Rings\nRarity: Magic\nTwo-Stone Ring of the Whelpling\n--------\nItem Level: 82\n--------\n{ Implicit Modifier — Elemental, Fire, Lightning, Resistance }\n+14(12-16)% to Fire and Lightning Resistances (implicit)\n--------\n{ Suffix Modifier \"of the Whelpling\" (Tier: 8) — Life }\n+8(5-8) to maximum Life\n";
+        let a = analyze_item(&ds, advanced, None, 82);
+        assert_eq!(a.base_id.as_deref(), Some(base_id), "reconnue par son implicite (format avancé)");
+        let basic = "Item Class: Rings\nRarity: Normal\nTwo-Stone Ring\n--------\nItem Level: 82\n--------\n+13% to Fire and Lightning Resistances (implicit)\n";
+        assert_eq!(analyze_item(&ds, basic, None, 82).base_id.as_deref(), Some(base_id), "reconnue par son implicite (format simple)");
+        // implicite absent du texte : la variante du plan actif l'emporte sur la première du même nom
+        let bare = "Item Class: Rings\nRarity: Normal\nTwo-Stone Ring\n--------\nItem Level: 82\n";
+        assert_eq!(analyze_item(&ds, bare, Some(base_id), 82).base_id.as_deref(), Some(base_id));
+        // nom de base le plus long : « Sapphire Ring » et pas « Ring » dans un nom d'objet Magique
+        let magic = "Item Class: Rings\nRarity: Magic\nGlowing Sapphire Ring of the Fox\n--------\nItem Level: 82\n";
+        assert_eq!(analyze_item(&ds, magic, None, 82).base_id.as_deref(), Some("sapphire_ring"));
+    }
+}
+
+#[cfg(test)]
+mod base_cap_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Bout en bout sur les vraies données : 4 préfixes voulus sont refusés sur une Sapphire Ring (3/3)
+    /// mais planifiés sur une Penumbra Ring (+2 préfixes / -2 suffixes, soit 5/1 en Rare).
+    #[test]
+    fn four_prefixes_are_planned_on_a_penumbra_ring_only() {
+        let ds = Dataset::embedded();
+        let prices = ds.prices.clone();
+        let req = |base: &str| PlanRequest {
+            base_id: base.into(),
+            ilvl: 82,
+            wanted: ["IncreasedLife", "IncreasedMana", "FireDamage", "ColdDamage"].iter().map(|g| WantedReq { group: g.to_string(), max_tier: 20 }).collect(),
+            enabled_actions: None,
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: None,
+        };
+        assert!(build_context(&ds, &req("sapphire_ring"), &prices, &AtomicBool::new(false)).is_err(), "4 préfixes impossibles sur une base 3/3");
+        let ctx = build_context(&ds, &req("penumbra_ring"), &prices, &AtomicBool::new(false)).expect("build_context sur Penumbra Ring");
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged);
+        assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0);
+        let info = dataset_info(&ds);
+        let b = info.bases.iter().find(|b| b.id == "penumbra_ring").unwrap();
+        assert_eq!((b.max_prefixes, b.max_suffixes), (5, 1));
     }
 }

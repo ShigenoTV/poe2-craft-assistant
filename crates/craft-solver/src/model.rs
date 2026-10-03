@@ -33,19 +33,19 @@ struct AddW {
     blocked: [f64; MAX_WANTED],
     /// poids restant des groupes « inutiles » quand k mauvais affixes de ce slot sont déjà posés
     /// (espérance sous tirages pondérés sans remise : approximation de champ moyen de l'exclusion de groupe)
-    other_p: [f64; 4],
-    other_s: [f64; 4],
+    /// indexé par k = 0..=plafond du slot (jusqu'à 6 sur une base qui décale le plafond)
+    other_p: [f64; 7],
+    other_s: [f64; 7],
 }
 
-/// P(groupe j absent des k premiers tirages pondérés sans remise), pour k = 0..=3.
-fn survival(w: &[f64]) -> Vec<Vec<f64>> {
-    const KMAX: usize = 3;
-    let mut inset = vec![vec![0.0f64; w.len()]; KMAX + 1];
-    fn dfs(w: &[f64], depth: usize, used: &mut Vec<usize>, remaining: f64, prob: f64, inset: &mut Vec<Vec<f64>>) {
+/// P(groupe j absent des k premiers tirages pondérés sans remise), pour k = 0..=kmax (plafond du slot).
+fn survival(w: &[f64], kmax: usize) -> Vec<Vec<f64>> {
+    let mut inset = vec![vec![0.0f64; w.len()]; kmax + 1];
+    fn dfs(w: &[f64], depth: usize, kmax: usize, used: &mut Vec<usize>, remaining: f64, prob: f64, inset: &mut Vec<Vec<f64>>) {
         for &j in used.iter() {
             inset[depth][j] += prob;
         }
-        if depth == KMAX || remaining <= 0.0 {
+        if depth == kmax || remaining <= 0.0 {
             return;
         }
         for j in 0..w.len() {
@@ -53,12 +53,12 @@ fn survival(w: &[f64]) -> Vec<Vec<f64>> {
                 continue;
             }
             used.push(j);
-            dfs(w, depth + 1, used, remaining - w[j], prob * w[j] / remaining, inset);
+            dfs(w, depth + 1, kmax, used, remaining - w[j], prob * w[j] / remaining, inset);
             used.pop();
         }
     }
     let total: f64 = w.iter().sum();
-    dfs(w, 0, &mut Vec::new(), total, 1.0, &mut inset);
+    dfs(w, 0, kmax, &mut Vec::new(), total, 1.0, &mut inset);
     inset.into_iter().map(|row| row.into_iter().map(|p| 1.0 - p).collect()).collect()
 }
 
@@ -125,7 +125,8 @@ impl Model {
                 });
                 v[pos] += a.weight as f64;
             }
-            let (surv_p, surv_s) = (survival(&gp), survival(&gs));
+            let (cap_p, cap_s) = pool.cap(Rarity::Rare);
+            let (surv_p, surv_s) = (survival(&gp, cap_p as usize), survival(&gs, cap_s as usize));
             (other_pos, surv_p, surv_s)
         }
         let (other_pos, surv_p, surv_s) = other_tables(&pool, &goal, ilvl, false);
@@ -203,9 +204,11 @@ impl Model {
                 }
             }
         }
-        for k in 0..4 {
-            w.other_p[k] = gp.iter().enumerate().map(|(j, g)| g * surv_p[k][j]).sum();
-            w.other_s[k] = gs.iter().enumerate().map(|(j, g)| g * surv_s[k][j]).sum();
+        for (k, row) in surv_p.iter().enumerate() {
+            w.other_p[k] = gp.iter().enumerate().map(|(j, g)| g * row[j]).sum();
+        }
+        for (k, row) in surv_s.iter().enumerate() {
+            w.other_s[k] = gs.iter().enumerate().map(|(j, g)| g * row[j]).sum();
         }
         w
     }
@@ -223,7 +226,7 @@ impl Model {
 
     /// Ajout d'un affixe. `false` si aucun affixe n'est tirable.
     fn add_outcomes(&self, s: MacroState, w: &AddW, out: &mut Vec<(MacroState, f64)>) -> bool {
-        let (cap_p, cap_s) = s.rarity.cap();
+        let (cap_p, cap_s) = self.pool.cap(s.rarity);
         let (np, ns) = self.counts(&s);
         let (open_p, open_s) = (np < cap_p, ns < cap_s);
         let occ = s.held | s.blocked;
@@ -238,7 +241,7 @@ impl Model {
                 total += w.good[k] + w.blocked[k];
             }
         }
-        let (op, os) = (w.other_p[(s.bad_p as usize).min(3)], w.other_s[(s.bad_s as usize).min(3)]);
+        let (op, os) = (w.other_p[(s.bad_p as usize).min(cap_p as usize)], w.other_s[(s.bad_s as usize).min(cap_s as usize)]);
         if open_p {
             total += op;
         }
@@ -322,7 +325,7 @@ impl Model {
             Transmute if s.rarity == Rarity::Normal => {
                 self.add_outcomes(MacroState { rarity: Rarity::Magic, ..s }, w, &mut v);
             }
-            Augment if s.rarity == Rarity::Magic && n < 2 => {
+            Augment if s.rarity == Rarity::Magic && (n as usize) < self.pool.max_mods(Rarity::Magic) => {
                 self.add_outcomes(s, w, &mut v);
             }
             Regal if s.rarity == Rarity::Magic => {
@@ -345,7 +348,7 @@ impl Model {
                 }
                 v = dist;
             }
-            Exalt if s.rarity == Rarity::Rare && n < 6 => {
+            Exalt if s.rarity == Rarity::Rare && (n as usize) < self.pool.max_mods(Rarity::Rare) => {
                 self.add_outcomes(s, w, &mut v);
             }
             Chaos if s.rarity == Rarity::Rare => {
@@ -384,7 +387,7 @@ impl Model {
                         base = if self.remove_outcomes(s, None, &mut rm) { rm } else { Vec::new() };
                     }
                     for (s1, p1) in base {
-                        let (cap_p, cap_s) = Rarity::Rare.cap();
+                        let (cap_p, cap_s) = self.pool.cap(Rarity::Rare);
                         let (np, ns) = self.counts(&s1);
                         let room = match slot {
                             Slot::Prefix => np < cap_p,
@@ -417,7 +420,7 @@ impl Model {
                 // Kurgal, éventuellement un seul via l'Omen the Sovereign/Liege/Blackblooded) ; retire
                 // un mod au hasard d'abord SEULEMENT si l'objet est déjà plein à 6.
                 let mut base: Vec<(MacroState, f64)> = vec![(s, 1.0)];
-                if n == 6 {
+                if n as usize >= self.pool.max_mods(Rarity::Rare) {
                     let mut rm = Vec::new();
                     base = if self.remove_outcomes(s, None, &mut rm) { rm } else { Vec::new() };
                 }

@@ -35,7 +35,9 @@ export function GoalPicker({ pool, wanted, onChange }: Props) {
   const nP = sel.filter((s) => s.g.slot === "prefix").length;
   const nS = sel.length - nP;
   const chosen = new Set(wanted.map((w) => w.group));
-  const canAdd = (g: GroupInfo) => sel.length < MAX_WANTED && (g.slot === "prefix" ? nP < 3 : nS < 3);
+  // plafond propre à la base (Dusk Ring : 4/2...) ; `??` : fixtures du mode navigateur sans ce champ
+  const maxP = pool.base.maxPrefixes ?? 3, maxS = pool.base.maxSuffixes ?? 3;
+  const canAdd = (g: GroupInfo) => sel.length < MAX_WANTED && (g.slot === "prefix" ? nP < maxP : nS < maxS);
   const qq = q.trim().toLowerCase();
   const filtered = pool.groups.filter((g) => !chosen.has(g.key) && (g.family.toLowerCase().includes(qq) || g.tiers.some((t) => t.text.toLowerCase().includes(qq))));
 
@@ -43,7 +45,7 @@ export function GoalPicker({ pool, wanted, onChange }: Props) {
     <div className="stack" style={{ gap: 10 }}>
       <div className="row">
         <h3 className="hd">Affixes voulus</h3>
-        <span className="muted small right">{sel.length}/{MAX_WANTED} · préfixes {nP}/3 · suffixes {nS}/3</span>
+        <span className="muted small right">{sel.length}/{MAX_WANTED} · préfixes {nP}/{maxP} · suffixes {nS}/{maxS}</span>
       </div>
       {sel.length === 0 && <p className="note small">Choisis les affixes que l'objet final doit porter. Le tier indiqué est le minimum accepté : « T3 » accepte T1, T2 et T3.</p>}
       {sel.map(({ w, g }) => {

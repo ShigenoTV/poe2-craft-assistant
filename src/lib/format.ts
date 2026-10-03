@@ -1,4 +1,4 @@
-import type { Rarity, ItemSummary } from "./types";
+import type { BaseView, Rarity, ItemSummary } from "./types";
 
 const nf = (max: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: max, minimumFractionDigits: 0 });
 const n0 = nf(0), n1 = nf(1), n2 = nf(2);
@@ -33,3 +33,7 @@ export const prettyText = (t: string) => t.replace(/\((\d+(?:\.\d+)?)-(\d+(?:\.\
 
 /** « Exalted Orb » → « ex » : les montants restent lisibles dans les tableaux. */
 export const shortUnit = (u?: string) => (!u || /exalt/i.test(u) ? "ex" : u);
+// nom de base + son implicite : plusieurs bijoux partagent un nom (Two-Stone Ring...), l'implicite les distingue
+// (`?.` : les fixtures du mode navigateur peuvent dater d'avant ce champ)
+export const baseLabel = (b: BaseView, withClass = false) =>
+  `${b.name}${withClass ? ` (${b.itemClass})` : ""}${b.implicits?.length ? ` — ${prettyText(b.implicits.join(", "))}` : ""}`;

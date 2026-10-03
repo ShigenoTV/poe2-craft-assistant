@@ -3,7 +3,7 @@ import { useStore } from "@/store";
 import { api } from "@/lib/ipc";
 import { GoalPicker } from "@/components/GoalPicker";
 import { goalFamilies, ItemCard } from "@/components/ItemCard";
-import { cost, num, pct, shortUnit } from "@/lib/format";
+import { baseLabel, cost, num, pct, shortUnit } from "@/lib/format";
 import type { ActionView, ItemDetail, SimResult, WantedReq } from "@/lib/types";
 
 const blank = (ilvl: number): ItemDetail => ({ view: { rarity: "normal", ilvl, mods: [] }, mods: [] });
@@ -77,7 +77,7 @@ export function SandboxPage() {
           <div className="panel pad row">
             <label className="f grow">Base
               <select value={baseId} onChange={(e) => { setBaseId(e.target.value); setWanted([]); reset(); }}>
-                {info?.bases.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                {info?.bases.map((b) => <option key={b.id} value={b.id}>{baseLabel(b)}</option>)}
               </select>
             </label>
             <label className="f" style={{ width: 90 }}>Niveau d'objet

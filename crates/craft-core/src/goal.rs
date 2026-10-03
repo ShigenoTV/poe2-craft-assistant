@@ -50,8 +50,9 @@ impl Goal {
         }
         let p = slots.iter().filter(|s| **s == Slot::Prefix).count();
         let s = slots.len() - p;
-        if p > 3 || s > 3 {
-            return Err("plus de 3 préfixes ou 3 suffixes voulus : objectif impossible".into());
+        let (cap_p, cap_s) = pool.cap(Rarity::Rare);
+        if p > cap_p as usize || s > cap_s as usize {
+            return Err(format!("plus de {cap_p} préfixes ou {cap_s} suffixes voulus sur cette base : objectif impossible"));
         }
         let accepted = wanted
             .iter()

@@ -24,6 +24,17 @@ pub struct BaseItem {
     pub name: String,
     pub item_class: String,
     pub tags: Vec<String>,
+    /// Textes des implicites propres à cette base (bijoux : chaque vraie base est importée avec le
+    /// sien). Affichage et reconnaissance d'un objet collé seulement : un implicite n'occupe aucun
+    /// emplacement de préfixe/suffixe et ne change pas le pool d'affixes.
+    #[serde(default)]
+    pub implicits: Vec<String>,
+    /// Décalage du nombre de préfixes / suffixes autorisés venant de l'implicite (ex. Dusk Ring : 1 / -1,
+    /// Absent Amulet : -1 / -1). 0 sur une base ordinaire.
+    #[serde(default)]
+    pub prefix_cap_delta: i8,
+    #[serde(default)]
+    pub suffix_cap_delta: i8,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -267,7 +278,8 @@ impl Dataset {
             });
         }
         groups.sort_by(|a, b| (a.slot as u8, &a.family).cmp(&(b.slot as u8, &b.family)));
-        Ok(BasePool { base, pool: AffixPool { affixes }, groups })
+        let cap_delta = (base.prefix_cap_delta, base.suffix_cap_delta);
+        Ok(BasePool { base, pool: AffixPool { affixes, cap_delta }, groups })
     }
 
     /// Liste des actions de craft (monnaies × Omens compatibles) avec coûts issus de `prices`.
@@ -373,6 +385,47 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    /// Chaque vraie base de bijou (RePoE 4.5.5.2 : Anneau 28, Amulette 25, Ceinture 19, Carquois 11) est
+    /// importée avec son implicite ; les 13 qui changent le plafond de préfixes/suffixes le portent.
+    #[test]
+    fn every_real_jewellery_base_is_imported_with_its_implicit() {
+        let ds = Dataset::embedded();
+        let count = |cls: &str| ds.bases.iter().filter(|b| b.item_class == cls).count();
+        assert_eq!(count("Ring"), 28);
+        assert_eq!(count("Amulet"), 25);
+        assert_eq!(count("Belt"), 19);
+        assert_eq!(count("Quiver"), 11);
+        let mut ids = HashSet::new();
+        for b in ds.bases.iter().filter(|b| ["Ring", "Amulet", "Belt", "Quiver"].contains(&b.item_class.as_str())) {
+            assert!(ids.insert(&b.id), "identifiant dupliqué : {}", b.id);
+            // seule exception : la base « Ring » (FourRingBase) n'a aucun implicite dans les données du jeu
+            assert!(!b.implicits.is_empty() || b.id == "ring", "{} sans implicite", b.id);
+            assert!(b.implicits.iter().all(|t| !t.contains('[')), "{}: {:?}", b.id, b.implicits);
+            // décalage de plafond présent si et seulement si l'implicite le dit
+            let says = b.implicits.iter().any(|t| t.contains("Modifier allowed") || t.contains("Modifiers allowed"));
+            assert_eq!(says, (b.prefix_cap_delta, b.suffix_cap_delta) != (0, 0), "{}", b.id);
+        }
+        let caps: Vec<(&str, i8, i8)> = ds.bases.iter().filter(|b| (b.prefix_cap_delta, b.suffix_cap_delta) != (0, 0)).map(|b| (b.id.as_str(), b.prefix_cap_delta, b.suffix_cap_delta)).collect();
+        assert_eq!(caps.len(), 13, "{caps:?}");
+        for expected in [("dusk_ring", 1, -1), ("penumbra_amulet", 2, -2), ("absent_amulet", -1, -1), ("lament_amulet", -1, 0), ("distorted_amulet", 0, -1)] {
+            assert!(caps.contains(&expected), "{expected:?} absent de {caps:?}");
+        }
+        assert_eq!(ds.build_pool("tenebrous_ring").unwrap().pool.cap(Rarity::Rare), (1, 5));
+        let two_stone: Vec<_> = ds.bases.iter().filter(|b| b.name == "Two-Stone Ring").collect();
+        assert_eq!(two_stone.len(), 3);
+        assert!(two_stone.iter().any(|b| b.implicits == ["+(12-16)% to Fire and Cold Resistances"]));
+        // un implicite ne change pas le pool : toutes les bases d'une même classe de bijou ont les mêmes groupes
+        for cls in ["Ring", "Amulet", "Belt", "Quiver"] {
+            let pools: Vec<Vec<String>> = ds
+                .bases
+                .iter()
+                .filter(|b| b.item_class == cls)
+                .map(|b| ds.build_pool(&b.id).unwrap().groups.iter().map(|g| g.key.clone()).collect())
+                .collect();
+            assert!(pools.windows(2).all(|w| w[0] == w[1]), "{cls} : pools différents selon la base");
         }
     }
 
