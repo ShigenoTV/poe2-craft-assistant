@@ -5,7 +5,7 @@ import { GoalPicker } from "@/components/GoalPicker";
 import { goalFamilies, ItemCard } from "@/components/ItemCard";
 import { cost, num, pct, shortUnit } from "@/lib/format";
 import { BaseSelect } from "@/components/BaseSelect";
-import type { ActionView, ItemDetail, SimResult, WantedReq } from "@/lib/types";
+import { findGroup, type ActionView, type ItemDetail, type SimResult, type WantedReq } from "@/lib/types";
 
 const blank = (ilvl: number): ItemDetail => ({ view: { rarity: "normal", ilvl, mods: [] }, mods: [] });
 
@@ -56,7 +56,7 @@ export function SandboxPage() {
 
   const plain = actions.filter((a) => !a.addSlot && !a.removeSlot);
   const omens = actions.filter((a) => a.addSlot || a.removeSlot);
-  const fam = useMemo(() => (pool ? goalFamilies(wanted.map((w) => ({ label: "", slot: "prefix" as const, group: pool.groups.find((g) => g.key === w.group)?.group ?? -1, maxTier: w.maxTier })), pool.groups) : new Set<string>()), [wanted, pool]);
+  const fam = useMemo(() => (pool ? goalFamilies(wanted.map((w) => { const g = findGroup(pool.groups, w.group); return { label: "", slot: "prefix" as const, group: g?.group ?? -1, familyId: g?.familyId, maxTier: w.maxTier }; }), pool.groups) : new Set<string>()), [wanted, pool]);
 
   const run = async () => {
     if (!pool || wanted.length === 0) return;

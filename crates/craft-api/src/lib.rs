@@ -156,11 +156,18 @@ fn resolve_wanted(bp: &BasePool, wanted: &[WantedReq]) -> Result<(Vec<WantedAffi
     let mut w = Vec::new();
     let mut items = Vec::new();
     for r in wanted {
-        let g = bp.groups.iter().find(|g| g.key == r.group).ok_or_else(|| format!("groupe « {} » inexistant sur {}", r.group, bp.base.id))?;
+        // clé exacte (« Groupe » ou « Groupe::Famille »), sinon ancienne clé de groupe seule (objectifs
+        // enregistrés avant le découpage en familles) : on prend alors la famille qui a le plus de tiers
+        let g = bp
+            .groups
+            .iter()
+            .find(|g| g.key == r.group)
+            .or_else(|| bp.groups.iter().filter(|g| g.key.split("::").next() == Some(r.group.as_str())).max_by_key(|g| g.tiers.len()))
+            .ok_or_else(|| format!("groupe « {} » inexistant sur {}", r.group, bp.base.id))?;
         let max_tier = r.max_tier.clamp(1, g.tiers.len() as u8);
-        w.push(WantedAffix { group: g.group, max_tier });
+        w.push(WantedAffix { group: g.group, family: g.family_id, max_tier });
         let label = if max_tier as usize == g.tiers.len() { format!("{} (tout tier)", g.family) } else { format!("{} T{}+", g.family, max_tier) };
-        items.push(GoalItem { label, slot: g.slot, group: g.group, max_tier });
+        items.push(GoalItem { label, slot: g.slot, group: g.group, family_id: g.family_id, max_tier });
     }
     Ok((w, items))
 }
@@ -571,7 +578,7 @@ mod tests {
         let req = PlanRequest {
             base_id: "shield_str".into(),
             ilvl: 82,
-            wanted: vec![WantedReq { group: "MaximumResistances".into(), max_tier: 1 }],
+            wanted: vec![WantedReq { group: "MaximumResistances::Maximum Resistances (Amanamu)".into(), max_tier: 1 }],
             enabled_actions: Some(enabled.into_iter().collect()),
             prices: None,
             allow_abandon: true,
@@ -589,7 +596,7 @@ mod tests {
         // note : « MaximumResistances » est aussi le groupe d'un mod normal (MaximumElementalResistance) —
         // collision légitime du jeu, pas un bug : les deux s'excluent mutuellement en vrai. On vérifie
         // juste qu'au moins un tier du groupe est bien un mod `desecrated` (celui qu'on vise).
-        let grp = ctx.bp.groups.iter().find(|g| g.key == "MaximumResistances").expect("le groupe cible doit exister dans le pool");
+        let grp = ctx.bp.groups.iter().find(|g| g.key == "MaximumResistances::Maximum Resistances (Amanamu)").expect("le groupe cible doit exister dans le pool");
         assert!(
             grp.tiers.iter().any(|t| ctx.bp.pool.affixes[t.affix_idx as usize].desecrated),
             "au moins un tier de MaximumResistances doit être un mod desecrated"
@@ -891,5 +898,59 @@ mod base_cap_tests {
         let info = dataset_info(&ds);
         let b = info.bases.iter().find(|b| b.id == "penumbra_ring").unwrap();
         assert_eq!((b.max_prefixes, b.max_suffixes), (5, 1));
+    }
+}
+
+#[cfg(test)]
+mod family_split_tests {
+    use super::*;
+    use craft_core::goal::{Class, Goal};
+    use std::sync::atomic::AtomicBool;
+
+    /// Bout en bout sur les vraies données : sur une baguette, le groupe IncreaseSocketedGemLevel est
+    /// découpé en familles (sorts, sorts de feu, de froid...) qui ont chacune leurs propres tiers, et viser
+    /// « sorts de feu » n'accepte pas un « niveau de tous les sorts », qui occupe pourtant le même groupe.
+    #[test]
+    fn spell_level_families_have_their_own_tiers_on_a_wand() {
+        let ds = Dataset::embedded();
+        let bp = ds.build_pool("wand").expect("pool de la baguette");
+        let fams: Vec<&GroupInfo> = bp.groups.iter().filter(|g| g.key.starts_with("IncreaseSocketedGemLevel::")).collect();
+        let fire = fams.iter().find(|g| g.family == "+# to Level of all Fire Spell Skills").expect("famille sorts de feu");
+        let spell = fams.iter().find(|g| g.family == "+# to Level of all Spell Skills").expect("famille tous les sorts");
+        assert_eq!(fire.tiers.len(), 5, "5 tiers de sorts de feu sur baguette (RePoE 4.5.5.2)");
+        assert_eq!(spell.tiers.len(), 4, "4 tiers de tous les sorts sur baguette (RePoE 4.5.5.2)");
+        assert!(fire.tiers.iter().all(|t| t.text.contains("Fire Spell")));
+        assert!(spell.tiers.iter().all(|t| t.text.contains("all Spell Skills")));
+        assert_eq!(fire.group, spell.group, "même groupe d'exclusion");
+        assert_ne!(fire.family_id, spell.family_id);
+
+        let prices = ds.prices.clone();
+        let req = PlanRequest {
+            base_id: "wand".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: fire.key.clone(), max_tier: 2 }],
+            enabled_actions: None,
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: None,
+        };
+        let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
+        assert_eq!(ctx.goal_items[0].family_id, fire.family_id);
+        assert!(ctx.goal_items[0].label.starts_with("+# to Level of all Fire Spell Skills"));
+        let goal = Goal::new(&ctx.bp.pool, &[WantedAffix { group: fire.group, family: fire.family_id, max_tier: 2 }]).unwrap();
+        assert_eq!(goal.classify(&ctx.bp.pool, fire.tiers[0].affix_idx), Class::Wanted(0));
+        assert_eq!(goal.classify(&ctx.bp.pool, fire.tiers[4].affix_idx), Class::Blocked(0), "T5 de feu : tier insuffisant");
+        assert_eq!(goal.classify(&ctx.bp.pool, spell.tiers[0].affix_idx), Class::Blocked(0), "T1 de tous les sorts : autre famille du groupe");
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged);
+        assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0);
+
+        // ancienne clé de groupe seule (objectif enregistré avant le découpage) : toujours acceptée
+        let legacy = PlanRequest { wanted: vec![WantedReq { group: "IncreaseSocketedGemLevel".into(), max_tier: 1 }], ..req };
+        assert!(build_context(&ds, &legacy, &prices, &AtomicBool::new(false)).is_ok());
     }
 }

@@ -38,8 +38,13 @@ pub struct Affix {
     pub family: String, // libellé lisible du groupe, ex. "Vie maximale"
     pub text: String,   // gabarit avec plages, ex. "+(40-49) to maximum Life"
     pub group: GroupId,
+    /// Sous-famille dans le groupe d'exclusion (même `type` de mod dans le jeu, ex. « +# to Level of all
+    /// Spell Skills » vs « ... Minion Skills », qui s'excluent mais ne sont pas des tiers l'un de l'autre).
+    /// Les tiers sont numérotés au sein de (groupe, famille).
+    #[serde(default)]
+    pub family_id: u16,
     pub slot: Slot,
-    pub tier: u8,      // 1 = meilleur
+    pub tier: u8,      // 1 = meilleur dans sa famille
     pub req_ilvl: u8,  // niveau de modificateur (ilvl requis)
     pub weight: u32,   // poids de spawn résolu pour CETTE base
     pub tags: u64,     // bitmask de tags

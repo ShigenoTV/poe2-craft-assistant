@@ -156,7 +156,11 @@ pub struct TierInfo {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupInfo {
+    /// groupe d'exclusion (deux affixes du même groupe ne coexistent jamais)
     pub group: GroupId,
+    /// sous-famille dans ce groupe : chaque famille a ses propres tiers et sa propre entrée d'objectif
+    pub family_id: u16,
+    /// clé d'objectif : clé brute du groupe, suivie de « ::famille » si le groupe en a plusieurs sur cette base
     pub key: String,
     pub family: String,
     pub slot: Slot,
@@ -247,35 +251,48 @@ impl Dataset {
 
         let mut affixes = Vec::new();
         let mut groups = Vec::new();
-        for (gi, (key, mut list)) in by_group.into_iter().enumerate() {
-            list.sort_by(|a, b| b.0.level.cmp(&a.0.level));
+        for (gi, (key, list)) in by_group.into_iter().enumerate() {
             let gid = gi as GroupId;
-            let mut tiers = Vec::new();
-            for (ti, (m, w)) in list.iter().enumerate() {
-                let idx = affixes.len() as u16;
-                affixes.push(Affix {
-                    id: m.id.clone(),
-                    name: m.name.clone(),
-                    family: m.family.clone(),
-                    text: m.text.clone(),
-                    group: gid,
-                    slot: m.slot,
-                    tier: ti as u8 + 1,
-                    req_ilvl: m.level,
-                    weight: *w,
-                    tags: m.tags.iter().filter_map(|t| tag_bit.get(t.as_str())).fold(0, |a, b| a | b),
-                    desecrated: m.desecrated,
-                });
-                tiers.push(TierInfo { tier: ti as u8 + 1, level: m.level, weight: *w, name: m.name.clone(), text: m.text.clone(), affix_idx: idx });
+            // familles du groupe (champ `family` du mod = son `type` dans le jeu), dans l'ordre d'apparition
+            let mut families: Vec<(&str, Vec<(&ModDef, u32)>)> = Vec::new();
+            for (m, w) in list {
+                match families.iter_mut().find(|(f, _)| *f == m.family.as_str()) {
+                    Some((_, v)) => v.push((m, w)),
+                    None => families.push((m.family.as_str(), vec![(m, w)])),
+                }
             }
-            groups.push(GroupInfo {
-                group: gid,
-                key: key.to_string(),
-                family: list[0].0.family.clone(),
-                slot: list[0].0.slot,
-                total_weight: tiers.iter().map(|t| t.weight).sum(),
-                tiers,
-            });
+            let several = families.len() > 1;
+            for (fi, (fam, mut members)) in families.into_iter().enumerate() {
+                members.sort_by(|a, b| b.0.level.cmp(&a.0.level));
+                let mut tiers = Vec::new();
+                for (ti, (m, w)) in members.iter().enumerate() {
+                    let idx = affixes.len() as u16;
+                    affixes.push(Affix {
+                        id: m.id.clone(),
+                        name: m.name.clone(),
+                        family: m.family.clone(),
+                        text: m.text.clone(),
+                        group: gid,
+                        family_id: fi as u16,
+                        slot: m.slot,
+                        tier: ti as u8 + 1,
+                        req_ilvl: m.level,
+                        weight: *w,
+                        tags: m.tags.iter().filter_map(|t| tag_bit.get(t.as_str())).fold(0, |a, b| a | b),
+                        desecrated: m.desecrated,
+                    });
+                    tiers.push(TierInfo { tier: ti as u8 + 1, level: m.level, weight: *w, name: m.name.clone(), text: m.text.clone(), affix_idx: idx });
+                }
+                groups.push(GroupInfo {
+                    group: gid,
+                    family_id: fi as u16,
+                    key: if several { format!("{key}::{fam}") } else { key.to_string() },
+                    family: fam.to_string(),
+                    slot: members[0].0.slot,
+                    total_weight: tiers.iter().map(|t| t.weight).sum(),
+                    tiers,
+                });
+            }
         }
         groups.sort_by(|a, b| (a.slot as u8, &a.family).cmp(&(b.slot as u8, &b.family)));
         let cap_delta = (base.prefix_cap_delta, base.suffix_cap_delta);

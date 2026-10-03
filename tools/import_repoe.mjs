@@ -11,12 +11,10 @@
 //   craft « normal »), is_essence_only == false (ces mods n'apparaissent que via une Essence, jamais par
 //   tirage classique — les inclure fausserait les poids).
 // - Groupe d'exclusion (« deux affixes de ce groupe ne coexistent jamais ») = le CHAMP BRUT `groups[0]`
-//   du jeu. C'est la seule source de vérité mécanique : la famille affichée dans l'interface (utilisée
-//   pour le sélecteur de tiers) s'appuie dessus mais peut être plus fine si `type` varie au sein d'un
-//   même groupe (~155 groupes sur 383 mélangent plusieurs stats qui s'excluent mutuellement mais ne sont
-//   pas des tiers d'un même affixe, ex. BaseLocalDefences = Armure locale OU Évasion locale OU Énergie
-//   Spirituelle locale, un seul à la fois). Le texte affiché à chaque tier reste toujours exact ; seul
-//   le NOM de famille au-dessus de la barre de tiers peut être générique dans ces cas-là.
+//   du jeu. C'est la seule source de vérité mécanique. Un groupe peut contenir plusieurs affixes
+//   distincts qui s'excluent mutuellement (ex. IncreaseSocketedGemLevel = niveau des sorts, des sorts de
+//   feu, de mêlée, des sbires...) : chaque `type` du jeu forme une famille avec ses propres tiers, choisie
+//   directement dans l'interface. Libellé de famille = texte majoritaire du (groupe, type), nombres → « # ».
 // - Bases retenues : équipement seulement (armures, armes, bijoux, carquois/bouclier/focus), release_state
 //   == "released", domain == "item". Pour les 4 classes d'armure principales + Shield, chaque archétype
 //   d'attribut (str/dex/int et hybrides) devient une base séparée ; pour le reste, un seul représentant
@@ -71,19 +69,24 @@ function importMods(mods) {
   const craft = Object.entries(mods).filter(
     ([, v]) => ALLOWED_MOD_DOMAINS.has(v.domain) && (v.generation_type === "prefix" || v.generation_type === "suffix") && !v.is_essence_only,
   );
-  const typeByGroup = new Map();
+  // famille = (groupe, type) : un même groupe d'exclusion peut contenir plusieurs affixes distincts
+  // (ex. IncreaseSocketedGemLevel = niveau des sorts, des sorts de feu, des compétences de mêlée...),
+  // chacun avec ses propres tiers. Libellé = gabarit de texte majoritaire, nombres remplacés par « # ».
+  const template = (t) => clean(t).replace(/\n/g, " / ").replace(/\(-?\d+(?:\.\d+)?--?\d+(?:\.\d+)?\)|-?\d+(?:\.\d+)?/g, "#");
+  const textsByFamily = new Map();
   for (const [, v] of craft) {
     const g = (v.groups ?? [null])[0];
-    if (!g) continue;
-    const t = v.type || g;
-    const counts = typeByGroup.get(g) ?? new Map();
+    if (!g || !v.text) continue;
+    const k = `${g}\u0000${v.type || g}`;
+    const counts = textsByFamily.get(k) ?? new Map();
+    const t = template(v.text);
     counts.set(t, (counts.get(t) ?? 0) + 1);
-    typeByGroup.set(g, counts);
+    textsByFamily.set(k, counts);
   }
   const familyLabel = new Map();
-  for (const [g, counts] of typeByGroup) {
-    const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-    familyLabel.set(g, prettify(top));
+  for (const [k, counts] of textsByFamily) {
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+    familyLabel.set(k, top);
   }
 
   const out = [];
@@ -95,7 +98,7 @@ function importMods(mods) {
     out.push({
       id: modId,
       group: g,
-      family: familyLabel.get(g) ?? prettify(g),
+      family: familyLabel.get(`${g}\u0000${v.type || g}`) ?? prettify(g),
       name: v.name || modId,
       slot: v.generation_type,
       level: v.required_level ?? 1,

@@ -4,7 +4,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 fn aff(id: String, group: u16, slot: Slot, tier: u8, w: u32) -> Affix {
-    Affix { id: id.clone(), name: id.clone(), family: id, text: String::new(), group, slot, tier, req_ilvl: 1, weight: w, tags: 0, desecrated: false }
+    Affix { id: id.clone(), name: id.clone(), family: id, text: String::new(), group, family_id: 0, slot, tier, req_ilvl: 1, weight: w, tags: 0, desecrated: false }
 }
 
 /// Pool synthétique : 2 groupes voulus (1 préfixe, 1 suffixe) avec T1/T2, et beaucoup de groupes « inutiles »
@@ -34,7 +34,7 @@ fn cur(id: &str, kind: CurrencyKind, cost: f64) -> Action {
 
 fn build(n_bad: u16, max_tier: u8, extra: Vec<Action>) -> (Model, Solution) {
     let pool = Arc::new(pool(n_bad));
-    let goal = Arc::new(Goal::new(&pool, &[WantedAffix { group: 1, max_tier }, WantedAffix { group: 2, max_tier }]).unwrap());
+    let goal = Arc::new(Goal::new(&pool, &[WantedAffix { group: 1, family: 0, max_tier }, WantedAffix { group: 2, family: 0, max_tier }]).unwrap());
     let mut actions = vec![
         cur("transmute", CurrencyKind::Transmute, 0.1),
         cur("augment", CurrencyKind::Augment, 0.1),
@@ -76,8 +76,8 @@ fn visits_cost_equals_value_at_root() {
         base_cost: 0.5,
         salvage: 0.0,
         goal_items: vec![
-            GoalItem { label: "P".into(), slot: Slot::Prefix, group: 1, max_tier: 1 },
-            GoalItem { label: "S".into(), slot: Slot::Suffix, group: 2, max_tier: 1 },
+            GoalItem { label: "P".into(), slot: Slot::Prefix, group: 1, family_id: 0, max_tier: 1 },
+            GoalItem { label: "S".into(), slot: Slot::Suffix, group: 2, family_id: 0, max_tier: 1 },
         ],
         prices_source: "test".into(),
     };
@@ -141,7 +141,7 @@ fn unreachable_goal_is_reported() {
         a.req_ilvl = 90;
     }
     let pool = Arc::new(p);
-    let goal = Arc::new(Goal::new(&pool, &[WantedAffix { group: 1, max_tier: 1 }]).unwrap());
+    let goal = Arc::new(Goal::new(&pool, &[WantedAffix { group: 1, family: 0, max_tier: 1 }]).unwrap());
     let actions = vec![cur("transmute", CurrencyKind::Transmute, 0.1), cur("exalt", CurrencyKind::Exalt, 1.0)];
     let m = Model::new(pool, goal, 80, actions, 0.5, 0.0);
     let r = solve(&m, &[MacroState::empty(Rarity::Normal)], &SolveConfig::default(), &AtomicBool::new(false));
@@ -171,7 +171,7 @@ fn shifted_base_cap_allows_four_prefixes_and_matches_monte_carlo() {
         v.push(aff(format!("bp{i}"), 100 + i, Slot::Prefix, 1, 100));
         v.push(aff(format!("bs{i}"), 500 + i, Slot::Suffix, 1, 100));
     }
-    let wanted: Vec<WantedAffix> = (1..=4).map(|g| WantedAffix { group: g, max_tier: 1 }).collect();
+    let wanted: Vec<WantedAffix> = (1..=4).map(|g| WantedAffix { group: g, family: 0, max_tier: 1 }).collect();
     assert!(Goal::new(&AffixPool::new(v.clone()), &wanted).is_err(), "4 préfixes impossibles sur une base 3/3");
 
     let pool = Arc::new(AffixPool { affixes: v, cap_delta: (2, -2) });

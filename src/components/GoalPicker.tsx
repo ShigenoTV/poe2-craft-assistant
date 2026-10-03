@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { GroupInfo, PoolView, WantedReq } from "@/lib/types";
+import { findGroup, type GroupInfo, type PoolView, type WantedReq } from "@/lib/types";
 import { pct, prettyText } from "@/lib/format";
 
 const MAX_WANTED = 6;
@@ -25,19 +25,20 @@ interface Props { pool: PoolView; wanted: WantedReq[]; onChange: (w: WantedReq[]
 
 export function GoalPicker({ pool, wanted, onChange }: Props) {
   const [q, setQ] = useState("");
-  const byKey = useMemo(() => new Map(pool.groups.map((g) => [g.key, g])), [pool]);
   const slotTotal = useMemo(() => {
     const t = { prefix: 0, suffix: 0 };
     pool.groups.forEach((g) => (t[g.slot] += g.totalWeight));
     return t;
   }, [pool]);
-  const sel = wanted.map((w) => ({ w, g: byKey.get(w.group) })).filter((x): x is { w: WantedReq; g: GroupInfo } => !!x.g);
+  const sel = wanted.map((w) => ({ w, g: findGroup(pool.groups, w.group) })).filter((x): x is { w: WantedReq; g: GroupInfo } => !!x.g);
   const nP = sel.filter((s) => s.g.slot === "prefix").length;
   const nS = sel.length - nP;
-  const chosen = new Set(wanted.map((w) => w.group));
+  const chosen = new Set(sel.map((s) => s.g.key));
+  // une seule famille par groupe d'exclusion : « sorts de feu » et « tous les sorts » ne coexistent pas en jeu
+  const takenGroups = new Set(sel.map((s) => s.g.group));
   // plafond propre à la base (Dusk Ring : 4/2...) ; `??` : fixtures du mode navigateur sans ce champ
   const maxP = pool.base.maxPrefixes ?? 3, maxS = pool.base.maxSuffixes ?? 3;
-  const canAdd = (g: GroupInfo) => sel.length < MAX_WANTED && (g.slot === "prefix" ? nP < maxP : nS < maxS);
+  const canAdd = (g: GroupInfo) => !takenGroups.has(g.group) && sel.length < MAX_WANTED && (g.slot === "prefix" ? nP < maxP : nS < maxS);
   const qq = q.trim().toLowerCase();
   const filtered = pool.groups.filter((g) => !chosen.has(g.key) && (g.family.toLowerCase().includes(qq) || g.tiers.some((t) => t.text.toLowerCase().includes(qq))));
 
@@ -56,9 +57,9 @@ export function GoalPicker({ pool, wanted, onChange }: Props) {
             <div className="want-top">
               <b className="grow">{g.family}</b>
               <span className={`pill ${g.slot}`}>{g.slot === "prefix" ? "préfixe" : "suffixe"}</span>
-              <button className="btn ghost sm" onClick={() => onChange(wanted.filter((x) => x.group !== g.key))} aria-label={`Retirer ${g.family}`}>Retirer</button>
+              <button className="btn ghost sm" onClick={() => onChange(wanted.filter((x) => x !== w))} aria-label={`Retirer ${g.family}`}>Retirer</button>
             </div>
-            <TierBar g={g} maxTier={w.maxTier} onChange={(t) => onChange(wanted.map((x) => (x.group === g.key ? { ...x, maxTier: t } : x)))} />
+            <TierBar g={g} maxTier={w.maxTier} onChange={(t) => onChange(wanted.map((x) => (x === w ? { ...x, maxTier: t } : x)))} />
             <div className="small muted">
               T{cur.tier} minimum : {prettyText(cur.text)} · {pct(accepted / g.totalWeight)} des tirages du groupe
             </div>

@@ -10,7 +10,7 @@ export interface DatasetInfo {
   modCount: number; bases: BaseView[];
 }
 export interface TierInfo { tier: number; level: number; weight: number; name: string; text: string; affixIdx: number }
-export interface GroupInfo { group: number; key: string; family: string; slot: Slot; totalWeight: number; tiers: TierInfo[] }
+export interface GroupInfo { group: number; familyId?: number; key: string; family: string; slot: Slot; totalWeight: number; tiers: TierInfo[] }
 export interface Affix {
   id: string; name: string; family: string; text: string; group: number; slot: Slot;
   tier: number; reqIlvl: number; weight: number; tags: number;
@@ -50,7 +50,7 @@ export interface SimResult {
 export interface Progress { stage: "simulating" | "solving" | "verifying"; done: number; total: number }
 
 // ── Plan de craft
-export interface GoalItem { label: string; slot: Slot; group: number; maxTier: number }
+export interface GoalItem { label: string; slot: Slot; group: number; familyId?: number; maxTier: number }
 export interface ItemSummary {
   rarity: Rarity; heldWanted: number[]; blockedWanted: number[]; fracturedWanted: number | null;
   badPrefixes: number; badSuffixes: number;
@@ -113,4 +113,12 @@ export interface UpdateProgress { stage: "downloading" | "installing"; downloade
 export interface PriceState {
   effective: Record<string, number>; overrides: Record<string, number>; marketKeys: string[];
   league: string | null; fetchedAt: number | null; missing: string[]; now: number; note: string | null;
+}
+
+/** Famille visée par une clé d'objectif ; une ancienne clé de groupe seule (avant le découpage en
+ * familles, ex. « IncreaseSocketedGemLevel ») retombe sur la famille du groupe qui a le plus de tiers,
+ * comme côté Rust. */
+export function findGroup(groups: GroupInfo[], key: string): GroupInfo | undefined {
+  return groups.find((g) => g.key === key)
+    ?? groups.filter((g) => g.key.split("::")[0] === key).sort((a, b) => b.tiers.length - a.tiers.length)[0];
 }

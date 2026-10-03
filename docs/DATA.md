@@ -82,10 +82,14 @@ Pour savoir si tes données sont à jour, compare le numéro RePoE affiché sur 
 
 Ce que fait l'import, et pourquoi (voir aussi les commentaires en tête de `tools/import_repoe.mjs`) :
 - Mods retenus : `domain == "item"`, `generation_type` préfixe ou suffixe, hors mods réservés aux Essences.
-- Groupe d'exclusion = le champ brut `groups[0]` du jeu (seule source de vérité mécanique). La famille
-  affichée dans l'interface s'appuie dessus mais peut être plus générique sur ~155 groupes qui mélangent
-  plusieurs stats mutuellement exclusives (ex. `BaseLocalDefences` = Armure locale OU Évasion locale OU
-  Énergie Spirituelle locale). Le texte de chaque tier reste toujours exact.
+- Groupe d'exclusion = le champ brut `groups[0]` du jeu (seule source de vérité mécanique). Un groupe
+  peut contenir plusieurs affixes distincts (ex. `IncreaseSocketedGemLevel` = niveau de tous les sorts,
+  des sorts de feu, des compétences de mêlée, des sbires...) : chacun forme une **famille** (champ `type`
+  du jeu) avec ses propres tiers, choisie directement comme affixe voulu, comme sur craftofexile. Son
+  libellé est le texte majoritaire de la famille, nombres remplacés par `#` (« +# to Level of all Fire
+  Spell Skills »). Deux familles d'un même groupe restent mutuellement exclusives sur l'objet. Clé
+  d'objectif : `Groupe::Famille` quand le groupe a plusieurs familles sur la base, sinon `Groupe` ; une
+  ancienne clé `Groupe` seule retombe sur la famille du groupe qui a le plus de tiers.
 - Bases retenues : équipement uniquement, `release_state == "released"`. Les 4 classes d'armure
   principales + Shield sont scindées par archétype d'attribut (str/dex/int et hybrides) ; le reste a un
   seul représentant par classe, au plus haut niveau de drop (l'équivalent « fin de jeu »).

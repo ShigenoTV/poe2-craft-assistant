@@ -40,5 +40,5 @@ export function ItemCard({ item, title, subtitle, goal }: Props) {
   );
 }
 
-export const goalFamilies = (goal: GoalItem[], groups: { group: number; family: string }[]) =>
-  new Set(goal.map((g) => groups.find((x) => x.group === g.group)?.family).filter((x): x is string => !!x));
+export const goalFamilies = (goal: GoalItem[], groups: { group: number; familyId?: number; family: string }[]) =>
+  new Set(goal.map((g) => groups.find((x) => x.group === g.group && (x.familyId ?? 0) === (g.familyId ?? 0))?.family).filter((x): x is string => !!x));

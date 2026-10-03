@@ -11,6 +11,7 @@ pub struct GoalItem {
     pub label: String,
     pub slot: Slot,
     pub group: GroupId,
+    pub family_id: u16,
     pub max_tier: u8,
 }
 

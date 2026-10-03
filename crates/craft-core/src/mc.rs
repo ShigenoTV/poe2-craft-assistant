@@ -136,6 +136,7 @@ pub(crate) mod tests {
             id: id.into(),
             name: id.into(),
             family: id.into(),
+            family_id: 0,
             text: id.into(),
             group,
             slot,
@@ -157,7 +158,7 @@ pub(crate) mod tests {
         let spec = SimSpec {
             start: ItemState::new(Rarity::Normal, 80),
             currency: cur(CurrencyKind::Transmute),
-            goal: Goal::new(&pool, &[WantedAffix { group: 1, max_tier: 1 }]).unwrap(),
+            goal: Goal::new(&pool, &[WantedAffix { group: 1, family: 0, max_tier: 1 }]).unwrap(),
             max_orbs: 1,
             base_cost: 0.0,
         };
@@ -173,7 +174,7 @@ pub(crate) mod tests {
         let mk = || SimSpec {
             start: ItemState::new(Rarity::Normal, 80),
             currency: cur(CurrencyKind::Transmute),
-            goal: Goal::new(&pool, &[WantedAffix { group: 1, max_tier: 1 }]).unwrap(),
+            goal: Goal::new(&pool, &[WantedAffix { group: 1, family: 0, max_tier: 1 }]).unwrap(),
             max_orbs: 1,
             base_cost: 0.0,
         };

@@ -9,6 +9,9 @@ pub const MAX_WANTED: usize = 6;
 #[serde(rename_all = "camelCase")]
 pub struct WantedAffix {
     pub group: GroupId,
+    /// sous-famille visée dans le groupe (voir `Affix::family_id`) ; les autres familles du groupe bloquent
+    #[serde(default)]
+    pub family: u16,
     pub max_tier: u8,
 }
 
@@ -43,7 +46,7 @@ impl Goal {
             let slot = pool
                 .affixes
                 .iter()
-                .find(|a| a.group == w.group)
+                .find(|a| a.group == w.group && a.family_id == w.family)
                 .map(|a| a.slot)
                 .ok_or_else(|| format!("groupe {} absent du pool de cette base", w.group))?;
             slots.push(slot);
@@ -56,7 +59,7 @@ impl Goal {
         }
         let accepted = wanted
             .iter()
-            .map(|w| pool.affixes.iter().map(|a| a.group == w.group && a.tier <= w.max_tier).collect())
+            .map(|w| pool.affixes.iter().map(|a| a.group == w.group && a.family_id == w.family && a.tier <= w.max_tier).collect())
             .collect();
         Ok(Self { wanted: wanted.to_vec(), slots, by_group, accepted })
     }
