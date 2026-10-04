@@ -954,3 +954,90 @@ mod family_split_tests {
         assert!(build_context(&ds, &legacy, &prices, &AtomicBool::new(false)).is_ok());
     }
 }
+
+#[cfg(test)]
+mod greater_perfect_essence_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Mod garanti par une Essence sur une base, tel que le résout le solveur.
+    fn essence_target(ds: &Dataset, base: &str, essence: &str) -> Option<String> {
+        let bp = ds.build_pool(base).unwrap();
+        let acts = ds.essence_currencies(&bp, &ds.prices, None).unwrap();
+        acts.iter().find(|c| c.id == essence).map(|c| bp.pool.affixes[c.target.unwrap() as usize].id.clone())
+    }
+
+    /// Cibles vérifiées (craftofexile, onglet Essences ; poe2db pour l'arbalète, rangée « Two Handed
+    /// Melee Weapon or Crossbow ») : le bon tier selon la classe d'objet.
+    #[test]
+    fn greater_and_perfect_essences_resolve_the_verified_mod_per_item_class() {
+        let ds = Dataset::embedded();
+        let t = |base: &str, e: &str| essence_target(&ds, base, e);
+        assert_eq!(t("bow", "essence_abrasion_greater").as_deref(), Some("LocalAddedPhysicalDamage7"));
+        assert_eq!(t("crossbow", "essence_abrasion_greater").as_deref(), Some("LocalAddedPhysicalDamageTwoHand7"));
+        assert_eq!(t("helmet_str", "essence_body_greater").as_deref(), Some("IncreasedLife8"));
+        assert_eq!(t("boots_str", "essence_body_greater").as_deref(), Some("IncreasedLife7"), "bottes : +(85-99), pas +(100-119)");
+        assert_eq!(t("ring", "essence_body_greater"), None, "pas d'Essence of the Body sur un anneau");
+        assert_eq!(t("focus", "essence_enhancement_greater").as_deref(), Some("LocalIncreasedEnergyShieldPercent5"));
+        assert_eq!(t("bow", "essence_haste_greater").as_deref(), Some("LocalIncreasedAttackSpeed4"));
+        assert_eq!(t("sword_2h", "essence_haste_greater").as_deref(), Some("LocalIncreasedAttackSpeed7"));
+        assert_eq!(t("bow", "essence_flames_perfect").as_deref(), Some("EssenceDamageasExtraFire1"));
+        assert_eq!(t("crossbow", "essence_flames_perfect").as_deref(), Some("EssenceDamageasExtraFire2H"));
+        assert_eq!(t("wand", "essence_sorcery_perfect").as_deref(), Some("EssenceSpellSkillLevel1H1"));
+        assert_eq!(t("focus", "essence_sorcery_perfect"), None, "Perfect Sorcery : baguette et bâton seulement");
+        // un arc porte aussi le tag two_hand_weapon : seule la variante « une main » est réservée dans son pool
+        let bow = ds.build_pool("bow").unwrap();
+        assert!(bow.pool.affixes.iter().any(|a| a.id == "EssenceDamageasExtraFire1"));
+        assert!(bow.pool.affixes.iter().all(|a| a.id != "EssenceDamageasExtraFire2H"));
+        // jamais tiré au hasard
+        assert!(bow.pool.affixes.iter().filter(|a| a.id.starts_with("EssenceDamageasExtra")).all(|a| a.weight == 0));
+    }
+
+    fn plan_with(ds: &Dataset, base: &str, enabled: &[&str], target_mod: &str) -> CraftPlan {
+        let bp = ds.build_pool(base).unwrap();
+        let g = bp.groups.iter().find(|g| g.tiers.iter().any(|t| bp.pool.affixes[t.affix_idx as usize].id == target_mod)).expect("groupe de la cible");
+        let tier = g.tiers.iter().find(|t| bp.pool.affixes[t.affix_idx as usize].id == target_mod).unwrap().tier;
+        let req = PlanRequest {
+            base_id: base.into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: g.key.clone(), max_tier: tier }],
+            enabled_actions: Some(enabled.iter().map(|s| s.to_string()).collect()),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: None,
+        };
+        let ctx = build_context(ds, &req, &ds.prices, &AtomicBool::new(false)).expect("build_context");
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged);
+        assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0);
+        plan
+    }
+
+    fn used(plan: &CraftPlan, id: &str) -> f64 {
+        plan.shopping.iter().find(|l| l.id == id).map_or(0.0, |l| l.expected_count)
+    }
+
+    /// Bout en bout : Transmutation → Greater Essence of Flames sur une arbalète atteint « Adds (56-70)
+    /// to (84-107) Fire Damage » ; le plan achète réellement l'Essence.
+    #[test]
+    fn solver_buys_a_greater_essence_to_reach_its_tier() {
+        let ds = Dataset::embedded();
+        let plan = plan_with(&ds, "crossbow", &["transmute", "essence_flames_greater"], "LocalAddedFireDamageTwoHand7");
+        assert!(used(&plan, "essence_flames_greater") > 0.0, "le plan doit utiliser la Greater Essence : {:?}", plan.shopping.iter().map(|l| &l.id).collect::<Vec<_>>());
+    }
+
+    /// Bout en bout : Alchimie → Perfect Essence of Flames (objet Rare : retire un mod puis ajoute le
+    /// garanti) sur un arc atteint « Gain (15-20)% of Damage as Extra Fire Damage », mod que rien d'autre
+    /// ne donne ; le plan achète réellement l'Essence.
+    #[test]
+    fn solver_buys_a_perfect_essence_on_a_rare_item() {
+        let ds = Dataset::embedded();
+        let plan = plan_with(&ds, "bow", &["alchemy", "essence_flames_perfect"], "EssenceDamageasExtraFire1");
+        assert!(used(&plan, "essence_flames_perfect") > 0.0, "le plan doit utiliser la Perfect Essence : {:?}", plan.shopping.iter().map(|l| &l.id).collect::<Vec<_>>());
+        assert!(used(&plan, "alchemy") > 0.0, "la Perfect Essence exige un objet Rare d'abord");
+    }
+}

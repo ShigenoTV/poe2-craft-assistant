@@ -113,6 +113,17 @@ Ce que fait l'import, et pourquoi (voir aussi les commentaires en tête de `tool
   2 préfixes / 0 suffixe) — ce dernier point est déduit de la stat, pas confirmé en jeu.
 - Non importé : Essences, mods de corruption, mods d'objets uniques.
 
+Essences Greater et Perfect (04/10/2026), ajoutées à la main dans `essences` : 18 Greater et 18
+Perfect (toutes sauf « the Infinite », qui donne au hasard Force, Dextérité ou Intelligence — un
+choix aléatoire entre plusieurs mods que le modèle « un mod garanti » ne sait pas représenter).
+Source : onglet Essences de Craft of Exile (mod exact par classe d'objet), recoupé avec poe2db pour
+les valeurs. Seul désaccord : l'arbalète, rangée par Craft of Exile avec les armes à une main pour les
+Greater ; poe2db (« Two Handed Melee Weapon or Crossbow ») fait foi. Les Greater ciblent des mods
+normaux déjà importés ; les Perfect ciblent 25 mods exclusifs (poids 0, niveau 72, id du jeu), que
+l'import reporte comme tous les mods cibles d'Essence. Prix : poe.ninja catégorie « Essences »
+(`greater-essence-of-…`, `perfect-essence-of-…`) ; Greater Essence of the Mind et Perfect Essence of
+Thawing n'y figurent pas et gardent un prix saisi à la main.
+
 `tools/import_repoe.mjs` (Node, pas de dépendance en plus) est appelé automatiquement par
 `update-dataset.bat` ; utilisable seul si besoin : `node tools/import_repoe.mjs <mods> <base_items> -o data/sample/dataset.json`.
 

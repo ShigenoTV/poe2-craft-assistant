@@ -240,11 +240,12 @@ impl Dataset {
         // pool (poids 0, donc jamais piochée normalement) pour que la résolution de cible les trouve —
         // mais UNIQUEMENT sur les bases où ils sont vraiment une cible (via `item_tags`), sinon un mod
         // comme « +Vie » se retrouverait listé même sur une baguette, qui n'en a jamais en vrai jeu.
+        // Seule la PREMIÈRE cible qui matche compte (même règle qu'`essence_currencies`) : un arc porte
+        // aussi le tag `two_hand_weapon`, il ne doit pas recevoir en plus la variante « deux mains ».
         let essence_target_ids: HashSet<&str> = self
             .essences
             .iter()
-            .flat_map(|e| e.targets.iter())
-            .filter(|t| t.item_tags.iter().any(|tag| base.tags.iter().any(|bt| bt == tag)))
+            .filter_map(|e| e.targets.iter().find(|t| t.item_tags.iter().any(|tag| base.tags.iter().any(|bt| bt == tag))))
             .map(|t| t.mod_id.as_str())
             .collect();
 
