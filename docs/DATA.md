@@ -111,6 +111,14 @@ Ce que fait l'import, et pourquoi (voir aussi les commentaires en tête de `tool
   `prefix_cap_delta` / `suffix_cap_delta` (ex. Penumbra +2/-2 : 5 préfixes / 1 suffixe en Rare). Le
   moteur et le solveur l'appliquent au plafond de la rareté, Magique compris (ex. Dusk Ring Magique :
   2 préfixes / 0 suffixe) — ce dernier point est déduit de la stat, pas confirmé en jeu.
+- Mods Désécrés (04/10/2026) : domaine `desecrated` du jeu, uniquement ceux d'un des trois seigneurs
+  (tag `ulaman_mod`, `amanamu_mod` ou `kurgal_mod`) : 197 sur RePoE 4.5.5.2 (69 Amanamu, 64 Kurgal,
+  64 Ulaman), marqués `desecrated`. Chacun forme sa propre famille « texte (Seigneur) », et le tag du
+  seigneur est placé en premier (filtré par les Omens Sovereign/Liege/Blackblooded). Pas importés : les
+  32 mods Désécrés de joyau sans seigneur (aucune source ne dit quel os les donne), et ceux de l'arbre
+  Genesis, des cartes et des uniques. Os (poe2db) : Rib = armure, Collarbone = amulette/anneau/ceinture,
+  Jawbone = arme ou carquois (champ `item_tags` de la monnaie) ; Ancient = mod de niveau 40 minimum.
+  Gnawed (objet de niveau 64 maximum) n'est pas modélisé. Prix des os : saisis à la main.
 - Non importé : Essences, mods de corruption, mods d'objets uniques.
 
 Essences Greater et Perfect (04/10/2026), ajoutées à la main dans `essences` : 18 Greater et 18

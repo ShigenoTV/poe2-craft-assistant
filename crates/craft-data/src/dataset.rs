@@ -84,6 +84,9 @@ pub struct CurrencyDef {
     pub price_id: String,
     #[serde(default = "yes")]
     pub default_enabled: bool,
+    /// Bases autorisées (au moins un de ces tags) ; vide = toutes. Ex. Rib = « Desecrates a Rare Armour ».
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub item_tags: Vec<String>,
 }
 fn yes() -> bool {
     true
@@ -361,6 +364,13 @@ impl Dataset {
             }
         }
         Ok(out)
+    }
+
+    /// L'action `id` (monnaie, éventuellement « monnaie+Omen ») peut-elle s'utiliser sur cette base ?
+    /// Seules les monnaies à `item_tags` sont restreintes (os Abyssaux : armure, bijou, arme).
+    pub fn currency_applies(&self, id: &str, base: &BaseItem) -> bool {
+        let cid = id.split('+').next().unwrap_or(id);
+        self.currencies.iter().find(|c| c.id == cid).map_or(true, |c| c.item_tags.is_empty() || c.item_tags.iter().any(|t| base.tags.contains(t)))
     }
 
     /// Actions Essence pour une base donnée : résout, pour chaque Essence, le premier `target` dont

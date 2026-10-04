@@ -76,11 +76,12 @@ pub struct Model {
     pub abandon_extra: f64,
     pub goal_mask: u8,
     pmask: u8,
-    /// groupes non voulus : position dans les tables de survie, par slot
-    other_pos: std::collections::HashMap<GroupId, usize>,
+    /// groupes non voulus : position dans les tables de survie, par slot (un même groupe peut avoir des
+    /// tiers préfixes ET suffixes sur une base, ex. AilmentEffect Désécré : une position par table)
+    other_pos: std::collections::HashMap<(GroupId, Slot), usize>,
     surv_p: Vec<Vec<f64>>,
     surv_s: Vec<Vec<f64>>,
-    desec_other_pos: std::collections::HashMap<GroupId, usize>,
+    desec_other_pos: std::collections::HashMap<(GroupId, Slot), usize>,
     desec_surv_p: Vec<Vec<f64>>,
     desec_surv_s: Vec<Vec<f64>>,
 }
@@ -111,7 +112,7 @@ impl Model {
         // tirage disjoints (une monnaie normale ne peut jamais piocher un mod `desecrated`, et
         // réciproquement), donc leurs tables de poids ne doivent jamais se mélanger sous peine de fausser
         // l'approximation de champ moyen des DEUX côtés.
-        fn other_tables(pool: &AffixPool, goal: &Goal, ilvl: u8, desecrated: bool) -> (std::collections::HashMap<GroupId, usize>, Vec<Vec<f64>>, Vec<Vec<f64>>) {
+        fn other_tables(pool: &AffixPool, goal: &Goal, ilvl: u8, desecrated: bool) -> (std::collections::HashMap<(GroupId, Slot), usize>, Vec<Vec<f64>>, Vec<Vec<f64>>) {
             let mut other_pos = std::collections::HashMap::new();
             let (mut gp, mut gs): (Vec<f64>, Vec<f64>) = (vec![], vec![]);
             for a in pool.affixes.iter().filter(|a| a.weight > 0 && a.req_ilvl <= ilvl && a.desecrated == desecrated) {
@@ -119,7 +120,7 @@ impl Model {
                     continue;
                 }
                 let v = if a.slot == Slot::Prefix { &mut gp } else { &mut gs };
-                let pos = *other_pos.entry(a.group).or_insert_with(|| {
+                let pos = *other_pos.entry((a.group, a.slot)).or_insert_with(|| {
                     v.push(0.0);
                     v.len() - 1
                 });
@@ -196,7 +197,7 @@ impl Model {
                 Class::Wanted(k) => w.good[k] += wt,
                 Class::Blocked(k) => w.blocked[k] += wt,
                 Class::Other => {
-                    let pos = other_pos[&a.group];
+                    let pos = other_pos[&(a.group, a.slot)];
                     match a.slot {
                         Slot::Prefix => gp[pos] += wt,
                         Slot::Suffix => gs[pos] += wt,

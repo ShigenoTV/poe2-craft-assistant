@@ -6,7 +6,8 @@
 //   node tools/import_repoe.mjs <mods.min.json> <base_items.min.json> [-o data/sample/dataset.json]
 //
 // Ce que fait l'import, et pourquoi :
-// - Mods retenus : domain == "item" (exclut monstres/zones/coffres), generation_type in
+// - Mods retenus : domain == "item" (exclut monstres/zones/coffres) ou mod Désécré d'un des trois
+//   seigneurs (domain == "desecrated", voir LORDS), generation_type in
 //   {prefix, suffix} (exclut les mods d'objets uniques et les mods de corruption, qui ne sont pas du
 //   craft « normal »), is_essence_only == false (ces mods n'apparaissent que via une Essence, jamais par
 //   tirage classique — les inclure fausserait les poids).
@@ -66,9 +67,16 @@ const CLASS_TO_ID = {
   Crossbow: "crossbow", Talisman: "talisman", TrapTool: "trap",
 };
 
+// Désécration : mods du domaine `desecrated` (jamais tirés par une monnaie normale, révélés après un
+// os Abyssal). Seuls ceux d'un des trois seigneurs (tag `ulaman_mod`, `amanamu_mod`, `kurgal_mod`) sont des
+// mods d'équipement : les autres (arbre Genesis, cartes, uniques de Kulemak/Watcher) ne se désécrent pas.
+const LORDS = { ulaman_mod: "Ulaman", amanamu_mod: "Amanamu", kurgal_mod: "Kurgal" };
+const lordOf = (v) => (v.domain === "desecrated" ? (v.implicit_tags ?? []).map((t) => LORDS[t]).find(Boolean) : undefined);
+
 function importMods(mods) {
   const craft = Object.entries(mods).filter(
-    ([, v]) => ALLOWED_MOD_DOMAINS.has(v.domain) && (v.generation_type === "prefix" || v.generation_type === "suffix") && !v.is_essence_only,
+    ([, v]) =>
+      (ALLOWED_MOD_DOMAINS.has(v.domain) || lordOf(v)) && (v.generation_type === "prefix" || v.generation_type === "suffix") && !v.is_essence_only,
   );
   // famille = (groupe, type) : un même groupe d'exclusion peut contenir plusieurs affixes distincts
   // (ex. IncreaseSocketedGemLevel = niveau des sorts, des sorts de feu, des compétences de mêlée...),
@@ -77,7 +85,7 @@ function importMods(mods) {
   const textsByFamily = new Map();
   for (const [, v] of craft) {
     const g = (v.groups ?? [null])[0];
-    if (!g || !v.text) continue;
+    if (!g || !v.text || lordOf(v)) continue;
     const k = `${g}\u0000${v.type || g}`;
     const counts = textsByFamily.get(k) ?? new Map();
     const t = template(v.text);
@@ -96,16 +104,23 @@ function importMods(mods) {
     if (!g || !v.stats?.length || !v.text) continue;
     const spawn = (v.spawn_weights ?? []).map((s) => ({ tag: s.tag, weight: s.weight }));
     if (!spawn.some((s) => s.tag !== "default" && s.weight > 0)) continue;
+    const lord = lordOf(v);
+    // un mod Désécré forme sa propre famille, nommée d'après son seigneur, même s'il partage le groupe et
+    // le type d'un mod normal (ex. « +1% to all maximum Resistances » d'Amanamu sur bouclier)
+    const family = lord ? `${template(v.text)} (${lord})` : familyLabel.get(`${g}\u0000${v.type || g}`) ?? prettify(g);
+    // tag du seigneur gardé en premier : les Omens the Sovereign/Liege/Blackblooded filtrent dessus
+    const tags = lord ? [...new Set([Object.keys(LORDS).find((k) => LORDS[k] === lord), ...(v.implicit_tags ?? [])])] : v.implicit_tags ?? [];
     out.push({
       id: modId,
       group: g,
-      family: familyLabel.get(`${g}\u0000${v.type || g}`) ?? prettify(g),
+      family,
       name: v.name || modId,
       slot: v.generation_type,
       level: v.required_level ?? 1,
       text: clean(v.text),
-      tags: (v.implicit_tags ?? []).slice(0, 8),
+      tags: tags.slice(0, 8),
       spawn,
+      ...(lord ? { desecrated: true } : {}),
     });
   }
   return out;
@@ -243,10 +258,9 @@ function main() {
     console.error(`! ${carry} introuvable : currencies/omens/prices/mods « desecrated » seront vides (à compléter à la main)`);
   }
 
-  // les mods du domaine `desecrated` n'apparaissent JAMAIS dans un import brut (`importMods` les exclut
-  // volontairement, voir plus haut) : ceux déjà présents dans le dataset précédent sont donc à la main
-  // et doivent être reportés, sous peine de perdre silencieusement la Désécration à chaque régénération.
-  // Même chose pour les mods exclusifs aux Alloys/Essences Perfect (poids nul partout dans les vraies
+  // les mods Désécrés viennent de l'import (voir LORDS) ; un mod `desecrated` du dataset précédent absent
+  // de l'export (ajouté à la main) est quand même reporté, pour ne jamais perdre la Désécration en silence.
+  // Les mods exclusifs aux Alloys/Essences Perfect (poids nul partout dans les vraies
   // données, ex. AlloyMysticHelmet) : ils ne peuvent jamais venir de l'import brut non plus. Règle
   // générale et robuste : on reporte tout mod du dataset précédent qui est `desecrated` OU référencé
   // comme cible par au moins une Essence — cette deuxième condition couvre tous les mods exclusifs sans

@@ -287,6 +287,7 @@ pub fn build_context(ds: &Dataset, req: &PlanRequest, prices: &BTreeMap<String, 
     let mut actions: Vec<Action> = ds
         .actions(&prices, enabled.as_ref())?
         .into_iter()
+        .filter(|c| ds.currency_applies(&c.id, &bp.base))
         .chain(ds.essence_currencies(&bp, &prices, enabled.as_ref())?)
         .map(|c| Action { id: c.id.clone(), label: c.label.clone(), cost: c.unit_cost, kind: ActionKind::Currency(c) })
         .collect();
@@ -578,7 +579,7 @@ mod tests {
         let req = PlanRequest {
             base_id: "shield_str".into(),
             ilvl: 82,
-            wanted: vec![WantedReq { group: "MaximumResistances::Maximum Resistances (Amanamu)".into(), max_tier: 1 }],
+            wanted: vec![WantedReq { group: "MaximumResistances::+#% to all maximum Resistances (Amanamu)".into(), max_tier: 1 }],
             enabled_actions: Some(enabled.into_iter().collect()),
             prices: None,
             allow_abandon: true,
@@ -596,7 +597,7 @@ mod tests {
         // note : « MaximumResistances » est aussi le groupe d'un mod normal (MaximumElementalResistance) —
         // collision légitime du jeu, pas un bug : les deux s'excluent mutuellement en vrai. On vérifie
         // juste qu'au moins un tier du groupe est bien un mod `desecrated` (celui qu'on vise).
-        let grp = ctx.bp.groups.iter().find(|g| g.key == "MaximumResistances::Maximum Resistances (Amanamu)").expect("le groupe cible doit exister dans le pool");
+        let grp = ctx.bp.groups.iter().find(|g| g.key == "MaximumResistances::+#% to all maximum Resistances (Amanamu)").expect("le groupe cible doit exister dans le pool");
         assert!(
             grp.tiers.iter().any(|t| ctx.bp.pool.affixes[t.affix_idx as usize].desecrated),
             "au moins un tier de MaximumResistances doit être un mod desecrated"
@@ -1058,5 +1059,66 @@ mod greater_perfect_essence_tests {
         let plan = plan_with(&ds, "bow", &["alchemy", "essence_flames_perfect"], "EssenceDamageasExtraFire1");
         assert!(used(&plan, "essence_flames_perfect") > 0.0, "le plan doit utiliser la Perfect Essence : {:?}", plan.shopping.iter().map(|l| &l.id).collect::<Vec<_>>());
         assert!(used(&plan, "alchemy") > 0.0, "la Perfect Essence exige un objet Rare d'abord");
+    }
+}
+
+#[cfg(test)]
+mod desecration_import_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Données RePoE 4.5.5.2 : les mods Désécrés des trois seigneurs sont importés (69 Amanamu, 64 Kurgal,
+    /// 64 Ulaman) et chacun porte le tag de son seigneur, que filtrent les Omens Sovereign/Liege/Blackblooded.
+    #[test]
+    fn all_lord_desecrated_mods_are_imported() {
+        let ds = Dataset::embedded();
+        let des: Vec<&ModDef> = ds.mods.iter().filter(|m| m.desecrated).collect();
+        let count = |t: &str| des.iter().filter(|m| m.tags.first().map(String::as_str) == Some(t)).count();
+        assert_eq!((count("amanamu_mod"), count("kurgal_mod"), count("ulaman_mod")), (69, 64, 64));
+        assert_eq!(des.len(), 197);
+    }
+
+    /// poe2db : Rib = « Desecrates a Rare Armour », Collarbone = « Amulet, Ring or Belt », Jawbone =
+    /// « Weapon or Quiver ». Un os ne doit jamais apparaître sur une base qu'il ne peut pas désécrer.
+    #[test]
+    fn each_bone_only_applies_to_its_item_types() {
+        let ds = Dataset::embedded();
+        let ok = |bone: &str, base: &str| ds.currency_applies(bone, ds.base(base).unwrap());
+        assert!(ok("desecrate_rib", "helmet_str") && !ok("desecrate_rib", "mace_1h") && !ok("desecrate_rib", "ring"));
+        assert!(ok("desecrate_collarbone", "ring") && ok("desecrate_collarbone", "double_belt") && !ok("desecrate_collarbone", "helmet_str"));
+        assert!(ok("desecrate_jawbone", "mace_1h") && ok("desecrate_jawbone", "wand") && ok("desecrate_jawbone_ancient+omen_sovereign", "blunt_quiver"));
+        assert!(!ok("desecrate_jawbone", "body_armour_str"));
+    }
+
+    /// Bout en bout : Alchimie → Preserved Jawbone sur une masse une main atteint un mod Désécré
+    /// d'Ulaman propre aux masses ; le plan achète la Jawbone, jamais la Rib (inapplicable à une arme).
+    #[test]
+    fn solver_desecrates_a_mace_with_a_jawbone() {
+        let ds = Dataset::embedded();
+        let bp = ds.build_pool("mace_1h").unwrap();
+        let g = bp
+            .groups
+            .iter()
+            .find(|g| g.tiers.iter().any(|t| bp.pool.affixes[t.affix_idx as usize].id == "AbyssMod1HMaceUlamanPrefixDamageWhileActiveTotem"))
+            .expect("mod Désécré de masse dans le pool");
+        let enabled: HashSet<String> = ["alchemy", "desecrate_jawbone", "desecrate_rib"].iter().map(|s| s.to_string()).collect();
+        let req = PlanRequest {
+            base_id: "mace_1h".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: g.key.clone(), max_tier: 1 }],
+            enabled_actions: Some(enabled.into_iter().collect()),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: None,
+        };
+        let ctx = build_context(&ds, &req, &ds.prices, &AtomicBool::new(false)).expect("build_context");
+        assert!(ctx.model.actions.iter().all(|a| a.id != "desecrate_rib"), "la Rib ne désécre que les armures");
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged);
+        assert!(plan.shopping.iter().any(|l| l.id == "desecrate_jawbone" && l.expected_count > 0.0));
     }
 }
