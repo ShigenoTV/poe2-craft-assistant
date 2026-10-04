@@ -123,6 +123,13 @@ normaux déjà importés ; les Perfect ciblent 25 mods exclusifs (poids 0, nivea
 l'import reporte comme tous les mods cibles d'Essence. Prix : poe.ninja catégorie « Essences »
 (`greater-essence-of-…`, `perfect-essence-of-…`) ; Greater Essence of the Mind et Perfect Essence of
 Thawing n'y figurent pas et gardent un prix saisi à la main.
+Le même jour, les Lesser et normales ont été réalignées sur ces sources : 9 manquantes ajoutées
+(Alacrity, Command, Enhancement, Grounding, Opulence, Thawing ; Lesser Command, Electricity,
+Enhancement), cibles corrigées (Haste ne visait aucune épée/hache/masse, Seeking ignorait les armes
+martiales, Mind ignorait anneaux et amulettes, Body donnait trop aux bottes/gants), mods sur mesure
+remplacés par les vrais mods du jeu aux mêmes valeurs (Battle, Haste, Sorcery, Opulence), the Infinite
+retirée. Bilan : 18 familles × 4 tiers = 72 Essences, plus 6 Liquid Emotions et 13 Alloys = 91. Seul écart
+restant : Craft of Exile ne donne aucune Essence pour la griffe, le dataset l'y laisse (tag d'arme).
 
 `tools/import_repoe.mjs` (Node, pas de dépendance en plus) est appelé automatiquement par
 `update-dataset.bat` ; utilisable seul si besoin : `node tools/import_repoe.mjs <mods> <base_items> -o data/sample/dataset.json`.

@@ -985,6 +985,16 @@ mod greater_perfect_essence_tests {
         assert_eq!(t("crossbow", "essence_flames_perfect").as_deref(), Some("EssenceDamageasExtraFire2H"));
         assert_eq!(t("wand", "essence_sorcery_perfect").as_deref(), Some("EssenceSpellSkillLevel1H1"));
         assert_eq!(t("focus", "essence_sorcery_perfect"), None, "Perfect Sorcery : baguette et bâton seulement");
+        // Lesser et normales réalignées sur les mêmes sources (avant : mauvais tags ou mods sur mesure)
+        assert_eq!(t("sword_1h", "essence_haste").as_deref(), Some("LocalIncreasedAttackSpeed5"));
+        assert_eq!(t("crossbow", "essence_haste_lesser").as_deref(), Some("LocalIncreasedAttackSpeed2"));
+        assert_eq!(t("bow", "essence_battle").as_deref(), Some("LocalIncreasedAccuracy5"));
+        assert_eq!(t("mace_2h", "essence_seeking").as_deref(), Some("LocalCriticalStrikeChance3"));
+        assert_eq!(t("staff", "essence_sorcery").as_deref(), Some("SpellDamageOnTwoHandWeapon4"));
+        assert_eq!(t("boots_str", "essence_body").as_deref(), Some("IncreasedLife6"));
+        assert_eq!(t("ring", "essence_mind").as_deref(), Some("IncreasedMana7"));
+        assert_eq!(t("focus", "essence_enhancement_lesser").as_deref(), Some("LocalIncreasedEnergyShieldPercent2"));
+        assert!(ds.essences.iter().all(|e| !e.id.starts_with("essence_infinite")), "the Infinite tire un attribut au hasard : non représentable");
         // un arc porte aussi le tag two_hand_weapon : seule la variante « une main » est réservée dans son pool
         let bow = ds.build_pool("bow").unwrap();
         assert!(bow.pool.affixes.iter().any(|a| a.id == "EssenceDamageasExtraFire1"));
@@ -1028,6 +1038,15 @@ mod greater_perfect_essence_tests {
         let ds = Dataset::embedded();
         let plan = plan_with(&ds, "crossbow", &["transmute", "essence_flames_greater"], "LocalAddedFireDamageTwoHand7");
         assert!(used(&plan, "essence_flames_greater") > 0.0, "le plan doit utiliser la Greater Essence : {:?}", plan.shopping.iter().map(|l| &l.id).collect::<Vec<_>>());
+    }
+
+    /// Bout en bout : l'Essence of Haste s'applique désormais à une épée une main (avant : tags inexistants)
+    /// et le plan l'achète pour atteindre « (17-19)% increased Attack Speed ».
+    #[test]
+    fn solver_buys_essence_of_haste_on_a_one_hand_sword() {
+        let ds = Dataset::embedded();
+        let plan = plan_with(&ds, "sword_1h", &["transmute", "essence_haste"], "LocalIncreasedAttackSpeed5");
+        assert!(used(&plan, "essence_haste") > 0.0);
     }
 
     /// Bout en bout : Alchimie → Perfect Essence of Flames (objet Rare : retire un mod puis ajoute le
