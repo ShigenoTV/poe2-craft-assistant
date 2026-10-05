@@ -379,7 +379,7 @@ pub fn build_context(ds: &Dataset, req: &PlanRequest, prices: &BTreeMap<String, 
     let start = match &req.starting_item {
         Some(view) => {
             let item = view.to_state(&pool).map_err(|e| format!("objet de départ invalide : {e}"))?;
-            craft_solver::project(&goal, &pool, &item).ok_or_else(|| "objet de départ incompatible avec cet objectif (affixe fracturé non voulu, ou hors de ce que le solveur sait représenter)".to_string())?
+            model.project(&item).ok_or_else(|| "objet de départ incompatible avec cet objectif (affixe fracturé non voulu, ou hors de ce que le solveur sait représenter)".to_string())?
         }
         None => MacroState::empty(Rarity::Normal),
     };
@@ -443,7 +443,7 @@ pub struct AdviceResult {
 /// Conseil pour un objet réel (lu dans le presse-papiers). Résout à la volée si l'état n'est pas dans la table.
 pub fn advise_item(ctx: &PlanContext, item: &ItemState, cancel: &AtomicBool) -> Result<AdviceResult, String> {
     let goal = ctx.goal_items.clone();
-    let Some(state) = project(&ctx.model.goal, &ctx.model.pool, item) else {
+    let Some(state) = ctx.model.project(item) else {
         return Ok(AdviceResult { dead: true, advice: None, goal, wanted_status: vec!["missing".into(); ctx.goal_items.len()] });
     };
     let status = (0..ctx.goal_items.len())
@@ -1566,6 +1566,7 @@ mod liquid_emotions_complete_tests {
     /// le mod retiré au hasard peut être un préfixe, et aucun mod Désécré ne peut alors prendre sa place.
     /// Ce cas ne doit ni disparaître des transitions du solveur (il passait pour un succès gratuit : plan
     /// annoncé ~13 ex, ~12 000 ex sur le moteur exact), ni amputer l'objet dans le moteur exact.
+    /// Même test pour les Alloys, activées par défaut (voir plus bas).
     #[test]
     fn desecration_on_full_gloves_keeps_solver_and_exact_engine_aligned() {
         let ds = Dataset::embedded();
@@ -1573,9 +1574,7 @@ mod liquid_emotions_complete_tests {
             base_id: "gloves_dex".into(),
             ilvl: 81,
             wanted: ["IncreasedLife", "FireResistance"].iter().map(|g| WantedReq { group: (*g).into(), max_tier: 3 }).collect(),
-            // actions par défaut sans les Alloys : leur mod garanti n'est pas suivi par l'état abstrait (écart
-            // distinct, hors de ce test)
-            enabled_actions: Some(list_actions(&ds, &ds.prices).unwrap().into_iter().filter(|a| a.default_enabled && !a.id.starts_with("alloy_")).map(|a| a.id).collect()),
+            enabled_actions: None,
             prices: None,
             allow_abandon: true,
             mc_trials: 6_000,
@@ -1597,6 +1596,9 @@ mod liquid_emotions_complete_tests {
                 assert!(out.is_empty() || (sum - 1.0).abs() < 1e-9, "état {i} {s:?}, {} : probabilités sommant à {sum}", m.actions[a].id);
             }
         }
+        // Alloys (actions par défaut) : le mod garanti posé est suivi, sinon le solveur croit pouvoir le
+        // reposer et la politique tourne en rond sur le moteur exact (20 % d'essais interrompus avant)
+        assert!(!m.tracked.is_empty(), "mods garantis d'Alloy suivis");
         let plan = make_plan(&ctx, |_, _| true).unwrap();
         let mc = plan.mc.as_ref().expect("vérification Monte Carlo");
         assert!(mc.censored * 100 < mc.trials, "{mc:?}");

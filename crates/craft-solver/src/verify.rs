@@ -1,6 +1,5 @@
 use crate::model::*;
 use crate::solve::*;
-use crate::state::*;
 use craft_core::*;
 use rand::{rngs::SmallRng, SeedableRng};
 use rayon::prelude::*;
@@ -111,7 +110,7 @@ fn one_trial(model: &Model, sol: &Solution, start: ItemState, max_steps: u32, rn
         if model.goal.is_met(&item) {
             return (cost as f32, step, abandons, false);
         }
-        let act = match project(&model.goal, &model.pool, &item).and_then(|s| sol.id(&s)) {
+        let act = match model.project(&item).and_then(|s| sol.id(&s)) {
             Some(i) if sol.policy[i] != NONE => sol.policy[i] as usize,
             _ => model.actions.iter().position(|a| matches!(a.kind, ActionKind::Abandon)).unwrap_or(0),
         };
@@ -127,7 +126,7 @@ fn one_trial(model: &Model, sol: &Solution, start: ItemState, max_steps: u32, rn
             }
         }
         // objet « mort » (fracturé sur un mauvais affixe) : abandon immédiat
-        if project(&model.goal, &model.pool, &item).is_none() {
+        if model.project(&item).is_none() {
             cost += model.abandon_extra;
             abandons += 1;
             item = fresh;

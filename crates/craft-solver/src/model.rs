@@ -85,7 +85,15 @@ pub struct Model {
     desec_other_pos: std::collections::HashMap<(GroupId, Slot), usize>,
     desec_surv_p: Vec<Vec<f64>>,
     desec_surv_s: Vec<Vec<f64>>,
+    /// Mods garantis inutiles des remplisseurs gardés (voir `Model::new`), suivis un par un dans
+    /// `MacroState::ess` (bit i = `tracked[i]`) : (groupe, slot).
+    pub tracked: Vec<(GroupId, Slot)>,
+    /// actions écartées d'office (remplisseurs dominés par un moins cher, voir `Model::new`)
+    pruned: Vec<bool>,
 }
+
+/// Remplisseurs gardés par slot (voir `Model::new`).
+const MAX_FILLERS: usize = 1;
 
 fn merge(v: &mut Vec<(MacroState, f64)>) {
     let mut out: Vec<(MacroState, f64)> = Vec::with_capacity(v.len());
@@ -158,6 +166,8 @@ impl Model {
             desec_other_pos,
             desec_surv_p,
             desec_surv_s,
+            tracked: Vec::new(),
+            pruned: Vec::new(),
         };
         m.weights = m
             .actions
@@ -177,7 +187,55 @@ impl Model {
                 _ => Vec::new(),
             })
             .collect();
+        // « Remplisseurs » : Essence/Alloy sur objet Rare dont le mod garanti est inutile (retire un mod au
+        // hasard, pose ce mod). Pour l'état abstrait, deux remplisseurs du même slot ne diffèrent que par le
+        // prix et par l'identité du mod posé, qui compte seulement pour ne pas le reposer (groupe déjà pris).
+        // On garde les deux moins chers de chaque slot, suivis dans `MacroState::ess`, et on écarte les
+        // autres : les suivre tous multiplie les états (×20 à ×70 sur des gants) sans changer le plan.
+        let mut fillers: Vec<(f64, usize, GroupId, Slot, Option<Slot>)> = Vec::new();
+        for (ai, act) in m.actions.iter().enumerate() {
+            let ActionKind::Currency(c) = &act.kind else { continue };
+            if let [(t, slot, Class::Other)] = m.essence_class[ai].as_slice() {
+                let a = &m.pool.affixes[*t as usize];
+                if c.requires_rare && a.cap_shift == (0, 0) {
+                    fillers.push((act.cost, ai, a.group, *slot, c.remove_slot));
+                }
+            }
+        }
+        fillers.sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap_or(std::cmp::Ordering::Equal));
+        m.pruned = vec![false; m.actions.len()];
+        let mut kept: Vec<(GroupId, Slot, Option<Slot>)> = Vec::new();
+        for &(_, ai, group, slot, rm) in &fillers {
+            // même mod qu'un remplisseur moins cher, ou déjà deux remplisseurs gardés pour ce slot
+            if kept.contains(&(group, slot, rm)) || kept.iter().filter(|k| k.1 == slot && k.2 == rm).count() >= MAX_FILLERS {
+                m.pruned[ai] = true;
+                continue;
+            }
+            kept.push((group, slot, rm));
+            if !m.tracked.contains(&(group, slot)) {
+                m.tracked.push((group, slot));
+            }
+        }
         m
+    }
+
+    /// Bit de `MacroState::ess` du mod garanti `t`, s'il est suivi.
+    fn tracked_bit(&self, t: AffixIdx) -> Option<u32> {
+        let a = &self.pool.affixes[t as usize];
+        self.tracked.iter().position(|&g| g == (a.group, a.slot)).map(|i| 1 << i)
+    }
+
+    /// Projette un objet réel vers son état abstrait, mods garantis d'Essence/Alloy compris (à utiliser
+    /// plutôt que `project` dès qu'on cherche l'état dans une solution de ce modèle).
+    pub fn project(&self, item: &ItemState) -> Option<MacroState> {
+        let mut s = crate::state::project(&self.goal, &self.pool, item)?;
+        for m in item.mods() {
+            let a = &self.pool.affixes[m.idx as usize];
+            if let Some(i) = self.tracked.iter().position(|&g| g == (a.group, a.slot)) {
+                s.ess |= 1 << i;
+            }
+        }
+        Some(s)
     }
 
     fn add_weights(&self, c: &Currency) -> AddW {
@@ -332,13 +390,21 @@ impl Model {
                 Slot::Prefix => MacroState { bad_p: s.bad_p - 1, ..s },
                 Slot::Suffix => MacroState { bad_s: s.bad_s - 1, ..s },
             };
+            // mods inutiles identifiés (décaleur, mods garantis suivis) : chacun retiré avec le même poids
+            // qu'un autre mauvais affixe ; le reste, anonyme, se partage le poids restant
+            let mut anon = bad as i32;
             if shift_slot == Some(slot) {
                 cands.push((MacroState { shifter: None, ..less }, 1.0));
-                if bad > 1 {
-                    cands.push((less, (bad - 1) as f64));
+                anon -= 1;
+            }
+            for (i, &(_, sl)) in self.tracked.iter().enumerate() {
+                if sl == slot && s.ess >> i & 1 == 1 {
+                    cands.push((MacroState { ess: s.ess & !(1 << i), ..less }, 1.0));
+                    anon -= 1;
                 }
-            } else {
-                cands.push((less, bad as f64));
+            }
+            if anon > 0 {
+                cands.push((less, anon as f64));
             }
         }
         let total: f64 = cands.iter().map(|c| c.1).sum();
@@ -359,6 +425,7 @@ impl Model {
                 }
                 return;
             }
+            ActionKind::Currency(_) if self.pruned[ai] => return,
             ActionKind::Currency(c) => c,
         };
         let w = self.weights[ai].as_ref().unwrap();
@@ -441,9 +508,13 @@ impl Model {
                         Class::Wanted(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => Some(MacroState { rarity: Rarity::Rare, held: s1.held | 1 << k, ..s1 }),
                         Class::Blocked(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => Some(MacroState { rarity: Rarity::Rare, blocked: s1.blocked | 1 << k, ..s1 }),
                         Class::Other => {
+                            let bit = self.tracked_bit(t).unwrap_or(0);
+                            if s1.ess & bit != 0 {
+                                return None; // ce mod garanti est déjà sur l'objet : groupe déjà pris
+                            }
                             let st = match slot {
-                                Slot::Prefix => MacroState { rarity: Rarity::Rare, bad_p: s1.bad_p + 1, ..s1 },
-                                Slot::Suffix => MacroState { rarity: Rarity::Rare, bad_s: s1.bad_s + 1, ..s1 },
+                                Slot::Prefix => MacroState { rarity: Rarity::Rare, bad_p: s1.bad_p + 1, ess: s1.ess | bit, ..s1 },
+                                Slot::Suffix => MacroState { rarity: Rarity::Rare, bad_s: s1.bad_s + 1, ess: s1.ess | bit, ..s1 },
                             };
                             Some(if shift { MacroState { shifter: Some(t), ..st } } else { st })
                         }

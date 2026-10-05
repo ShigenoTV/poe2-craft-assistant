@@ -20,11 +20,15 @@ pub struct MacroState {
     /// Mod inutile qui décale le plafond tant qu'il est là (ex. « +1 Suffix Modifier allowed » de Potent
     /// Liquid Contempt), compté aussi dans `bad_p`/`bad_s` : son indice d'affixe, ou `None`.
     pub shifter: Option<AffixIdx>,
+    /// bit i : le mod garanti inutile n° i d'une Essence/Alloy (`Model::tracked`) est sur l'objet, compté
+    /// aussi dans `bad_p`/`bad_s`. Sans ce suivi, le solveur croirait pouvoir reposer ce mod (groupe déjà
+    /// pris : le jeu refuse) et la politique tournerait en rond sur le moteur exact.
+    pub ess: u32,
 }
 
 impl MacroState {
     pub fn empty(rarity: Rarity) -> Self {
-        Self { rarity, held: 0, blocked: 0, frac: 0, bad_p: 0, bad_s: 0, desecrated: false, shifter: None }
+        Self { rarity, held: 0, blocked: 0, frac: 0, bad_p: 0, bad_s: 0, desecrated: false, shifter: None, ess: 0 }
     }
     pub fn key(&self) -> String {
         let r = match self.rarity {
@@ -33,9 +37,14 @@ impl MacroState {
             Rarity::Rare => "r",
         };
         let key = format!("{r}:h{:06b}:b{:06b}:f{}:p{}:s{}:d{}", self.held, self.blocked, self.frac, self.bad_p, self.bad_s, self.desecrated as u8);
-        match self.shifter {
+        let key = match self.shifter {
             Some(i) => format!("{key}:x{i}"),
             None => key,
+        };
+        if self.ess != 0 {
+            format!("{key}:e{:x}", self.ess)
+        } else {
+            key
         }
     }
     pub fn total(&self) -> u32 {
