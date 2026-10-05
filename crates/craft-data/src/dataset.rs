@@ -38,6 +38,11 @@ pub struct BaseItem {
     pub prefix_cap_delta: i8,
     #[serde(default)]
     pub suffix_cap_delta: i8,
+    /// (max préfixes, max suffixes) d'un objet Rare de cette base avant décalage, quand il diffère du 3/3
+    /// habituel : [2, 2] pour tous les joyaux, Time-Lost compris (Path of Building, Item.lua : `affixLimit`
+    /// 4 pour un Rare de type Jewel). Le plafond Magique (1/1) n'est pas concerné.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rare_cap: Option<[u8; 2]>,
     /// Base Craft of Exile dont cette base prend les poids d'apparition (`ModDef::weights`). Absent :
     /// pas de poids connus, la base garde ceux du jeu (tous égaux).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -216,6 +221,17 @@ pub struct BasePool {
     pub groups: Vec<GroupInfo>,
 }
 
+impl BaseItem {
+    /// Pool d'affixes de cette base avec son plafond propre (Rare de la classe, décalage de l'implicite).
+    pub fn affix_pool(&self, affixes: Vec<Affix>) -> AffixPool {
+        AffixPool {
+            affixes,
+            cap_delta: (self.prefix_cap_delta, self.suffix_cap_delta),
+            rare_cap: self.rare_cap.map_or(Rarity::Rare.cap(), |[p, s]| (p, s)),
+        }
+    }
+}
+
 impl Dataset {
     pub fn embedded() -> Self {
         Self::from_json(EMBEDDED).expect("dataset embarqué invalide")
@@ -354,8 +370,7 @@ impl Dataset {
             }
         }
         groups.sort_by(|a, b| (a.slot as u8, &a.family).cmp(&(b.slot as u8, &b.family)));
-        let cap_delta = (base.prefix_cap_delta, base.suffix_cap_delta);
-        Ok(BasePool { base, pool: AffixPool { affixes, cap_delta }, groups })
+        Ok(BasePool { pool: base.affix_pool(affixes), base, groups })
     }
 
     /// Liste des actions de craft (monnaies × Omens compatibles) avec coûts issus de `prices`.

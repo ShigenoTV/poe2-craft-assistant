@@ -539,14 +539,14 @@ pub struct BaseView {
     pub item_class: String,
     pub tags: Vec<String>,
     pub implicits: Vec<String>,
-    /// plafond d'un objet Rare de cette base (3/3 sauf implicite qui le décale)
+    /// plafond d'un objet Rare de cette base (3/3, 2/2 pour un joyau, décalé par certains implicites)
     pub max_prefixes: u8,
     pub max_suffixes: u8,
 }
 
 impl From<&BaseItem> for BaseView {
     fn from(b: &BaseItem) -> Self {
-        let (max_prefixes, max_suffixes) = AffixPool { affixes: vec![], cap_delta: (b.prefix_cap_delta, b.suffix_cap_delta) }.cap(Rarity::Rare);
+        let (max_prefixes, max_suffixes) = b.affix_pool(vec![]).cap(Rarity::Rare);
         Self {
             id: b.id.clone(),
             name: b.name.clone(),
@@ -758,6 +758,64 @@ mod jewel_tests {
         let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
         assert!(plan.solver.converged, "le solveur doit converger sur un joyau");
         assert!(plan.expected_cost.is_finite() && plan.expected_cost > 0.0, "coût attendu fini et positif, obtenu {}", plan.expected_cost);
+    }
+
+    /// Un joyau Rare a 2 préfixes / 2 suffixes au plus, Time-Lost compris (Path of Building, Item.lua :
+    /// `affixLimit` 4 pour un Rare de type Jewel). Bout en bout : l'interface affiche 2/2, un objectif à
+    /// 3 préfixes est refusé, et sur un joyau Rare déjà plein (2 + 2) le solveur doit passer par une Annulation
+    /// avant l'Exalt (avec le 3/3 d'avant, sa 1re action était l'Exalt, dans un 3e préfixe libre).
+    #[test]
+    fn solver_respects_the_two_two_cap_of_a_jewel() {
+        let ds = Dataset::embedded();
+        let jewels: Vec<_> = ds.bases.iter().filter(|b| b.item_class == "Jewel").collect();
+        assert_eq!(jewels.len(), 8, "Ruby/Emerald/Sapphire/Diamond et leurs 4 versions Time-Lost");
+        for b in &jewels {
+            let view = BaseView::from(*b);
+            assert_eq!((view.max_prefixes, view.max_suffixes), (2, 2), "{}", b.id);
+            let pool = ds.build_pool(&b.id).unwrap().pool;
+            assert_eq!(pool.cap(Rarity::Rare), (2, 2), "{}", b.id);
+            assert_eq!(pool.cap(Rarity::Magic), (1, 1), "{}", b.id);
+        }
+        // les autres classes gardent 3/3
+        assert_eq!(BaseView::from(ds.bases.iter().find(|b| b.id == "crossbow").unwrap()).max_prefixes, 3);
+
+        let bp = ds.build_pool("jewel_strjewel").unwrap();
+        let of = |slot: Slot| bp.groups.iter().filter(move |g| g.slot == slot);
+        let (pre, suf): (Vec<_>, Vec<_>) = (of(Slot::Prefix).collect(), of(Slot::Suffix).collect());
+        assert!(pre.len() >= 3 && suf.len() >= 2);
+        let req = |wanted: Vec<WantedReq>, start: Option<ItemView>| PlanRequest {
+            base_id: "jewel_strjewel".into(),
+            ilvl: 82,
+            wanted,
+            enabled_actions: Some(vec!["alchemy".into(), "exalt".into(), "annul".into()]),
+            prices: None,
+            allow_abandon: false,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: start,
+            instill: None,
+        };
+        let want = |g: &GroupInfo| WantedReq { group: g.key.clone(), max_tier: g.tiers.len() as u8 };
+
+        let three = req(pre[..3].iter().map(|g| want(g)).collect(), None);
+        let err = build_context(&ds, &three, &ds.prices, &AtomicBool::new(false)).err().expect("3 préfixes refusés sur un joyau");
+        assert!(err.contains("2 préfixes"), "{err}");
+
+        // joyau Rare plein : 2 préfixes + 2 suffixes non voulus, objectif = un 3e préfixe
+        let lowest = |g: &GroupInfo| g.tiers.iter().max_by_key(|t| t.tier).unwrap().affix_idx;
+        let mods = [pre[0], pre[1], suf[0], suf[1]].iter().map(|g| ModView { affix_idx: lowest(g), fractured: false }).collect();
+        let full = ItemView { rarity: Rarity::Rare, ilvl: 82, mods };
+        let ctx = build_context(&ds, &req(vec![want(pre[2])], Some(full)), &ds.prices, &AtomicBool::new(false)).expect("build_context");
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged);
+        let first = match &plan.nodes[&plan.root_id] {
+            CraftNode::Action(n) => n.action.id.clone(),
+            CraftNode::Terminal(_) => panic!("le joyau de départ n'atteint pas déjà l'objectif"),
+        };
+        assert_eq!(first, "annul", "joyau plein : l'Exalt n'a pas de place sans Annulation");
+        assert!(plan.shopping.iter().any(|l| l.id == "exalt" && l.expected_count > 0.0));
     }
 }
 

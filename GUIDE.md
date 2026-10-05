@@ -19,7 +19,7 @@ L'application s'ouvre sur **Reverse-crafting**. La barre de gauche donne accès 
 ### Reverse-crafting
 
 L'écran principal. Tu choisis une base d'objet, un niveau d'objet, et les affixes que tu veux dessus
-(jusqu'à 6, au maximum 3 préfixes et 3 suffixes). Pour chaque affixe, une barre de tiers permet de choisir
+(jusqu'à 6, au maximum 3 préfixes et 3 suffixes, 2 et 2 sur un joyau). Pour chaque affixe, une barre de tiers permet de choisir
 le tier minimum accepté : « T3 » veut dire T1, T2 ou T3 acceptés.
 
 Par défaut, le plan repart d'une base neuve. Si tu as déjà un objet en cours (déjà Magique ou Rare, avec

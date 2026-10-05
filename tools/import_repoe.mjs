@@ -206,7 +206,11 @@ function importBases(items, mods) {
     // les joyaux ont un vrai nom canonique bien connu (Ruby/Sapphire/Emerald/Diamond) — on le garde tel
     // quel plutôt que de reconstruire un nom générique comme pour les autres classes.
     const name = cls === "Jewel" ? rep.name : label ? `${label} ${cls}`.trim() : cls;
-    bases.push({ id: baseId, name, item_class: cls, tags: rep.tags ?? [], implicits: [] });
+    const base = { id: baseId, name, item_class: cls, tags: rep.tags ?? [], implicits: [] };
+    // un joyau Rare a 2 préfixes / 2 suffixes au plus, Time-Lost compris (Path of Building, Item.lua :
+    // affixLimit 4 pour un Rare de type Jewel) ; le moteur borne aussi le Magique par ce plafond
+    if (cls === "Jewel") base.rare_cap = [2, 2];
+    bases.push(base);
   }
   bases.push(...jewellery.bases);
   const ids = new Set(bases.map((b) => b.id));

@@ -200,6 +200,22 @@ pub(crate) mod tests {
         }
     }
 
+    /// Joyau (plafond Rare 2/2) : un Alchemy remplit l'objet (4 affixes), l'Exalt n'a plus de place ; le
+    /// Magique reste à 1/1.
+    #[test]
+    fn jewel_rare_cap_is_two_prefixes_two_suffixes() {
+        let affixes: Vec<Affix> = (0..6).map(|i| aff("P", i, Slot::Prefix, 100)).chain((10..16).map(|i| aff("S", i, Slot::Suffix, 100))).collect();
+        let jewel = AffixPool { affixes, rare_cap: (2, 2), ..AffixPool::default() };
+        assert_eq!((jewel.cap(Rarity::Rare), jewel.cap(Rarity::Magic)), ((2, 2), (1, 1)));
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(3);
+        for _ in 0..200 {
+            let mut it = ItemState::new(Rarity::Normal, 80);
+            jewel.apply(&mut it, &cur(CurrencyKind::Alchemy), &mut rng);
+            assert_eq!((jewel.count(&it, Slot::Prefix), jewel.count(&it, Slot::Suffix)), (2, 2));
+            assert_eq!(jewel.apply(&mut it, &cur(CurrencyKind::Exalt), &mut rng), Outcome::NotApplicable);
+        }
+    }
+
     /// Plafond propre à la base (Penumbra : +2 préfixes / -2 suffixes, Absent : -1 / -1) : le tirage, l'Exalt
     /// et l'Augmentation suivent le plafond décalé, jamais le 3/3 de la rareté seule.
     #[test]
@@ -207,7 +223,7 @@ pub(crate) mod tests {
         let affixes: Vec<Affix> = (0..6).map(|i| aff("P", i, Slot::Prefix, 100)).chain((10..16).map(|i| aff("S", i, Slot::Suffix, 100))).collect();
         let mut rng = rand::rngs::SmallRng::seed_from_u64(7);
 
-        let penumbra = AffixPool { affixes: affixes.clone(), cap_delta: (2, -2) };
+        let penumbra = AffixPool { affixes: affixes.clone(), cap_delta: (2, -2), ..AffixPool::default() };
         assert_eq!(penumbra.cap(Rarity::Rare), (5, 1));
         for _ in 0..200 {
             let mut it = ItemState::new(Rarity::Normal, 80);
@@ -216,14 +232,14 @@ pub(crate) mod tests {
             assert_eq!((penumbra.count(&it, Slot::Prefix), penumbra.count(&it, Slot::Suffix)), (5, 1));
         }
 
-        let absent = AffixPool { affixes: affixes.clone(), cap_delta: (-1, -1) };
+        let absent = AffixPool { affixes: affixes.clone(), cap_delta: (-1, -1), ..AffixPool::default() };
         let mut it = ItemState::new(Rarity::Normal, 80);
         absent.apply(&mut it, &cur(CurrencyKind::Alchemy), &mut rng);
         assert_eq!(it.len(), 4, "Absent Amulet : 2 préfixes + 2 suffixes, un Alchemy remplit l'objet");
         assert_eq!(absent.apply(&mut it, &cur(CurrencyKind::Exalt), &mut rng), Outcome::NotApplicable);
 
         // Dusk (+1 / -1) : un objet Magique n'a plus de place de suffixe, deux préfixes possibles
-        let dusk = AffixPool { affixes, cap_delta: (1, -1) };
+        let dusk = AffixPool { affixes, cap_delta: (1, -1), ..AffixPool::default() };
         for _ in 0..200 {
             let mut it = ItemState::new(Rarity::Normal, 80);
             dusk.apply(&mut it, &cur(CurrencyKind::Transmute), &mut rng);

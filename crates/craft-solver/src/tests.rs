@@ -174,7 +174,7 @@ fn shifted_base_cap_allows_four_prefixes_and_matches_monte_carlo() {
     let wanted: Vec<WantedAffix> = (1..=4).map(|g| WantedAffix { group: g, family: 0, max_tier: 1 }).collect();
     assert!(Goal::new(&AffixPool::new(v.clone()), &wanted).is_err(), "4 préfixes impossibles sur une base 3/3");
 
-    let pool = Arc::new(AffixPool { affixes: v, cap_delta: (2, -2) });
+    let pool = Arc::new(AffixPool { affixes: v, cap_delta: (2, -2), ..AffixPool::default() });
     let goal = Arc::new(Goal::new(&pool, &wanted).unwrap());
     let mut actions = vec![
         cur("transmute", CurrencyKind::Transmute, 0.1),

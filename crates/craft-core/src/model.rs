@@ -183,26 +183,37 @@ pub enum Outcome {
 
 // ───────────────────────── Pool d'affixes ─────────────────────────
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct AffixPool {
     pub affixes: Vec<Affix>,
     /// Décalage du nombre de préfixes / suffixes autorisés propre à la base (implicites
     /// `local_maximum_prefixes_allowed_+` / `local_maximum_suffixes_allowed_+`, ex. Dusk Ring : +1 / -1).
     pub cap_delta: (i8, i8),
+    /// (max préfixes, max suffixes) d'un objet Rare de cette classe avant décalage : 3/3 en général,
+    /// 2/2 pour un joyau (Path of Building, Item.lua : `affixLimit` 4 pour un Rare de type Jewel).
+    pub rare_cap: (u8, u8),
+}
+
+impl Default for AffixPool {
+    fn default() -> Self {
+        Self::new(vec![])
+    }
 }
 
 impl AffixPool {
     pub fn new(affixes: Vec<Affix>) -> Self {
-        Self { affixes, cap_delta: (0, 0) }
+        Self { affixes, cap_delta: (0, 0), rare_cap: Rarity::Rare.cap() }
     }
 
-    /// (max préfixes, max suffixes) pour cette base à cette rareté : plafond de la rareté décalé par
-    /// l'implicite de la base. Un objet Normal reste sans affixe.
+    /// (max préfixes, max suffixes) pour cette base à cette rareté : plafond de la rareté (borné par
+    /// celui d'un Rare de la classe, ex. joyau 2/2) décalé par l'implicite de la base. Un objet Normal
+    /// reste sans affixe.
     pub fn cap(&self, rarity: Rarity) -> (u8, u8) {
         let (p, s) = rarity.cap();
         if rarity == Rarity::Normal {
             return (p, s);
         }
+        let (p, s) = (p.min(self.rare_cap.0), s.min(self.rare_cap.1));
         let shift = |base: u8, d: i8| (base as i16 + d as i16).clamp(0, 6) as u8;
         (shift(p, self.cap_delta.0), shift(s, self.cap_delta.1))
     }
