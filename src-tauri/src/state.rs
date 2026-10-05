@@ -26,7 +26,10 @@ pub struct Settings {
     pub overlay_auto_hide_secs: u32,
     /// ligue poe.ninja pour les prix ; vide = ligue temporaire courante (détectée automatiquement)
     pub price_league: String,
+    /// actualisation des prix poe.ninja en arrière-plan (au démarrage puis à intervalle régulier)
     pub auto_refresh_prices: bool,
+    /// intervalle de cette actualisation, en minutes (15 au minimum)
+    pub price_refresh_minutes: u32,
 }
 
 impl Default for Settings {
@@ -47,6 +50,7 @@ impl Default for Settings {
             overlay_auto_hide_secs: 10,
             price_league: String::new(),
             auto_refresh_prices: true,
+            price_refresh_minutes: 60,
         }
     }
 }
@@ -58,6 +62,10 @@ pub struct AppState {
     pub price_overrides: Mutex<BTreeMap<String, f64>>,
     /// derniers prix du marché (poe.ninja), persistés dans `market_prices.json`
     pub market: Mutex<Option<crate::prices::MarketPrices>>,
+    /// dernier échec d'actualisation des prix (date unix, message), effacé au premier succès
+    pub price_error: Mutex<Option<(u64, String)>>,
+    /// sérialise les actualisations réseau (bouton « Actualiser » et arrière-plan)
+    pub price_fetch: Mutex<()>,
     pub settings: Mutex<Settings>,
     pub active: Mutex<Option<Arc<PlanContext>>>,
     /// dernier objet capturé compatible avec le plan actif (base, objet) : sert de point de départ quand
@@ -100,6 +108,8 @@ impl AppState {
             ds: RwLock::new(Arc::new(ds)),
             price_overrides: Mutex::new(prices),
             market: Mutex::new(market),
+            price_error: Mutex::new(None),
+            price_fetch: Mutex::new(()),
             settings: Mutex::new(settings),
             active: Mutex::new(None),
             last_item: Mutex::new(None),

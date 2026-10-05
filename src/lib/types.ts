@@ -116,7 +116,7 @@ export interface ActiveInfo { baseId: string; ilvl: number; goal: GoalItem[]; ex
 export interface Settings {
   hotkeyToggle: string; hotkeyInteractive: string; watchClipboard: boolean; checkUpdatesOnStart: boolean; autoShowOnCopy: boolean;
   cpuThreads: number; defaultIlvl: number; gameWindowTitle: string;
-  overlayAutoHideSecs: number; priceLeague: string; autoRefreshPrices: boolean; overlayWidth: number; overlayHeight: number; overlayMarginX: number; overlayMarginY: number;
+  overlayAutoHideSecs: number; priceLeague: string; autoRefreshPrices: boolean; priceRefreshMinutes: number; overlayWidth: number; overlayHeight: number; overlayMarginX: number; overlayMarginY: number;
 }
 
 export interface UpdateInfo { version: string; current: string; notes: string | null; date: string | null }
@@ -125,6 +125,12 @@ export interface UpdateProgress { stage: "downloading" | "installing"; downloade
 export interface PriceState {
   effective: Record<string, number>; overrides: Record<string, number>; marketKeys: string[];
   league: string | null; fetchedAt: number | null; missing: string[]; now: number; note: string | null;
+  /** date (unix) du relevé poe.ninja de chaque prix du marché */
+  updatedAt: Record<string, number>;
+  /** dernier échec de l'actualisation en arrière-plan (les prix précédents restent utilisés) */
+  lastError: string | null;
+  /** prochaine actualisation en arrière-plan (unix), si elle est activée */
+  nextRefreshAt: number | null;
 }
 
 /** Famille visée par une clé d'objectif ; une ancienne clé de groupe seule (avant le découpage en

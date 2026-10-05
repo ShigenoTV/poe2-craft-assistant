@@ -16,7 +16,10 @@ fn base_url() -> String {
 }
 
 pub const MIN_REFETCH_SECS: u64 = 300;
-pub const AUTO_REFRESH_AFTER_SECS: u64 = 3600;
+/// Intervalle minimal accepté pour l'actualisation en arrière-plan (poe.ninja ne bouge pas plus vite).
+pub const MIN_INTERVAL_MINUTES: u32 = 15;
+/// Après un échec réseau, nouvel essai au plus tôt 10 minutes plus tard (les anciens prix restent en place).
+pub const RETRY_AFTER_ERROR_SECS: u64 = 600;
 
 pub fn now_unix() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
@@ -31,6 +34,44 @@ pub struct MarketPrices {
     pub prices: BTreeMap<String, f64>,
     /// price_id sans prix exploitable dans la réponse (objet absent ou jamais échangé)
     pub missing: Vec<String>,
+    /// price_id -> date (unix) du relevé de ce prix. Un prix absent d'une actualisation garde sa valeur et
+    /// sa date précédentes ; un ancien fichier sans ce champ prend `fetched_at` pour tous ses prix.
+    #[serde(default)]
+    pub updated_at: BTreeMap<String, u64>,
+}
+
+impl MarketPrices {
+    pub fn updated_at_of(&self, id: &str) -> Option<u64> {
+        self.prices.contains_key(id).then(|| self.updated_at.get(id).copied().unwrap_or(self.fetched_at))
+    }
+}
+
+/// Fusionne un nouveau relevé avec le précédent : sur la même ligue, un prix que poe.ninja ne renvoie plus
+/// (objet absent cette heure-ci) garde sa dernière valeur connue et sa date ; changer de ligue repart de zéro.
+pub fn merge(prev: Option<&MarketPrices>, mut new: MarketPrices) -> MarketPrices {
+    new.updated_at = new.prices.keys().map(|k| (k.clone(), new.fetched_at)).collect();
+    if let Some(p) = prev.filter(|p| p.league == new.league) {
+        for (k, v) in &p.prices {
+            if !new.prices.contains_key(k) {
+                new.prices.insert(k.clone(), *v);
+                new.updated_at.insert(k.clone(), p.updated_at_of(k).unwrap_or(p.fetched_at));
+            }
+        }
+        new.missing.retain(|k| !new.prices.contains_key(k));
+    }
+    new
+}
+
+/// Une actualisation en arrière-plan est-elle due ? `last_error_at` : date du dernier échec réseau, s'il y en a un
+/// plus récent que le dernier relevé réussi.
+pub fn refresh_due(now: u64, fetched_at: Option<u64>, last_error_at: Option<u64>, interval_minutes: u32) -> bool {
+    let interval = u64::from(interval_minutes.max(MIN_INTERVAL_MINUTES)) * 60;
+    if let Some(e) = last_error_at {
+        if now.saturating_sub(e) < RETRY_AFTER_ERROR_SECS {
+            return false;
+        }
+    }
+    fetched_at.map_or(true, |f| now.saturating_sub(f) >= interval)
 }
 
 fn agent() -> ureq::Agent {
@@ -77,7 +118,7 @@ pub fn fetch(ds: &Dataset, league_pref: &str) -> Result<MarketPrices, String> {
     if prices.is_empty() {
         return Err(format!("Aucun prix trouvé pour la ligue « {league} »."));
     }
-    Ok(MarketPrices { league, fetched_at: now_unix(), prices, missing })
+    Ok(MarketPrices { league, fetched_at: now_unix(), prices, missing, updated_at: BTreeMap::new() })
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -88,28 +129,47 @@ pub struct PriceState {
     pub market_keys: Vec<String>,
     pub league: Option<String>,
     pub fetched_at: Option<u64>,
+    /// price_id -> date (unix) du relevé poe.ninja de ce prix
+    pub updated_at: BTreeMap<String, u64>,
     pub missing: Vec<String>,
     pub now: u64,
+    /// dernière erreur de l'actualisation en arrière-plan (les prix précédents restent utilisés)
+    pub last_error: Option<String>,
+    /// date (unix) prévue de la prochaine actualisation en arrière-plan, si elle est activée
+    pub next_refresh_at: Option<u64>,
     /// message informatif (ex. « déjà actualisés il y a 2 min »)
     pub note: Option<String>,
 }
 
 pub fn state_of(st: &AppState, note: Option<String>) -> PriceState {
     let market = st.market.lock().unwrap().clone();
+    let settings = st.settings.lock().unwrap().clone();
+    let last_error = st.price_error.lock().unwrap().clone();
+    let next_refresh_at = settings.auto_refresh_prices.then(|| {
+        let interval = u64::from(settings.price_refresh_minutes.max(MIN_INTERVAL_MINUTES)) * 60;
+        let after_success = market.as_ref().map_or(0, |m| m.fetched_at + interval);
+        let after_error = last_error.as_ref().map_or(0, |(at, _)| at + RETRY_AFTER_ERROR_SECS);
+        after_success.max(after_error)
+    });
     PriceState {
         effective: st.prices(),
         overrides: st.price_overrides.lock().unwrap().clone(),
         market_keys: market.as_ref().map(|m| m.prices.keys().cloned().collect()).unwrap_or_default(),
         league: market.as_ref().map(|m| m.league.clone()),
         fetched_at: market.as_ref().map(|m| m.fetched_at),
+        updated_at: market.as_ref().map(|m| m.prices.keys().filter_map(|k| Some((k.clone(), m.updated_at_of(k)?))).collect()).unwrap_or_default(),
         missing: market.map(|m| m.missing).unwrap_or_default(),
         now: now_unix(),
+        last_error: last_error.map(|(_, e)| e),
+        next_refresh_at,
         note,
     }
 }
 
 /// Actualise les prix (réseau) sauf si la dernière actualisation date de moins de `MIN_REFETCH_SECS`.
 pub fn refresh(st: &AppState) -> Result<PriceState, String> {
+    // une seule actualisation à la fois (bouton et arrière-plan) : la seconde voit le relevé tout frais et s'arrête
+    let _one_at_a_time = st.price_fetch.lock().unwrap();
     if let Some(m) = st.market.lock().unwrap().as_ref() {
         let age = now_unix().saturating_sub(m.fetched_at);
         let same_league = {
@@ -121,7 +181,16 @@ pub fn refresh(st: &AppState) -> Result<PriceState, String> {
         }
     }
     let (ds, pref) = (st.dataset(), st.settings.lock().unwrap().price_league.clone());
-    let m = fetch(&ds, &pref)?;
+    let m = match fetch(&ds, &pref) {
+        Ok(m) => m,
+        Err(e) => {
+            // les prix précédents restent en place ; l'erreur est affichée dans les réglages
+            *st.price_error.lock().unwrap() = Some((now_unix(), e.clone()));
+            return Err(e);
+        }
+    };
+    let m = merge(st.market.lock().unwrap().as_ref(), m);
+    *st.price_error.lock().unwrap() = None;
     let _ = std::fs::write(st.data_dir.join("market_prices.json"), serde_json::to_string_pretty(&m).unwrap_or_default());
     *st.market.lock().unwrap() = Some(m);
     Ok(state_of(st, None))
@@ -152,26 +221,91 @@ pub(crate) fn refresh_active_plan(app: &tauri::AppHandle, st: &AppState) {
     }
 }
 
-/// Au démarrage : actualisation silencieuse si les prix ont plus d'une heure (ou n'existent pas encore).
-pub fn spawn_startup_refresh(app: tauri::AppHandle, st: std::sync::Arc<AppState>) {
+/// Actualisation en arrière-plan : au démarrage puis toutes les `price_refresh_minutes` (réglage relu à chaque
+/// tour, donc un changement s'applique sans redémarrer). Un échec réseau garde les anciens prix et réessaie
+/// 10 minutes plus tard ; rien ne bloque l'application (thread dédié).
+pub fn spawn_background_refresh(app: tauri::AppHandle, st: std::sync::Arc<AppState>) {
     use tauri::Emitter;
     std::thread::spawn(move || {
         std::thread::sleep(Duration::from_secs(4));
-        if !st.settings.lock().unwrap().auto_refresh_prices {
-            return;
-        }
-        let fresh = st.market.lock().unwrap().as_ref().map_or(false, |m| now_unix().saturating_sub(m.fetched_at) < AUTO_REFRESH_AFTER_SECS);
-        if fresh {
-            return;
-        }
-        match refresh(&st) {
-            Ok(s) => {
-                let _ = app.emit("prices-updated", s);
-                refresh_active_plan(&app, &st);
+        loop {
+            let (enabled, interval) = {
+                let s = st.settings.lock().unwrap();
+                (s.auto_refresh_prices, s.price_refresh_minutes)
+            };
+            let fetched_at = st.market.lock().unwrap().as_ref().map(|m| m.fetched_at);
+            let last_error_at = st.price_error.lock().unwrap().as_ref().map(|(at, _)| *at);
+            if enabled && refresh_due(now_unix(), fetched_at, last_error_at, interval) {
+                match refresh(&st) {
+                    Ok(s) => {
+                        let _ = app.emit("prices-updated", s);
+                        refresh_active_plan(&app, &st);
+                    }
+                    Err(e) => {
+                        eprintln!("prix poe.ninja : {e}");
+                        let _ = app.emit("prices-updated", state_of(&st, None));
+                    }
+                }
             }
-            Err(e) => eprintln!("prix poe.ninja : {e}"),
+            std::thread::sleep(Duration::from_secs(60));
         }
     });
+}
+
+#[cfg(test)]
+mod schedule_tests {
+    use super::*;
+
+    fn market(league: &str, at: u64, prices: &[(&str, f64)], missing: &[&str]) -> MarketPrices {
+        MarketPrices {
+            league: league.into(),
+            fetched_at: at,
+            prices: prices.iter().map(|(k, v)| (k.to_string(), *v)).collect(),
+            missing: missing.iter().map(|s| s.to_string()).collect(),
+            updated_at: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn each_price_carries_its_own_date_and_a_price_missing_from_a_refresh_keeps_its_last_value() {
+        let first = merge(None, market("Rise", 1_000, &[("chaos", 50.0), ("omen_x", 30.0)], &[]));
+        assert_eq!(first.updated_at_of("chaos"), Some(1_000));
+        assert_eq!(first.updated_at_of("omen_x"), Some(1_000));
+
+        // une heure plus tard, l'Omen n'est plus coté : il garde 30 Ex et sa date d'origine
+        let second = merge(Some(&first), market("Rise", 4_600, &[("chaos", 55.0)], &["omen_x"]));
+        assert_eq!(second.prices["chaos"], 55.0);
+        assert_eq!(second.updated_at_of("chaos"), Some(4_600));
+        assert_eq!(second.prices["omen_x"], 30.0);
+        assert_eq!(second.updated_at_of("omen_x"), Some(1_000));
+        assert!(second.missing.is_empty(), "un prix conservé n'est plus signalé manquant : {:?}", second.missing);
+
+        // autre ligue : aucun prix de l'ancienne n'est repris
+        let other = merge(Some(&second), market("Standard", 5_000, &[("chaos", 9.0)], &["omen_x"]));
+        assert!(!other.prices.contains_key("omen_x"));
+        assert_eq!(other.missing, vec!["omen_x".to_string()]);
+    }
+
+    #[test]
+    fn old_market_files_without_dates_fall_back_to_the_fetch_date() {
+        let m: MarketPrices = serde_json::from_str(r#"{"league":"Rise","fetchedAt":42,"prices":{"chaos":50.0},"missing":[]}"#).unwrap();
+        assert_eq!(m.updated_at_of("chaos"), Some(42));
+        assert_eq!(m.updated_at_of("absent"), None);
+    }
+
+    #[test]
+    fn background_refresh_waits_for_the_interval_and_backs_off_after_an_error() {
+        let h = 3_600;
+        assert!(refresh_due(10_000, None, None, 60), "jamais relevé : actualisation immédiate");
+        assert!(!refresh_due(10_000, Some(10_000 - h + 1), None, 60));
+        assert!(refresh_due(10_000, Some(10_000 - h), None, 60));
+        // un intervalle trop court est ramené à 15 min
+        assert!(!refresh_due(10_000, Some(10_000 - 14 * 60), None, 1));
+        assert!(refresh_due(10_000, Some(10_000 - 15 * 60), None, 1));
+        // échec réseau il y a 5 min : on attend, les anciens prix restent ; 10 min après : nouvel essai
+        assert!(!refresh_due(10_000, Some(0), Some(10_000 - 300), 60));
+        assert!(refresh_due(10_000, Some(0), Some(10_000 - RETRY_AFTER_ERROR_SECS), 60));
+    }
 }
 
 #[cfg(test)]
@@ -193,7 +327,7 @@ mod live_tests {
         std::fs::read_to_string(format!("{}/../crates/craft-data/tests/fixtures/{name}", env!("CARGO_MANIFEST_DIR"))).unwrap()
     }
 
-    /// Serveur minimal : répond `/leagues` et `/exchange/current/overview?type=Currency|Ritual`.
+    /// Serveur minimal : répond `/leagues` et `/exchange/current/overview?type=…`.
     /// `hits` compte les requêtes reçues, pour vérifier qu'une deuxième actualisation immédiate ne retape pas le réseau.
     fn spawn_server(status_override: Option<u16>) -> (String, std::sync::Arc<AtomicUsize>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -222,7 +356,10 @@ Connection: close
                     leagues
                 } else if path.contains("type=Currency") {
                     &cur
-                } else if path.contains("type=Ritual") {
+                } else if path.contains("type=Ritual") || path.contains("type=") {
+                    // pas de relevé réel enregistré pour les autres catégories (Delirium, Essences) : on renvoie
+                    // celui des Omens, dont aucune ligne ne correspond, donc leurs prix sont « manquants » et
+                    // aucun prix n'est inventé.
                     &rit
                 } else {
                     "{}"
@@ -252,15 +389,49 @@ Connection: close
         assert!((m.prices["chaos"] - 56.38).abs() < 0.1, "{:?}", m.prices.get("chaos"));
         assert!((m.prices["omen_sinistral_exaltation"] - 37.6).abs() < 0.5, "{:?}", m.prices.get("omen_sinistral_exaltation"));
         assert!(m.prices.len() >= 15, "seuls {} prix trouvés", m.prices.len());
-        assert_eq!(hits.load(Ordering::SeqCst), 3, "leagues + Currency + Ritual = 3 requêtes, pas plus");
+        let types: BTreeSet<&str> = ds.price_sources.values().map(|s| s.ninja_type.as_str()).collect();
+        assert_eq!(hits.load(Ordering::SeqCst), 1 + types.len(), "leagues + une requête par catégorie, pas plus");
 
         // ligue explicitement demandée : /leagues n'est plus interrogé
         hits.store(0, Ordering::SeqCst);
         let m2 = fetch(&ds, "Standard").expect("doit réussir avec une ligue explicite");
         assert_eq!(m2.league, "Standard");
-        assert_eq!(hits.load(Ordering::SeqCst), 2, "sans /leagues : 2 requêtes");
+        assert_eq!(hits.load(Ordering::SeqCst), types.len(), "sans /leagues : une requête par catégorie");
 
         std::env::remove_var("POE2_NINJA_BASE");
+    }
+
+    #[test]
+    fn refresh_keeps_manual_prices_and_survives_a_network_error_with_the_old_prices() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let dir = std::env::temp_dir().join(format!("poe2-prices-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let st = AppState::load(dir.clone());
+        st.price_overrides.lock().unwrap().insert("chaos".into(), 1.5);
+
+        let (base, _) = spawn_server(None);
+        std::env::set_var("POE2_NINJA_BASE", &base);
+        let s1 = refresh(&st).expect("première actualisation");
+        assert!((st.prices()["chaos"] - 1.5).abs() < 1e-9, "le prix saisi à la main prime toujours");
+        assert!(s1.updated_at.contains_key("chaos") && s1.updated_at.contains_key("exalt"), "chaque prix poe.ninja a sa date");
+        assert!(s1.last_error.is_none());
+        let market_before = st.market.lock().unwrap().clone().unwrap();
+
+        // relevé vieilli artificiellement, puis poe.ninja injoignable : anciens prix conservés, erreur visible
+        st.market.lock().unwrap().as_mut().unwrap().fetched_at -= 2 * MIN_REFETCH_SECS;
+        std::env::set_var("POE2_NINJA_BASE", "http://127.0.0.1:1");
+        assert!(refresh(&st).is_err());
+        let after = st.market.lock().unwrap().clone().unwrap();
+        assert_eq!(after.prices, market_before.prices, "un échec réseau ne touche pas aux prix");
+        assert!((st.prices()["chaos"] - 1.5).abs() < 1e-9);
+        let s2 = state_of(&st, None);
+        assert!(s2.last_error.as_deref().unwrap_or("").contains("impossible"), "{:?}", s2.last_error);
+        assert!(s2.next_refresh_at.unwrap() >= s2.now + RETRY_AFTER_ERROR_SECS - 5, "nouvel essai espacé après l'échec");
+        // le relevé reste persisté pour le prochain démarrage
+        assert!(dir.join("market_prices.json").exists());
+
+        std::env::remove_var("POE2_NINJA_BASE");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

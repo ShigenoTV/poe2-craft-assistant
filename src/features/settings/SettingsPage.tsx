@@ -31,7 +31,9 @@ function UpdatesPanel({ s, set }: { s: Settings; set: <K extends keyof Settings>
   );
 }
 
-const ago = (secs: number) => (secs < 90 ? "à l'instant" : secs < 5400 ? `il y a ${Math.round(secs / 60)} min` : `il y a ${Math.round(secs / 3600)} h`);
+const ago = (secs: number) => (secs < 90 ? "à l'instant" : secs < 5400 ? `il y a ${Math.round(secs / 60)} min` : secs < 172800 ? `il y a ${Math.round(secs / 3600)} h` : `il y a ${Math.round(secs / 86400)} j`);
+const until = (secs: number) => (secs < 90 ? "dans un instant" : secs < 5400 ? `dans ${Math.round(secs / 60)} min` : `dans ${Math.round(secs / 3600)} h`);
+const fullDate = (unix: number) => new Date(unix * 1000).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
 
 function PricesEditor({ s, set }: { s: Settings; set: <K extends keyof Settings>(k: K, v: Settings[K]) => void }) {
   const { reloadPrices, info, actions } = useStore();
@@ -45,12 +47,20 @@ function PricesEditor({ s, set }: { s: Settings; set: <K extends keyof Settings>
     void api.priceState().then(setPs);
     let off = () => {};
     void listen<PriceState>("prices-updated", setPs).then((f) => (off = f));
-    return () => off();
+    // les « il y a N min » avancent même sans nouvelle actualisation
+    const tick = window.setInterval(() => void api.priceState().then(setPs), 60_000);
+    return () => { off(); window.clearInterval(tick); };
   }, []);
 
   const label = (k: string) =>
     k === "base_white" ? "Base neuve (objet blanc)" : k === "base_salvage" ? "Revente d'un objet abandonné"
       : actions.find((a) => a.id === k)?.label ?? k.replace(/^omen_/, "Omen of ").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  // date à côté de chaque prix : relevé poe.ninja (un prix saisi à la main n'en a pas, il n'est jamais remplacé)
+  const updated = (k: string) => {
+    if (!ps || k in ps.overrides) return "—";
+    const at = ps.updatedAt[k];
+    return at ? <span title={fullDate(at)}>{ago(ps.now - at)}</span> : "—";
+  };
   const source = (k: string) => (ps && k in ps.overrides ? "manuel" : ps?.marketKeys.includes(k) ? "poe.ninja" : "exemple");
 
   const refresh = async () => {
@@ -82,22 +92,31 @@ function PricesEditor({ s, set }: { s: Settings; set: <K extends keyof Settings>
           <input type="text" value={s.priceLeague} placeholder="ex. Forbidden Rites" onChange={(e) => set("priceLeague", e.target.value)} /></label>
         <button className="btn primary" disabled={busy} onClick={() => void refresh()}>{busy ? "Actualisation…" : "Actualiser depuis poe.ninja"}</button>
       </div>
-      <label className="row small"><input type="checkbox" checked={s.autoRefreshPrices} onChange={(e) => set("autoRefreshPrices", e.target.checked)} /> Actualiser automatiquement au démarrage si les prix ont plus d'une heure (enregistré avec « Enregistrer »)</label>
+      <div className="row small" style={{ alignItems: "center" }}>
+        <label className="row"><input type="checkbox" checked={s.autoRefreshPrices} onChange={(e) => set("autoRefreshPrices", e.target.checked)} /> Actualiser en arrière-plan toutes les</label>
+        <input type="number" min={15} max={1440} step={15} style={{ width: 70 }} disabled={!s.autoRefreshPrices} value={s.priceRefreshMinutes}
+          onChange={(e) => set("priceRefreshMinutes", Math.round(+e.target.value) || 0)}
+          onBlur={() => set("priceRefreshMinutes", Math.max(15, Math.min(1440, s.priceRefreshMinutes || 60)))} />
+        <span>minutes (enregistré avec « Enregistrer »)</span>
+      </div>
       <p className="small muted">
-        {ps?.fetchedAt ? <>Dernière actualisation : <b>{ago(ps.now - ps.fetchedAt)}</b>, ligue <b>{ps.league}</b>.</> : "Pas encore de prix du marché : les prix d'exemple du jeu de données sont utilisés."}
-        {" "}poe.ninja met ses prix à jour environ toutes les heures ; l'app espace ses requêtes d'au moins 5 minutes.
+        {ps?.fetchedAt ? <>Dernière actualisation : <b title={fullDate(ps.fetchedAt)}>{ago(ps.now - ps.fetchedAt)}</b>, ligue <b>{ps.league}</b>.</> : "Pas encore de prix du marché : les prix d'exemple du jeu de données sont utilisés."}
+        {ps?.nextRefreshAt != null && <> Prochaine : <b title={fullDate(ps.nextRefreshAt)}>{until(Math.max(0, ps.nextRefreshAt - ps.now))}</b>.</>}
+        {" "}poe.ninja met ses prix à jour environ toutes les heures ; l'app espace ses requêtes d'au moins 5 minutes et ne remplace jamais un prix saisi à la main.
       </p>
+      {ps?.lastError && <div className="note small">Dernière actualisation en arrière-plan échouée, les prix précédents restent utilisés : {ps.lastError}</div>}
       {msg && <div className={msg.ok ? "note small" : "err"}>{msg.text}</div>}
       {ps && ps.missing.length > 0 && <div className="note small">Sans prix récent sur poe.ninja (prix par défaut conservé) : {ps.missing.map(label).join(", ")}.</div>}
       <div style={{ maxHeight: 460, overflow: "auto" }}>
         <table className="t">
-          <thead><tr><th>Objet</th><th>Origine</th><th className="n" style={{ width: 120 }}>Prix ({unit})</th><th style={{ width: 90 }} /></tr></thead>
+          <thead><tr><th>Objet</th><th>Origine</th><th className="n" style={{ width: 120 }}>Prix ({unit})</th><th style={{ width: 110 }}>Mis à jour</th><th style={{ width: 90 }} /></tr></thead>
           <tbody>
             {keys.map((k) => (
               <tr key={k}>
                 <td>{label(k)}</td>
                 <td><span className={`pill ${source(k) === "manuel" ? "prefix" : ""}`}>{source(k)}</span></td>
                 <td className="n"><input type="text" inputMode="decimal" style={{ width: 100, textAlign: "right" }} value={edit[k] ?? String(Math.round(ps!.effective[k] * 100) / 100)} onChange={(e) => setEdit({ ...edit, [k]: e.target.value })} /></td>
+                <td className="small muted">{updated(k)}</td>
                 <td>{ps && k in ps.overrides && <button className="btn ghost sm" title="Revenir au prix du marché ou d'exemple" onClick={() => { const n = { ...ps.overrides }; delete n[k]; void saveOverrides(n); }}>Réinitialiser</button>}</td>
               </tr>
             ))}

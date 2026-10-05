@@ -54,7 +54,7 @@ pub fn run() {
                 eprintln!("icône de notification : {e}");
             }
             capture::spawn_watcher(handle.clone(), st.clone());
-            prices::spawn_startup_refresh(handle.clone(), st.clone());
+            prices::spawn_background_refresh(handle.clone(), st.clone());
             overlay::spawn_follow(handle, st);
             Ok(())
         })

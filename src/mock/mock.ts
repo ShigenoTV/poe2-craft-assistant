@@ -19,7 +19,7 @@ const emit = (e: string, p: unknown) => listeners.get(e)?.forEach((f) => f(p));
 const wait = (ms = 60) => new Promise((r) => setTimeout(r, ms));
 let settings: T.Settings = {
   hotkeyToggle: "Ctrl+D", hotkeyInteractive: "Ctrl+Shift+D", watchClipboard: true, checkUpdatesOnStart: true, autoShowOnCopy: true, cpuThreads: 0,
-  defaultIlvl: 80, gameWindowTitle: "Path of Exile 2", overlayAutoHideSecs: 10, priceLeague: "", autoRefreshPrices: true, overlayWidth: 400, overlayHeight: 640, overlayMarginX: 24, overlayMarginY: 96,
+  defaultIlvl: 80, gameWindowTitle: "Path of Exile 2", overlayAutoHideSecs: 10, priceLeague: "", autoRefreshPrices: true, priceRefreshMinutes: 60, overlayWidth: 400, overlayHeight: 640, overlayMarginX: 24, overlayMarginY: 96,
 };
 let overrides: Record<string, number> = {};
 
@@ -115,7 +115,9 @@ export async function handle(cmd: string, a: Record<string, unknown>): Promise<u
     case "price_state": case "refresh_prices": {
       const eff = { ...get<Record<string, number>>("prices"), ...overrides };
       const market = cmd === "refresh_prices" ? Object.keys(get<Record<string, number>>("prices")).filter((k) => !k.startsWith("base_")) : [];
-      return { effective: eff, overrides, marketKeys: market, league: market.length ? "Forbidden Rites" : null, fetchedAt: market.length ? Math.floor(Date.now() / 1000) - 720 : null, missing: [], now: Math.floor(Date.now() / 1000), note: null } satisfies T.PriceState;
+      const now = Math.floor(Date.now() / 1000), fetchedAt = market.length ? now - 720 : null;
+      const updatedAt = Object.fromEntries(market.map((k, i) => [k, now - (i % 5 === 4 ? 4 * 3600 : 720)]));
+      return { effective: eff, overrides, marketKeys: market, league: market.length ? "Forbidden Rites" : null, fetchedAt, updatedAt, missing: [], now, note: null, lastError: null, nextRefreshAt: fetchedAt && settings.autoRefreshPrices ? fetchedAt + settings.priceRefreshMinutes * 60 : null } satisfies T.PriceState;
     }
     case "overlay_toggle": emit("overlay-wanted", true); return null;
     case "overlay_set_interactive": emit("overlay-interactive", a.value); return null;
