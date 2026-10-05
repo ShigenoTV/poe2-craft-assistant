@@ -18,7 +18,11 @@ export interface Affix {
   id: string; name: string; family: string; text: string; group: number; slot: Slot;
   tier: number; reqIlvl: number; weight: number; tags: number;
 }
-export interface PoolView { base: BaseView; groups: GroupInfo[]; affixes: Affix[] }
+export interface PoolView {
+  base: BaseView; groups: GroupInfo[]; affixes: Affix[];
+  /** places en plus qu'une Liquid Emotion (Potent Liquid Contempt) peut ouvrir ; absent des anciennes fixtures */
+  extraPrefixes?: number; extraSuffixes?: number; extraVia?: string[];
+}
 
 export interface ActionView {
   id: string; label: string; kind: CurrencyKind; minModLevel: number;

@@ -144,15 +144,19 @@ Liquid Emotions et instillation d'amulette (05/10/2026), via `tools/import_liqui
 fichiers générés depuis le client du jeu par Path of Building PoE2 (`src/Data/LiquidEmotions.lua`, et le
 champ `recipe` de `src/TreeData/0_5/tree.lua`), recoupés avec poe2db (les 26 pages d'émotions, et les
 recettes de Fast Acting Toxins et Splinters). Le jeu compte 26 émotions : 10 de base, leurs 10 versions
-« Ancient » (joyaux Time-Lost seulement), 3 « Potent » et leurs 3 « Ancient ». 23 sont importées comme
-Essences sur joyau Rare (« retire un mod au hasard, ajoute un mod Crafted garanti »), 72 cibles au total.
-Les joyaux Time-Lost (Ruby, Emerald, Sapphire, Diamond) sont importés comme bases. Le Diamond ne reçoit
+« Ancient » (joyaux Time-Lost seulement), 3 « Potent » et leurs 3 « Ancient ». Les 26 sont importées
+comme Essences sur joyau Rare (« retire un mod au hasard, ajoute un mod Crafted garanti »), 84 cibles au
+total. Les joyaux Time-Lost (Ruby, Emerald, Sapphire, Diamond) sont importés comme bases. Le Diamond ne reçoit
 que Concentrated Liquid Isolation et les Potent : sa cible vient en premier (`item_tags` « a&b&c » = tous
-ces tags), `mod_id` vide = émotion inapplicable. 12 mods « Crafted » à poids nul (ex. +1% Maximum Chaos
+ces tags), `mod_id` vide = émotion inapplicable. 16 mods « Crafted » à poids nul (ex. +1% Maximum Chaos
 Resistance, Upgrades Radius to Very Large) sont ajoutés et reportés par l'import RePoE comme toute cible
-d'Essence. Omises : Potent Liquid Ferocity, Potent Liquid Contempt et Ancient Potent Liquid Contempt, qui
-proposent un préfixe OU un suffixe sur le même joyau sans qu'aucune source ne dise lequel est ajouté
-(et « +1 Prefix/Suffix Modifier allowed » changerait le plafond en cours de craft, non géré). Non modélisé :
+d'Essence. Potent Liquid Ferocity, Potent Liquid Contempt et Ancient Potent Liquid Contempt proposent un
+préfixe OU un suffixe (infobulle du jeu « Ruby Prefix: … / Ruby Suffix: … ») : `mod_id` = le préfixe,
+`alt_mod_id` = le suffixe, ajoutés à 50/50 parmi ceux qui ont la place après le retrait (le 50/50 vient de
+Max, 2026-10-05 ; le jeu ne l'écrit pas). Les mods « +1 Suffix/Prefix Modifier allowed » de Contempt portent
+`suffix_cap_delta` / `prefix_cap_delta` (stats `local_maximum_*_allowed_+` de RePoE) : tant qu'ils sont sur
+l'objet, le plafond s'élargit ; retirés, les affixes en trop restent mais plus rien n'entre dans ce slot.
+Non modélisé :
 le `tierLevel` de Path of Building (69 Fear, 73 Suffering, 77 Isolation, 65 Potent), sens non documenté.
 `instills` : 875 recettes (passif, ses stats, trois `price_id` dans l'ordre du jeu ; l'ordre compte : sans lui, il
 n'y aurait que 233 combinaisons distinctes). Le planificateur l'ajoute en étape finale sur

@@ -340,7 +340,6 @@ pub fn build_context(ds: &Dataset, req: &PlanRequest, prices: &BTreeMap<String, 
         None => None,
     };
     let pool = Arc::new(bp.pool.clone());
-    let goal = Arc::new(Goal::new(&pool, &wanted)?);
     let enabled: Option<HashSet<String>> = req.enabled_actions.as_ref().map(|v| v.iter().cloned().collect());
     let mut actions: Vec<Action> = ds
         .actions(&prices, enabled.as_ref())?
@@ -352,6 +351,22 @@ pub fn build_context(ds: &Dataset, req: &PlanRequest, prices: &BTreeMap<String, 
     if actions.is_empty() {
         return Err("aucune action de craft activée".into());
     }
+    // un mod décaleur (« +1 Suffix/Prefix Modifier allowed ») n'est suivi que comme mod inutile
+    if wanted.iter().any(|w| pool.affixes.iter().any(|a| a.group == w.group && a.cap_shift != (0, 0))) {
+        return Err("un mod « +1 Prefix/Suffix Modifier allowed » ne peut pas être un affixe voulu".into());
+    }
+    // places qu'un mod décaleur garanti activé peut ouvrir (Potent Liquid Contempt)
+    let extra = actions
+        .iter()
+        .filter_map(|a| match &a.kind {
+            ActionKind::Currency(c) if c.kind == CurrencyKind::Essence => Some([c.target, c.alt_target]),
+            _ => None,
+        })
+        .flatten()
+        .flatten()
+        .map(|t| pool.affixes[t as usize].cap_shift)
+        .fold((0u8, 0u8), |(a, b), (p, q)| (a.max(p.max(0) as u8), b.max(q.max(0) as u8)));
+    let goal = Arc::new(Goal::with_extra(&pool, &wanted, extra)?);
     if req.allow_abandon {
         actions.push(Action { id: "__abandon".into(), label: "Abandonner l'objet".into(), cost: 0.0, kind: ActionKind::Abandon });
     }
@@ -605,13 +620,31 @@ pub fn dataset_info(ds: &Dataset) -> DatasetInfo {
 #[serde(rename_all = "camelCase")]
 pub struct PoolView {
     pub base: BaseView,
+    /// groupes qu'on peut viser (sans les mods « +1 Prefix/Suffix Modifier allowed », suivis à part)
     pub groups: Vec<GroupInfo>,
     pub affixes: Vec<Affix>,
+    /// places de préfixe / suffixe en plus du plafond qu'une Liquid Emotion peut ouvrir sur cette base
+    /// (Potent Liquid Contempt), et le nom de ces émotions
+    pub extra_prefixes: u8,
+    pub extra_suffixes: u8,
+    pub extra_via: Vec<String>,
 }
 
 pub fn pool_view(ds: &Dataset, base_id: &str) -> Result<PoolView, String> {
     let bp = ds.build_pool(base_id)?;
-    Ok(PoolView { base: BaseView::from(&bp.base), groups: bp.groups, affixes: bp.pool.affixes })
+    let shift_of = |id: &str| bp.pool.affixes.iter().find(|a| a.id == id).map_or((0, 0), |a| a.cap_shift);
+    let (mut extra_prefixes, mut extra_suffixes, mut extra_via) = (0u8, 0u8, Vec::new());
+    for e in &ds.essences {
+        let Some(t) = e.targets.iter().find(|t| t.matches(&bp.base.tags)) else { continue };
+        let shifts = [shift_of(&t.mod_id), shift_of(&t.alt_mod_id)];
+        if shifts.iter().any(|s| s.0 > 0 || s.1 > 0) {
+            extra_prefixes = extra_prefixes.max(shifts.iter().map(|s| s.0.max(0) as u8).max().unwrap_or(0));
+            extra_suffixes = extra_suffixes.max(shifts.iter().map(|s| s.1.max(0) as u8).max().unwrap_or(0));
+            extra_via.push(e.label.clone());
+        }
+    }
+    let groups = bp.groups.into_iter().filter(|g| g.tiers.iter().all(|t| bp.pool.affixes[t.affix_idx as usize].cap_shift == (0, 0))).collect();
+    Ok(PoolView { base: BaseView::from(&bp.base), groups, affixes: bp.pool.affixes, extra_prefixes, extra_suffixes, extra_via })
 }
 
 #[cfg(test)]
@@ -1303,12 +1336,22 @@ mod liquid_emotions_complete_tests {
         assert_eq!(t(tl_diamond, "liquid_ire_ancient"), None);
         assert_eq!(t(ruby, "liquid_ire_ancient"), None, "une Ancient ne s'applique qu'à un joyau Time-Lost");
         assert_eq!(t(tl_ruby, "liquid_ire"), None, "une émotion de base ne s'applique pas à un Time-Lost");
-        for omitted in ["liquid_ferocity", "liquid_contempt", "liquid_contempt_ancient"] {
-            assert!(ds.essences.iter().all(|e| e.id != omitted), "{omitted} : préfixe ou suffixe au choix non documenté, omise");
-        }
+        // préfixe OU suffixe (infobulle du jeu « Ruby Prefix: … / Ruby Suffix: … ») : les deux sont gardés
+        let pair = |base: &str, e: &str| {
+            let b = ds.bases.iter().find(|b| b.id == base).unwrap();
+            let t = ds.essences.iter().find(|x| x.id == e).unwrap().targets.iter().find(|t| t.matches(&b.tags)).unwrap();
+            (t.mod_id.clone(), t.alt_mod_id.clone())
+        };
+        assert_eq!(pair(ruby, "liquid_ferocity"), ("CraftedJewelSuffixEffect".into(), "CraftedJewelPrefixEffect".into()));
+        assert_eq!(pair(diamond, "liquid_contempt"), ("CraftedJewelAdditionalSuffixAllowed".into(), "CraftedJewelAdditionalPrefixAllowed".into()));
+        assert_eq!(pair(tl_sapphire, "liquid_contempt_ancient"), ("CraftedJewelAdditionalSuffixAllowed".into(), "CraftedJewelAdditionalPrefixAllowed".into()));
+        let shift = |id: &str| ds.mods.iter().find(|m| m.id == id).map(|m| (m.prefix_cap_delta, m.suffix_cap_delta));
+        assert_eq!(shift("CraftedJewelAdditionalSuffixAllowed"), Some((0, 1)), "préfixe « +1 Suffix Modifier allowed »");
+        assert_eq!(shift("CraftedJewelAdditionalPrefixAllowed"), Some((1, 0)), "suffixe « +1 Prefix Modifier allowed »");
         let liquids: Vec<_> = ds.essences.iter().filter(|e| e.id.starts_with("liquid_")).collect();
-        assert_eq!(liquids.len(), 23, "26 émotions dans le jeu, 3 omises");
-        assert_eq!(liquids.iter().flat_map(|e| &e.targets).filter(|t| !t.mod_id.is_empty()).count(), 72);
+        assert_eq!(liquids.len(), 26, "les 26 émotions du jeu");
+        assert_eq!(liquids.iter().flat_map(|e| &e.targets).filter(|t| !t.mod_id.is_empty()).count(), 84);
+        assert_eq!(liquids.iter().flat_map(|e| &e.targets).filter(|t| !t.alt_mod_id.is_empty()).count(), 12, "3 émotions × 4 joyaux");
         assert!(liquids.iter().all(|e| e.requires_rare && ds.price_sources.contains_key(&e.price_id)));
     }
 
@@ -1342,6 +1385,77 @@ mod liquid_emotions_complete_tests {
         let ds = Dataset::embedded();
         let plan = plan_with(&ds, "jewel_int_radius_jewel", &["alchemy", "liquid_ferocity_ancient"], "CraftedJewelRadiusColdResistance");
         assert!(used(&plan, "liquid_ferocity_ancient") > 0.0, "{:?}", plan.shopping.iter().map(|l| &l.id).collect::<Vec<_>>());
+    }
+
+    /// Bout en bout : Potent Liquid Ferocity ajoute « increased Effect of Suffixes » (préfixe) OU « … of
+    /// Prefixes » (suffixe) ; le plan l'achète pour viser le préfixe.
+    #[test]
+    fn solver_buys_potent_liquid_ferocity_for_its_prefix() {
+        let ds = Dataset::embedded();
+        let plan = plan_with(&ds, "jewel_strjewel", &["alchemy", "liquid_ferocity"], "CraftedJewelSuffixEffect");
+        assert!(used(&plan, "liquid_ferocity") > 0.0, "{:?}", plan.shopping.iter().map(|l| &l.id).collect::<Vec<_>>());
+    }
+
+    /// Bout en bout : 3 suffixes voulus dépassent le plafond 2/2 d'un joyau. Refusé sans Potent Liquid
+    /// Contempt ; avec elle, le solveur l'achète (préfixe « +1 Suffix Modifier allowed ») et le plan,
+    /// rejoué sur le moteur exact (vrais tirages, vrai plafond objet par objet), atteint l'objectif au
+    /// coût annoncé. Départ : un Rubis Rare portant déjà 2 des 3 suffixes et 1 préfixe inutile.
+    #[test]
+    fn potent_liquid_contempt_opens_a_third_suffix_on_a_jewel() {
+        let ds = Dataset::embedded();
+        let bp = ds.build_pool("jewel_strjewel").unwrap();
+        // groupes tirables les plus fréquents de chaque slot, pour un plan rapide
+        let top = |slot: Slot| {
+            let mut g: Vec<&GroupInfo> = bp.groups.iter().filter(|g| g.slot == slot && g.total_weight > 0).collect();
+            g.sort_by_key(|g| std::cmp::Reverse(g.total_weight));
+            g
+        };
+        let (pre, suf) = (top(Slot::Prefix), top(Slot::Suffix));
+        let wanted: Vec<WantedReq> = suf[..3].iter().map(|g| WantedReq { group: g.key.clone(), max_tier: g.tiers.len() as u8 }).collect();
+        let lowest = |g: &GroupInfo| ModView { affix_idx: g.tiers.last().unwrap().affix_idx, fractured: false };
+        let start = ItemView { rarity: Rarity::Rare, ilvl: 82, mods: vec![lowest(suf[0]), lowest(suf[1]), lowest(pre[0])] };
+        let req = |actions: &[&str], mc_trials: u64| PlanRequest {
+            base_id: "jewel_strjewel".into(),
+            ilvl: 82,
+            wanted: wanted.clone(),
+            enabled_actions: Some(actions.iter().map(|s| s.to_string()).collect()),
+            // prix bas : le plan reste court, ce qui permet de le rejouer sur le moteur exact
+            prices: Some([("liquid_contempt".to_string(), 2.0), ("annul".to_string(), 1.0)].into()),
+            allow_abandon: false,
+            mc_trials,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: Some(start.clone()),
+            instill: None,
+        };
+        let base = ["alchemy", "exalt", "annul"];
+        let err = build_context(&ds, &req(&base, 0), &ds.prices, &AtomicBool::new(false)).err().expect("3 suffixes refusés sans Contempt");
+        assert!(err.contains("2 suffixes"), "{err}");
+
+        let ctx = build_context(&ds, &req(&["alchemy", "exalt", "annul", "liquid_contempt"], 4000), &ds.prices, &AtomicBool::new(false)).expect("build_context avec Contempt");
+        let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
+        assert!(plan.solver.converged && plan.expected_cost.is_finite());
+        assert!(used(&plan, "liquid_contempt") > 0.0, "{:?}", plan.shopping.iter().map(|l| &l.id).collect::<Vec<_>>());
+        let mc = plan.mc.as_ref().expect("vérification Monte Carlo");
+        assert!(mc.censored * 100 < mc.trials, "le moteur exact doit atteindre l'objectif : {mc:?}");
+        let gap = (mc.mean_cost - plan.expected_cost).abs() / plan.expected_cost;
+        assert!(gap < 0.1, "coût moteur exact {:.1} vs solveur {:.1} ({mc:?})", mc.mean_cost, plan.expected_cost);
+    }
+
+    /// Interface : sur un joyau, le choix d'objectif annonce 2/2 plus une place qu'ouvre Potent Liquid
+    /// Contempt, et ne propose pas le mod « +1 … Modifier allowed » comme affixe voulu.
+    #[test]
+    fn pool_view_announces_the_place_opened_by_contempt() {
+        let ds = Dataset::embedded();
+        let v = pool_view(&ds, "jewel_strjewel").unwrap();
+        assert_eq!((v.base.max_prefixes, v.base.max_suffixes, v.extra_prefixes, v.extra_suffixes), (2, 2, 1, 1));
+        assert_eq!(v.extra_via, ["Potent Liquid Contempt"]);
+        assert!(v.groups.iter().all(|g| !g.family.contains("Modifier allowed")));
+        let tl = pool_view(&ds, "jewel_int_radius_jewel").unwrap();
+        assert_eq!(tl.extra_via, ["Ancient Potent Liquid Contempt"]);
+        let ring = pool_view(&ds, "ring").unwrap();
+        assert_eq!((ring.extra_prefixes, ring.extra_suffixes), (0, 0));
     }
 
     /// L'interface envoie la liste des actions cochées : les Essences/Liquid Emotions doivent y figurer,

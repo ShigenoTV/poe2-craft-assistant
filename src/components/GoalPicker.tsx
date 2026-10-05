@@ -37,7 +37,10 @@ export function GoalPicker({ pool, wanted, onChange }: Props) {
   // une seule famille par groupe d'exclusion : « sorts de feu » et « tous les sorts » ne coexistent pas en jeu
   const takenGroups = new Set(sel.map((s) => s.g.group));
   // plafond propre à la base (Dusk Ring : 4/2...) ; `??` : fixtures du mode navigateur sans ce champ
-  const maxP = pool.base.maxPrefixes ?? 3, maxS = pool.base.maxSuffixes ?? 3;
+  const baseP = pool.base.maxPrefixes ?? 3, baseS = pool.base.maxSuffixes ?? 3;
+  // Potent Liquid Contempt (« +1 Prefix/Suffix Modifier allowed ») ouvre une place de plus : le solveur
+  // dira si l'objectif est atteignable avec les monnaies cochées
+  const maxP = baseP + (pool.extraPrefixes ?? 0), maxS = baseS + (pool.extraSuffixes ?? 0);
   const canAdd = (g: GroupInfo) => !takenGroups.has(g.group) && sel.length < MAX_WANTED && (g.slot === "prefix" ? nP < maxP : nS < maxS);
   const qq = q.trim().toLowerCase();
   const filtered = pool.groups.filter((g) => !chosen.has(g.key) && (g.family.toLowerCase().includes(qq) || g.tiers.some((t) => t.text.toLowerCase().includes(qq))));
@@ -48,6 +51,7 @@ export function GoalPicker({ pool, wanted, onChange }: Props) {
         <h3 className="hd">Affixes voulus</h3>
         <span className="muted small right">{sel.length}/{MAX_WANTED} · préfixes {nP}/{maxP} · suffixes {nS}/{maxS}</span>
       </div>
+      {(nP > baseP || nS > baseS) && <p className="note small">Au-delà de {baseP} préfixes / {baseS} suffixes, il faut {pool.extraVia?.join(" ou ")} (« +1 Prefix/Suffix Modifier allowed »), cochée dans les monnaies.</p>}
       {sel.length === 0 && <p className="note small">Choisis les affixes que l'objet final doit porter. Le tier indiqué est le minimum accepté : « T3 » accepte T1, T2 et T3.</p>}
       {sel.map(({ w, g }) => {
         const accepted = g.tiers.filter((t) => t.tier <= w.maxTier).reduce((s, t) => s + t.weight, 0);

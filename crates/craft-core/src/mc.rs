@@ -145,10 +145,11 @@ pub(crate) mod tests {
             weight: w,
             tags: 0,
             desecrated: false,
+            cap_shift: (0, 0),
         }
     }
     pub fn cur(kind: CurrencyKind) -> Currency {
-        Currency { id: format!("{kind:?}"), label: format!("{kind:?}"), kind, min_mod_level: 0, add_slot: None, remove_slot: None, target: None, require_tag: None, remove_desecrated_only: false, remove_lowest_level: false, requires_rare: false, unit_cost: 1.0 }
+        Currency { id: format!("{kind:?}"), label: format!("{kind:?}"), kind, min_mod_level: 0, add_slot: None, remove_slot: None, target: None, alt_target: None, require_tag: None, remove_desecrated_only: false, remove_lowest_level: false, requires_rare: false, unit_cost: 1.0 }
     }
 
     #[test]
@@ -198,6 +199,53 @@ pub(crate) mod tests {
             gs.dedup();
             assert_eq!(gs.len(), 4, "groupes dupliqués");
         }
+    }
+
+    /// Potent Liquid Contempt : retire un mod puis ajoute le préfixe « +1 Suffix Modifier allowed » OU le
+    /// suffixe « +1 Prefix Modifier allowed », à 50/50 quand les deux ont la place. Avec le préfixe, le
+    /// joyau 2/2 accepte un 3e suffixe ; une fois ce préfixe retiré, les 3 suffixes restent mais aucun
+    /// nouveau ne rentre.
+    #[test]
+    fn contempt_adds_one_of_two_cap_shifting_mods() {
+        let mut affixes: Vec<Affix> = (0..6).map(|i| aff("P", i, Slot::Prefix, 100)).chain((10..16).map(|i| aff("S", i, Slot::Suffix, 100))).collect();
+        let plus_suffix = affixes.len() as AffixIdx;
+        affixes.push(Affix { cap_shift: (0, 1), ..aff("+1 Suffix", 50, Slot::Prefix, 0) });
+        let plus_prefix = affixes.len() as AffixIdx;
+        affixes.push(Affix { cap_shift: (1, 0), ..aff("+1 Prefix", 50, Slot::Suffix, 0) });
+        let jewel = AffixPool { affixes, rare_cap: (2, 2), ..AffixPool::default() };
+        let contempt = Currency { target: Some(plus_suffix), alt_target: Some(plus_prefix), requires_rare: true, ..cur(CurrencyKind::Essence) };
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(11);
+
+        // Rare 1 préfixe + 1 suffixe : après le retrait, les deux slots ont la place
+        let mut got_suffix_room = 0;
+        for _ in 0..4000 {
+            let mut it = ItemState::new(Rarity::Rare, 80);
+            it.push(Mod { idx: 0, fractured: false });
+            it.push(Mod { idx: 6, fractured: false });
+            assert_eq!(jewel.apply(&mut it, &contempt, &mut rng), Outcome::Applied);
+            let has = |i: AffixIdx| it.mods().iter().any(|m| m.idx == i);
+            assert!(has(plus_suffix) != has(plus_prefix));
+            got_suffix_room += has(plus_suffix) as u32;
+        }
+        assert!((1800..2200).contains(&got_suffix_room), "50/50 attendu, {got_suffix_room}/4000");
+
+        // préfixe « +1 Suffix » : 3 suffixes, puis Annulation du préfixe (Omen Sinistral) : 3 suffixes gardés
+        let mut it = ItemState::new(Rarity::Rare, 80);
+        it.push(Mod { idx: plus_suffix, fractured: false });
+        let dextral = Currency { add_slot: Some(Slot::Suffix), ..cur(CurrencyKind::Exalt) };
+        for _ in 0..3 {
+            assert_eq!(jewel.apply(&mut it, &dextral, &mut rng), Outcome::Applied);
+        }
+        assert_eq!((jewel.count(&it, Slot::Prefix), jewel.count(&it, Slot::Suffix), jewel.cap_of(&it)), (1, 3, (2, 3)));
+        jewel.apply(&mut it, &dextral, &mut rng);
+        assert_eq!(jewel.count(&it, Slot::Suffix), 3, "pas de 4e suffixe");
+        let sinistral = Currency { remove_slot: Some(Slot::Prefix), ..cur(CurrencyKind::Annul) };
+        assert_eq!(jewel.apply(&mut it, &sinistral, &mut rng), Outcome::Applied);
+        assert_eq!((jewel.count(&it, Slot::Prefix), jewel.count(&it, Slot::Suffix), jewel.cap_of(&it)), (0, 3, (2, 2)));
+        jewel.apply(&mut it, &dextral, &mut rng);
+        assert_eq!(jewel.count(&it, Slot::Suffix), 3, "plus de place de suffixe");
+        assert_eq!(jewel.apply(&mut it, &cur(CurrencyKind::Exalt), &mut rng), Outcome::Applied);
+        assert_eq!((jewel.count(&it, Slot::Prefix), jewel.count(&it, Slot::Suffix)), (1, 3), "un préfixe rentre encore");
     }
 
     /// Joyau (plafond Rare 2/2) : un Alchemy remplit l'objet (4 affixes), l'Exalt n'a plus de place ; le

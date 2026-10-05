@@ -53,6 +53,11 @@ pub struct Affix {
     /// laisser ces mods fuiter dans le pool normal fausserait silencieusement toutes les probabilités.
     #[serde(default)]
     pub desecrated: bool,
+    /// Décalage du plafond (préfixes, suffixes) tant que ce mod est sur l'objet : stats
+    /// `local_maximum_prefixes_allowed_+` / `local_maximum_suffixes_allowed_+` d'un mod (ex. Potent
+    /// Liquid Contempt : préfixe « +1 Suffix Modifier allowed » = (0, 1)). (0, 0) pour un mod ordinaire.
+    #[serde(default)]
+    pub cap_shift: (i8, i8),
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -145,6 +150,10 @@ pub struct Currency {
     /// pour toutes les autres monnaies et ignoré si `kind != Essence`.
     #[serde(default)]
     pub target: Option<AffixIdx>,
+    /// Second affixe garanti possible (Potent Liquid Ferocity/Contempt : un préfixe OU un suffixe) : après
+    /// le retrait, l'un des deux est ajouté à 50/50 parmi ceux qui ont la place. `None` : seulement `target`.
+    #[serde(default)]
+    pub alt_target: Option<AffixIdx>,
     /// Omen « the Sovereign/Liege/Blackblooded » : restreint la Désécration à un sous-pool (Ulaman /
     /// Amanamu / Kurgal). Ignoré pour tout autre `CurrencyKind`.
     #[serde(default)]
@@ -218,6 +227,27 @@ impl AffixPool {
         (shift(p, self.cap_delta.0), shift(s, self.cap_delta.1))
     }
 
+    /// Plafond effectif de CET objet : celui de la base à sa rareté, décalé par les mods qu'il porte
+    /// (`Affix::cap_shift`). Un objet peut dépasser ce plafond (mod décaleur retiré après coup) : il n'a
+    /// alors simplement plus de place dans ce slot.
+    pub fn cap_of(&self, item: &ItemState) -> (u8, u8) {
+        let (p, s) = self.cap(item.rarity);
+        if item.rarity == Rarity::Normal {
+            return (p, s);
+        }
+        let (dp, ds) = item.mods().iter().fold((0i16, 0i16), |(a, b), m| {
+            let c = self.affixes[m.idx as usize].cap_shift;
+            (a + c.0 as i16, b + c.1 as i16)
+        });
+        ((p as i16 + dp).clamp(0, 6) as u8, (s as i16 + ds).clamp(0, 6) as u8)
+    }
+
+    /// Reste-t-il une place de préfixe ou de suffixe sur cet objet (6 affixes au plus) ?
+    pub fn has_room(&self, item: &ItemState) -> bool {
+        let (cap_p, cap_s) = self.cap_of(item);
+        item.len() < 6 && (self.count(item, Slot::Prefix) < cap_p || self.count(item, Slot::Suffix) < cap_s)
+    }
+
     /// Nombre total d'affixes autorisés à cette rareté (objet « plein »).
     pub fn max_mods(&self, rarity: Rarity) -> usize {
         let (p, s) = self.cap(rarity);
@@ -234,7 +264,7 @@ impl AffixPool {
 
     /// Tirage pondéré exact parmi les affixes éligibles dans l'état courant.
     pub fn draw(&self, item: &ItemState, f: &DrawFilter, rng: &mut impl Rng) -> Option<AffixIdx> {
-        let (cap_p, cap_s) = self.cap(item.rarity);
+        let (cap_p, cap_s) = self.cap_of(item);
         let open_p = self.count(item, Slot::Prefix) < cap_p;
         let open_s = self.count(item, Slot::Suffix) < cap_s;
 
@@ -316,7 +346,7 @@ impl AffixPool {
                 item.rarity = Rarity::Magic;
                 self.add_random(item, &f, rng);
             }
-            Augment if item.rarity == Rarity::Magic && n < self.max_mods(Rarity::Magic) => self.add_random(item, &f, rng),
+            Augment if item.rarity == Rarity::Magic && self.has_room(item) => self.add_random(item, &f, rng),
             Regal if item.rarity == Rarity::Magic => {
                 item.rarity = Rarity::Rare;
                 self.add_random(item, &f, rng);
@@ -327,7 +357,7 @@ impl AffixPool {
                     self.add_random(item, &f, rng);
                 }
             }
-            Exalt if item.rarity == Rarity::Rare && n < self.max_mods(Rarity::Rare) => self.add_random(item, &f, rng),
+            Exalt if item.rarity == Rarity::Rare && self.has_room(item) => self.add_random(item, &f, rng),
             Chaos if item.rarity == Rarity::Rare => {
                 // retrait PUIS ajout : le pool du tirage est calculé après le retrait
                 if !self.remove_random(item, c.remove_slot, c.remove_desecrated_only, c.remove_lowest_level, rng) {
@@ -346,24 +376,35 @@ impl AffixPool {
             }
             Essence if (item.rarity == Rarity::Magic && !c.requires_rare) || (item.rarity == Rarity::Rare && c.requires_rare) => {
                 let Some(target) = c.target else { return Outcome::NotApplicable };
+                // aucun affixe garanti n'a la place après le retrait : l'objet reste tel quel
+                let before = *item;
                 if c.requires_rare && !self.remove_random(item, None, false, false, rng) {
                     return Outcome::NotApplicable;
                 }
-                let a = &self.affixes[target as usize];
-                let (cap_p, cap_s) = self.cap(Rarity::Rare);
-                let room = match a.slot {
-                    Slot::Prefix => self.count(item, Slot::Prefix) < cap_p,
-                    Slot::Suffix => self.count(item, Slot::Suffix) < cap_s,
-                };
+                let mut rare = *item;
+                rare.rarity = Rarity::Rare;
+                let (cap_p, cap_s) = self.cap_of(&rare);
                 let held: Vec<GroupId> = item.mods().iter().map(|m| self.affixes[m.idx as usize].group).collect();
-                if !room || held.contains(&a.group) {
+                let fits = |t: AffixIdx| {
+                    let a = &self.affixes[t as usize];
+                    let room = match a.slot {
+                        Slot::Prefix => self.count(item, Slot::Prefix) < cap_p,
+                        Slot::Suffix => self.count(item, Slot::Suffix) < cap_s,
+                    };
+                    room && !held.contains(&a.group)
+                };
+                // un préfixe OU un suffixe (Potent Liquid Ferocity/Contempt) : 50/50 parmi ceux qui ont la place
+                let cands: Vec<AffixIdx> = [Some(target), c.alt_target].into_iter().flatten().filter(|&t| fits(t)).collect();
+                if cands.is_empty() {
+                    *item = before;
                     return Outcome::NotApplicable;
                 }
+                let pick = cands[rng.gen_range(0..cands.len())];
                 item.rarity = Rarity::Rare;
-                item.push(Mod { idx: target, fractured: false });
+                item.push(Mod { idx: pick, fractured: false });
             }
             Desecrate if item.rarity == Rarity::Rare && !self.has_desecrated(item) => {
-                if n >= self.max_mods(Rarity::Rare) && !self.remove_random(item, None, false, false, rng) {
+                if !self.has_room(item) && !self.remove_random(item, None, false, false, rng) {
                     return Outcome::NotApplicable;
                 }
                 let f = DrawFilter { min_mod_level: 0, force_slot: c.add_slot, require_desecrated: true, require_tag: c.require_tag };

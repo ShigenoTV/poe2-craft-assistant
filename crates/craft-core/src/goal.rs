@@ -34,6 +34,13 @@ pub struct Goal {
 
 impl Goal {
     pub fn new(pool: &AffixPool, wanted: &[WantedAffix]) -> Result<Self, String> {
+        Self::with_extra(pool, wanted, (0, 0))
+    }
+
+    /// `extra` : places de préfixe / suffixe qu'un mod décaleur garanti peut ouvrir en plus du plafond de
+    /// la base (Potent Liquid Contempt : « +1 Suffix/Prefix Modifier allowed »). Le solveur dira ensuite
+    /// si l'objectif est réellement atteignable.
+    pub fn with_extra(pool: &AffixPool, wanted: &[WantedAffix], extra: (u8, u8)) -> Result<Self, String> {
         if wanted.is_empty() || wanted.len() > MAX_WANTED {
             return Err(format!("l'objectif doit contenir 1 à {MAX_WANTED} affixes (reçu {})", wanted.len()));
         }
@@ -54,6 +61,7 @@ impl Goal {
         let p = slots.iter().filter(|s| **s == Slot::Prefix).count();
         let s = slots.len() - p;
         let (cap_p, cap_s) = pool.cap(Rarity::Rare);
+        let (cap_p, cap_s) = ((cap_p + extra.0).min(6), (cap_s + extra.1).min(6));
         if p > cap_p as usize || s > cap_s as usize {
             return Err(format!("plus de {cap_p} préfixes ou {cap_s} suffixes voulus sur cette base : objectif impossible"));
         }

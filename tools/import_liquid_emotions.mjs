@@ -14,10 +14,11 @@
 //
 // Mécanique (texte du jeu) : « Removes a random modifier and Augments a Rare Basic Jewel [ou Time-Lost
 // Jewel] with a new guaranteed Crafted modifier » = une Essence sur objet Rare (`requires_rare`).
-// Omises : les émotions qui proposent à la fois un préfixe et un suffixe sur un même joyau (Potent
-// Ferocity, Potent Contempt, Ancient Potent Contempt) : aucune source ne dit lequel des deux est ajouté,
-// et « +1 Prefix/Suffix Modifier allowed » change le plafond d'affixes, que le moteur ne sait pas faire
-// varier en cours de craft. Elles gardent un prix (elles servent aux recettes d'instillation).
+// Potent Ferocity, Potent Contempt et Ancient Potent Contempt proposent un préfixe OU un suffixe sur un
+// même joyau (infobulle du jeu : « Ruby Prefix: … / Ruby Suffix: … ») : `mod_id` = le préfixe,
+// `alt_mod_id` = le suffixe, ajoutés à 50/50 (règle donnée par Max le 2026-10-05, non écrite dans le
+// jeu) parmi ceux qui ont la place. Les mods « +1 Prefix/Suffix Modifier allowed » portent leur décalage
+// de plafond (`prefix_cap_delta` / `suffix_cap_delta`, stats `local_maximum_*_allowed_+` de RePoE).
 import { readFileSync, writeFileSync } from "node:fs";
 
 const args = process.argv.slice(2);
@@ -65,39 +66,47 @@ const BRACKET = /\[([^\]|]+)(?:\|([^\]]+))?\]/g;
 const clean = (t) => t.replace(BRACKET, (_, a, b) => b ?? a);
 const template = (t) => clean(t).replace(/\n/g, " / ").replace(/\(-?\d+(?:\.\d+)?--?\d+(?:\.\d+)?\)|-?\d+(?:\.\d+)?/g, "#");
 
+const CAP_STATS = { "local_maximum_prefixes_allowed_+": "prefix_cap_delta", "local_maximum_suffixes_allowed_+": "suffix_cap_delta" };
 const known = new Set(ds.mods.map((m) => m.id));
 const addedMods = [];
 const essences = [];
-const omitted = [];
 for (const e of emotions) {
-  if (Object.values(e.byJewel).some((l) => l.length > 1)) {
-    omitted.push(e.name);
-    continue;
-  }
   const targets = [];
   for (const jewel of ["Diamond", "Ruby", "Sapphire", "Emerald"]) {
-    const t = e.byJewel[jewel]?.[0];
+    const list = e.byJewel[jewel] ?? [];
+    if (list.length > 2 || (list.length === 2 && (list[0].slot !== "prefix" || list[1].slot !== "suffix"))) {
+      throw new Error(`${e.name} sur ${jewel} : un préfixe puis un suffixe attendus, lu ${JSON.stringify(list)}`);
+    }
     // mod_id vide : l'émotion ne s'applique pas à ce joyau (cas du Diamond pour la plupart)
-    targets.push({ item_tags: [JEWEL_TAGS[e.radius][jewel]], mod_id: t?.mod ?? "" });
-    if (!t) continue;
-    const r = repoeMods[t.mod];
-    if (!r) throw new Error(`${e.name} : mod ${t.mod} absent de RePoE`);
-    if (r.generation_type !== t.slot) throw new Error(`${e.name} : ${t.mod} est un ${r.generation_type}, pas un ${t.slot}`);
-    if (!known.has(t.mod)) {
-      // mod « Crafted » à poids nul partout : jamais importé, ajouté ici (reporté ensuite par l'import
-      // RePoE comme toute cible d'Essence)
-      known.add(t.mod);
-      addedMods.push({
-        id: t.mod,
-        group: r.groups[0],
-        family: `${template(r.text)} (Liquid Emotion)`,
-        name: r.name || t.mod,
-        slot: r.generation_type,
-        level: r.required_level ?? 1,
-        text: clean(r.text).replace(/\n/g, " / "),
-        tags: [],
-        spawn: [{ tag: "default", weight: 0 }],
-      });
+    const target = { item_tags: [JEWEL_TAGS[e.radius][jewel]], mod_id: list[0]?.mod ?? "" };
+    if (list[1]) target.alt_mod_id = list[1].mod;
+    targets.push(target);
+    for (const t of list) {
+      const r = repoeMods[t.mod];
+      if (!r) throw new Error(`${e.name} : mod ${t.mod} absent de RePoE`);
+      if (r.generation_type !== t.slot) throw new Error(`${e.name} : ${t.mod} est un ${r.generation_type}, pas un ${t.slot}`);
+      if (!known.has(t.mod)) {
+        // mod « Crafted » à poids nul partout : jamais importé, ajouté ici (reporté ensuite par l'import
+        // RePoE comme toute cible d'Essence)
+        known.add(t.mod);
+        const mod = {
+          id: t.mod,
+          group: r.groups[0],
+          family: `${template(r.text)} (Liquid Emotion)`,
+          name: r.name || t.mod,
+          slot: r.generation_type,
+          level: r.required_level ?? 1,
+          text: clean(r.text).replace(/\n/g, " / "),
+          tags: [],
+          spawn: [{ tag: "default", weight: 0 }],
+        };
+        for (const st of r.stats ?? []) {
+          if (!CAP_STATS[st.id] || !st.min) continue;
+          if (st.min !== st.max) throw new Error(`${t.mod} : ${st.id} variable, non géré`);
+          mod[CAP_STATS[st.id]] = st.min;
+        }
+        addedMods.push(mod);
+      }
     }
   }
   // sans Diamond, la cible vide en tête ne sert qu'à l'exclure : on la garde pour la lisibilité
@@ -135,8 +144,8 @@ for (const e of emotions) {
 ds.instills = instills;
 writeFileSync(out, JSON.stringify(ds));
 
-const counts = essences.map((e) => e.targets.filter((t) => t.mod_id).length);
+const counts = essences.map((e) => e.targets.filter((t) => t.mod_id).length + e.targets.filter((t) => t.alt_mod_id).length);
 console.log(`→ ${out}`);
 console.log(`  ${emotions.length} Liquid Emotions dans le jeu, ${essences.length} importées (${counts.reduce((a, b) => a + b, 0)} cibles), ${addedMods.length} mods Crafted ajoutés`);
-console.log(`  omises (préfixe OU suffixe, choix non documenté) : ${omitted.join(", ")}`);
+console.log(`  à deux mods possibles (préfixe OU suffixe) : ${essences.filter((e) => e.targets.some((t) => t.alt_mod_id)).map((e) => e.label).join(", ")}`);
 console.log(`  ${instills.length} recettes d'instillation`);

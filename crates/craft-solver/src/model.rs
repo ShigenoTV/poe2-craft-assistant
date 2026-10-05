@@ -69,9 +69,10 @@ pub struct Model {
     pub ilvl: u8,
     pub actions: Vec<Action>,
     weights: Vec<Option<AddW>>,
-    /// Pour les actions `Essence` : (slot, classification) de l'affixe garanti, précalculé une fois
-    /// (ne dépend pas de l'état, contrairement aux monnaies à tirage pondéré).
-    essence_class: Vec<Option<(Slot, Class)>>,
+    /// Pour les actions `Essence` : (affixe, slot, classification) de chaque affixe garanti possible (un
+    /// seul, ou deux à 50/50 pour Potent Liquid Ferocity/Contempt), précalculé une fois (ne dépend pas de
+    /// l'état, contrairement aux monnaies à tirage pondéré).
+    essence_class: Vec<Vec<(AffixIdx, Slot, Class)>>,
     pub restart: MacroState,
     pub abandon_extra: f64,
     pub goal_mask: u8,
@@ -112,7 +113,7 @@ impl Model {
         // tirage disjoints (une monnaie normale ne peut jamais piocher un mod `desecrated`, et
         // réciproquement), donc leurs tables de poids ne doivent jamais se mélanger sous peine de fausser
         // l'approximation de champ moyen des DEUX côtés.
-        fn other_tables(pool: &AffixPool, goal: &Goal, ilvl: u8, desecrated: bool) -> (std::collections::HashMap<(GroupId, Slot), usize>, Vec<Vec<f64>>, Vec<Vec<f64>>) {
+        fn other_tables(pool: &AffixPool, goal: &Goal, ilvl: u8, desecrated: bool, extra: (i8, i8)) -> (std::collections::HashMap<(GroupId, Slot), usize>, Vec<Vec<f64>>, Vec<Vec<f64>>) {
             let mut other_pos = std::collections::HashMap::new();
             let (mut gp, mut gs): (Vec<f64>, Vec<f64>) = (vec![], vec![]);
             for a in pool.affixes.iter().filter(|a| a.weight > 0 && a.req_ilvl <= ilvl && a.desecrated == desecrated) {
@@ -126,12 +127,19 @@ impl Model {
                 });
                 v[pos] += a.weight as f64;
             }
+            // un mod décaleur garanti (Potent Liquid Contempt) peut ouvrir une place de plus dans un slot
             let (cap_p, cap_s) = pool.cap(Rarity::Rare);
-            let (surv_p, surv_s) = (survival(&gp, cap_p as usize), survival(&gs, cap_s as usize));
+            let (cap_p, cap_s) = ((cap_p as i16 + extra.0 as i16).clamp(0, 6) as usize, (cap_s as i16 + extra.1 as i16).clamp(0, 6) as usize);
+            let (surv_p, surv_s) = (survival(&gp, cap_p), survival(&gs, cap_s));
             (other_pos, surv_p, surv_s)
         }
-        let (other_pos, surv_p, surv_s) = other_tables(&pool, &goal, ilvl, false);
-        let (desec_other_pos, desec_surv_p, desec_surv_s) = other_tables(&pool, &goal, ilvl, true);
+        let shift_targets = actions.iter().filter_map(|a| match &a.kind {
+            ActionKind::Currency(c) if c.kind == CurrencyKind::Essence => Some([c.target, c.alt_target]),
+            _ => None,
+        });
+        let extra = shift_targets.flatten().flatten().map(|t| pool.affixes[t as usize].cap_shift).fold((0i8, 0i8), |(a, b), (p, q)| (a.max(p), b.max(q)));
+        let (other_pos, surv_p, surv_s) = other_tables(&pool, &goal, ilvl, false, extra);
+        let (desec_other_pos, desec_surv_p, desec_surv_s) = other_tables(&pool, &goal, ilvl, true, extra);
 
         let mut m = Self {
             pool,
@@ -164,9 +172,9 @@ impl Model {
             .iter()
             .map(|a| match &a.kind {
                 ActionKind::Currency(c) if c.kind == CurrencyKind::Essence => {
-                    c.target.map(|t| (m.pool.affixes[t as usize].slot, m.goal.classify(&m.pool, t)))
+                    [c.target, c.alt_target].into_iter().flatten().map(|t| (t, m.pool.affixes[t as usize].slot, m.goal.classify(&m.pool, t))).collect()
                 }
-                _ => None,
+                _ => Vec::new(),
             })
             .collect();
         m
@@ -218,6 +226,25 @@ impl Model {
         s.held & self.goal_mask == self.goal_mask
     }
 
+    /// Plafond effectif dans l'état `s` : celui de la base, décalé par le mod décaleur éventuel.
+    fn caps(&self, s: &MacroState, rarity: Rarity) -> (u8, u8) {
+        let (p, q) = self.pool.cap(rarity);
+        match s.shifter {
+            Some(i) if rarity != Rarity::Normal => {
+                let (dp, dq) = self.pool.affixes[i as usize].cap_shift;
+                ((p as i16 + dp as i16).clamp(0, 6) as u8, (q as i16 + dq as i16).clamp(0, 6) as u8)
+            }
+            _ => (p, q),
+        }
+    }
+
+    /// Reste-t-il une place de préfixe ou de suffixe (6 affixes au plus) ?
+    fn has_room(&self, s: &MacroState) -> bool {
+        let (cap_p, cap_s) = self.caps(s, s.rarity);
+        let (np, ns) = self.counts(s);
+        np + ns < 6 && (np < cap_p || ns < cap_s)
+    }
+
     fn counts(&self, s: &MacroState) -> (u8, u8) {
         let occ = s.held | s.blocked;
         let np = (occ & self.pmask).count_ones() as u8 + s.bad_p;
@@ -227,7 +254,7 @@ impl Model {
 
     /// Ajout d'un affixe. `false` si aucun affixe n'est tirable.
     fn add_outcomes(&self, s: MacroState, w: &AddW, out: &mut Vec<(MacroState, f64)>) -> bool {
-        let (cap_p, cap_s) = self.pool.cap(s.rarity);
+        let (cap_p, cap_s) = self.caps(&s, s.rarity);
         let (np, ns) = self.counts(&s);
         let (open_p, open_s) = (np < cap_p, ns < cap_s);
         let occ = s.held | s.blocked;
@@ -242,7 +269,10 @@ impl Model {
                 total += w.good[k] + w.blocked[k];
             }
         }
-        let (op, os) = (w.other_p[(s.bad_p as usize).min(cap_p as usize)], w.other_s[(s.bad_s as usize).min(cap_s as usize)]);
+        // le mod décaleur ne vient jamais d'un tirage : il n'entre pas dans l'exclusion des groupes tirés
+        let shifted = |slot: Slot| s.shifter.is_some_and(|i| self.pool.affixes[i as usize].slot == slot) as u8;
+        let (kp, ks) = (s.bad_p - shifted(Slot::Prefix), s.bad_s - shifted(Slot::Suffix));
+        let (op, os) = (w.other_p[(kp as usize).min(cap_p as usize)], w.other_s[(ks as usize).min(cap_s as usize)]);
         if open_p {
             total += op;
         }
@@ -292,11 +322,24 @@ impl Model {
                 cands.push((MacroState { blocked: s.blocked & !(1 << k), ..s }, 1.0));
             }
         }
-        if s.bad_p > 0 && ok(true) {
-            cands.push((MacroState { bad_p: s.bad_p - 1, ..s }, s.bad_p as f64));
-        }
-        if s.bad_s > 0 && ok(false) {
-            cands.push((MacroState { bad_s: s.bad_s - 1, ..s }, s.bad_s as f64));
+        // le mod décaleur fait partie des mauvais affixes de son slot : le retirer referme la place qu'il ouvrait
+        let shift_slot = s.shifter.map(|i| self.pool.affixes[i as usize].slot);
+        for (slot, bad) in [(Slot::Prefix, s.bad_p), (Slot::Suffix, s.bad_s)] {
+            if bad == 0 || !ok(slot == Slot::Prefix) {
+                continue;
+            }
+            let less = match slot {
+                Slot::Prefix => MacroState { bad_p: s.bad_p - 1, ..s },
+                Slot::Suffix => MacroState { bad_s: s.bad_s - 1, ..s },
+            };
+            if shift_slot == Some(slot) {
+                cands.push((MacroState { shifter: None, ..less }, 1.0));
+                if bad > 1 {
+                    cands.push((less, (bad - 1) as f64));
+                }
+            } else {
+                cands.push((less, bad as f64));
+            }
         }
         let total: f64 = cands.iter().map(|c| c.1).sum();
         if total <= 0.0 {
@@ -326,7 +369,7 @@ impl Model {
             Transmute if s.rarity == Rarity::Normal => {
                 self.add_outcomes(MacroState { rarity: Rarity::Magic, ..s }, w, &mut v);
             }
-            Augment if s.rarity == Rarity::Magic && (n as usize) < self.pool.max_mods(Rarity::Magic) => {
+            Augment if s.rarity == Rarity::Magic && self.has_room(&s) => {
                 self.add_outcomes(s, w, &mut v);
             }
             Regal if s.rarity == Rarity::Magic => {
@@ -349,7 +392,7 @@ impl Model {
                 }
                 v = dist;
             }
-            Exalt if s.rarity == Rarity::Rare && (n as usize) < self.pool.max_mods(Rarity::Rare) => {
+            Exalt if s.rarity == Rarity::Rare && self.has_room(&s) => {
                 self.add_outcomes(s, w, &mut v);
             }
             Chaos if s.rarity == Rarity::Rare => {
@@ -381,38 +424,54 @@ impl Model {
                 }
             }
             Essence if (s.rarity == Rarity::Magic && !cur.requires_rare) || (s.rarity == Rarity::Rare && cur.requires_rare) => {
-                if let Some((slot, class)) = self.essence_class[ai] {
+                let targets = &self.essence_class[ai];
+                if !targets.is_empty() {
                     let mut base: Vec<(MacroState, f64)> = vec![(s, 1.0)];
                     if cur.requires_rare {
                         let mut rm = Vec::new();
                         base = if self.remove_outcomes(s, None, &mut rm) { rm } else { Vec::new() };
                     }
                     for (s1, p1) in base {
-                        let (cap_p, cap_s) = self.pool.cap(Rarity::Rare);
+                        let (cap_p, cap_s) = self.caps(&s1, Rarity::Rare);
                         let (np, ns) = self.counts(&s1);
-                        let room = match slot {
-                            Slot::Prefix => np < cap_p,
-                            Slot::Suffix => ns < cap_s,
-                        };
-                        if !room {
+                        // affixes garantis qui ont la place dans cette branche ; deux : 50/50 entre eux
+                        let fits: Vec<MacroState> = targets
+                            .iter()
+                            .filter_map(|&(t, slot, class)| {
+                                let room = match slot {
+                                    Slot::Prefix => np < cap_p,
+                                    Slot::Suffix => ns < cap_s,
+                                };
+                                let shift = self.pool.affixes[t as usize].cap_shift != (0, 0);
+                                if !room || (shift && s1.shifter.is_some()) {
+                                    return None;
+                                }
+                                match class {
+                                    Class::Wanted(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => {
+                                        Some(MacroState { rarity: Rarity::Rare, held: s1.held | 1 << k, ..s1 })
+                                    }
+                                    Class::Blocked(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => {
+                                        Some(MacroState { rarity: Rarity::Rare, blocked: s1.blocked | 1 << k, ..s1 })
+                                    }
+                                    Class::Other => {
+                                        let st = match slot {
+                                            Slot::Prefix => MacroState { rarity: Rarity::Rare, bad_p: s1.bad_p + 1, ..s1 },
+                                            Slot::Suffix => MacroState { rarity: Rarity::Rare, bad_s: s1.bad_s + 1, ..s1 },
+                                        };
+                                        Some(if shift { MacroState { shifter: Some(t), ..st } } else { st })
+                                    }
+                                    _ => None, // groupe voulu déjà occupé (held ou blocked) : inapplicable pour cette branche
+                                }
+                            })
+                            .collect();
+                        if fits.is_empty() {
+                            // rien n'a la place après ce retrait : l'objet reste tel quel (même règle que le moteur
+                            // exact), plutôt que de perdre cette probabilité (qui passerait pour un succès gratuit)
+                            v.push((s, p1));
                             continue;
                         }
-                        match class {
-                            Class::Wanted(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => {
-                                v.push((MacroState { rarity: Rarity::Rare, held: s1.held | 1 << k, ..s1 }, p1));
-                            }
-                            Class::Blocked(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => {
-                                v.push((MacroState { rarity: Rarity::Rare, blocked: s1.blocked | 1 << k, ..s1 }, p1));
-                            }
-                            Class::Other => {
-                                let st = match slot {
-                                    Slot::Prefix => MacroState { rarity: Rarity::Rare, bad_p: s1.bad_p + 1, ..s1 },
-                                    Slot::Suffix => MacroState { rarity: Rarity::Rare, bad_s: s1.bad_s + 1, ..s1 },
-                                };
-                                v.push((st, p1));
-                            }
-                            _ => {} // groupe voulu déjà occupé (held ou blocked) : Essence inapplicable pour cette branche
-                        }
+                        let k = fits.len() as f64;
+                        v.extend(fits.into_iter().map(|st| (st, p1 / k)));
                     }
                 }
             }
@@ -421,7 +480,7 @@ impl Model {
                 // Kurgal, éventuellement un seul via l'Omen the Sovereign/Liege/Blackblooded) ; retire
                 // un mod au hasard d'abord SEULEMENT si l'objet est déjà plein à 6.
                 let mut base: Vec<(MacroState, f64)> = vec![(s, 1.0)];
-                if n as usize >= self.pool.max_mods(Rarity::Rare) {
+                if !self.has_room(&s) {
                     let mut rm = Vec::new();
                     base = if self.remove_outcomes(s, None, &mut rm) { rm } else { Vec::new() };
                 }

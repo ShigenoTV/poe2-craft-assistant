@@ -275,7 +275,7 @@ function main() {
   // comme cible par au moins une Essence — cette deuxième condition couvre tous les mods exclusifs sans
   // avoir à deviner leur nature un par un.
   const knownIds = new Set(outMods.map((m) => m.id));
-  const carriedEssenceTargetIds = new Set((carried.essences ?? []).flatMap((e) => e.targets.map((t) => t.mod_id)).filter(Boolean));
+  const carriedEssenceTargetIds = new Set((carried.essences ?? []).flatMap((e) => e.targets.flatMap((t) => [t.mod_id, t.alt_mod_id])).filter(Boolean));
   const toCarry = (carried.mods ?? []).filter((m) => m.desecrated || carriedEssenceTargetIds.has(m.id));
   for (const m of toCarry) {
     if (!knownIds.has(m.id)) outMods.push(m);

@@ -77,6 +77,13 @@ pub struct ModDef {
     /// autorise le mod (poids > 0).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub weights: BTreeMap<String, u32>,
+    /// Décalage du plafond de préfixes / suffixes tant que ce mod est sur l'objet (stats
+    /// `local_maximum_prefixes_allowed_+` / `local_maximum_suffixes_allowed_+`, ex. le mod Crafted
+    /// « +1 Suffix Modifier allowed » de Potent Liquid Contempt : 0 / 1).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub prefix_cap_delta: i8,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub suffix_cap_delta: i8,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -93,6 +100,10 @@ pub struct CurrencyDef {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub item_tags: Vec<String>,
 }
+fn is_zero(v: &i8) -> bool {
+    *v == 0
+}
+
 fn yes() -> bool {
     true
 }
@@ -108,6 +119,10 @@ pub struct EssenceTarget {
     /// que sa valeur réelle représente — pas un nouvel affixe inventé). Vide : l'Essence ne
     /// s'applique PAS à cette catégorie (ex. la plupart des Liquid Emotions sur un Diamond).
     pub mod_id: String,
+    /// Second mod possible (Potent Liquid Ferocity/Contempt : un préfixe OU un suffixe selon le tirage,
+    /// 50/50 parmi ceux qui ont la place). Vide : seulement `mod_id`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub alt_mod_id: String,
 }
 
 impl EssenceTarget {
@@ -303,7 +318,7 @@ impl Dataset {
             .essences
             .iter()
             .filter_map(|e| e.targets.iter().find(|t| t.matches(&base.tags)))
-            .map(|t| t.mod_id.as_str())
+            .flat_map(|t| [t.mod_id.as_str(), t.alt_mod_id.as_str()])
             .filter(|id| !id.is_empty())
             .collect();
 
@@ -355,6 +370,7 @@ impl Dataset {
                         weight: *w,
                         tags: m.tags.iter().filter_map(|t| tag_bit.get(t.as_str())).fold(0, |a, b| a | b),
                         desecrated: m.desecrated,
+                        cap_shift: (m.prefix_cap_delta, m.suffix_cap_delta),
                     });
                     tiers.push(TierInfo { tier: ti as u8 + 1, level: m.level, weight: *w, name: m.name.clone(), text: m.text.clone(), affix_idx: idx });
                 }
@@ -389,6 +405,7 @@ impl Dataset {
                     add_slot: None,
                     remove_slot: None,
                     target: None,
+                    alt_target: None,
                     require_tag: None,
                     remove_desecrated_only: false,
                     remove_lowest_level: false,
@@ -409,6 +426,7 @@ impl Dataset {
                     add_slot: o.add_slot,
                     remove_slot: o.remove_slot,
                     target: None,
+                    alt_target: None,
                     require_tag: o.require_tag.as_deref().and_then(|t| tag_bit.get(t)).copied(),
                     remove_desecrated_only: o.remove_desecrated_only,
                     remove_lowest_level: o.remove_lowest_level,
@@ -445,6 +463,15 @@ impl Dataset {
             let Some(idx) = bp.pool.affixes.iter().position(|a| a.id == t.mod_id) else {
                 continue;
             };
+            // second mod possible absent du pool : l'action serait mal modélisée, on l'écarte
+            let alt = if t.alt_mod_id.is_empty() {
+                None
+            } else {
+                match bp.pool.affixes.iter().position(|a| a.id == t.alt_mod_id) {
+                    Some(i) => Some(i as AffixIdx),
+                    None => continue,
+                }
+            };
             out.push(Currency {
                 id: e.id.clone(),
                 label: e.label.clone(),
@@ -453,6 +480,7 @@ impl Dataset {
                 add_slot: None,
                 remove_slot: None,
                 target: Some(idx as AffixIdx),
+                alt_target: alt,
                 require_tag: None,
                 remove_desecrated_only: false,
                 remove_lowest_level: false,
