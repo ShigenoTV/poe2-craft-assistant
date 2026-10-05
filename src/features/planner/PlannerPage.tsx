@@ -3,12 +3,13 @@ import { useStore } from "@/store";
 import { GoalPicker } from "@/components/GoalPicker";
 import { cost, num, pct, shortUnit } from "@/lib/format";
 import { BaseSelect } from "@/components/BaseSelect";
+import { InstillPicker } from "@/components/InstillPicker";
 import { PlanGraph } from "./PlanGraph";
 import { ShoppingList } from "./ShoppingList";
 import type { ActionView } from "@/lib/types";
 
-const KIND_ORDER = ["transmute", "augment", "regal", "alchemy", "exalt", "chaos", "annul", "fracture"];
-const KIND_LABEL: Record<string, string> = { transmute: "Transmutation", augment: "Augmentation", regal: "Regal", alchemy: "Alchimie", exalt: "Exaltation", chaos: "Chaos", annul: "Annulation", fracture: "Fracture" };
+const KIND_ORDER = ["transmute", "augment", "regal", "alchemy", "exalt", "chaos", "annul", "fracture", "desecrate", "essence"];
+const KIND_LABEL: Record<string, string> = { transmute: "Transmutation", augment: "Augmentation", regal: "Regal", alchemy: "Alchimie", exalt: "Exaltation", chaos: "Chaos", annul: "Annulation", fracture: "Fracture", desecrate: "Désécration", essence: "Essences, Liquid Emotions et Alloys (selon la base)" };
 
 function ActionsPicker() {
   const { actions, enabled, setPlanner, info } = useStore();
@@ -49,13 +50,14 @@ function Ledger() {
   const { plan, info } = useStore();
   if (!plan) return null;
   const unit = shortUnit(info?.priceUnit);
-  const b = plan.baseCost;
+  // base neuve + instillation éventuelle : coûts fixes, payés une fois sur l'objet réussi
+  const b = plan.baseCost + (plan.instill?.cost ?? 0);
   const mc = plan.mc;
   const gap = mc ? mc.meanCost / plan.expectedCost - 1 : null;
   const gapCls = gap === null ? "" : Math.abs(gap) < 0.05 ? "ok-t" : Math.abs(gap) < 0.1 ? "warn-t" : "bad-t";
   return (
     <div className="ledger">
-      <div><div className="k">Coût moyen</div><div className="v">{cost(plan.expectedCost + b, unit)}</div><div className="s">base neuve comprise</div></div>
+      <div><div className="k">Coût moyen</div><div className="v">{cost(plan.expectedCost + b, unit)}</div><div className="s">{plan.instill ? "base neuve et instillation comprises" : "base neuve comprise"}</div></div>
       <div><div className="k">Une fois sur deux</div><div className="v">{mc ? cost(mc.medianCost + b, unit) : "—"}</div><div className="s">médiane simulée</div></div>
       <div><div className="k">Budget sûr (9 sur 10)</div><div className="v">{mc ? cost(mc.p90Cost + b, unit) : "—"}</div><div className="s">{mc ? `99 sur 100 : ${cost(mc.p99Cost + b, unit)}` : ""}</div></div>
       <div>
@@ -111,6 +113,7 @@ export function PlannerPage() {
   const { info, pools, baseId, ilvl, wanted, setPlanner, plan, solving, progress, solveError } = s;
   const [tab, setTab] = useState<"graph" | "shop" | "goal">("graph");
   const pool = pools[baseId];
+  const isAmulet = pool?.base.itemClass === "Amulet";
   useEffect(() => { if (baseId) void s.ensurePool(baseId); }, [baseId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pct01 = progress && progress.total > 0 ? progress.done / progress.total : 0;
@@ -127,7 +130,7 @@ export function PlannerPage() {
             <BaseSelect
               bases={info?.bases ?? []}
               value={baseId}
-              onChange={(id) => setPlanner({ baseId: id, wanted: [], startingItem: null })}
+              onChange={(id) => setPlanner({ baseId: id, wanted: [], startingItem: null, instill: null })}
               aside={
                 <label className="f" style={{ width: 84 }}>Niveau d'objet
                   <input type="number" min={1} max={100} value={ilvl} onChange={(e) => setPlanner({ ilvl: Math.max(1, Math.min(100, +e.target.value || 1)) })} />
@@ -135,6 +138,9 @@ export function PlannerPage() {
               }
             />
             {pool ? <GoalPicker pool={pool} wanted={wanted} onChange={(w) => setPlanner({ wanted: w })} /> : <p className="muted">Chargement de la base…</p>}
+            {isAmulet && (info?.instills?.length ?? 0) > 0 && (
+              <InstillPicker instills={info!.instills!} prices={s.prices} unit={shortUnit(info?.priceUnit)} value={s.instill} onChange={(instill) => setPlanner({ instill })} />
+            )}
           </div>
           <StartingItemPicker />
           <ActionsPicker />
@@ -182,6 +188,11 @@ export function PlannerPage() {
               {tab === "goal" && (
                 <div className="panel pad stack">
                   <div>{plan.goal.map((g) => <div key={g.label} className="row" style={{ padding: "3px 0" }}><span className={`pill ${g.slot}`}>{g.slot === "prefix" ? "préfixe" : "suffixe"}</span>{g.label}</div>)}</div>
+                  {plan.instill && (
+                    <p className="small">
+                      Puis instiller <b>{plan.instill.name}</b> ({plan.instill.stats.join(" ; ")}) avec {plan.instill.emotions.join(" → ")}, dans cet ordre : {cost(plan.instill.cost, shortUnit(info?.priceUnit))}, compté une seule fois.
+                    </p>
+                  )}
                   <p className="muted small">
                     Prix : {plan.pricesSource}. Le coût de la première base ({cost(plan.baseCost, shortUnit(info?.priceUnit))}) est inclus en haut de l'écran ;
                     {plan.mc && ` chaque craft abandonné en coûte en moyenne ${num(plan.mc.meanAbandons, 2)} de plus.`}

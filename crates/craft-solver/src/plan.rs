@@ -115,6 +115,20 @@ pub struct CraftPlan {
     pub solver: SolverInfo,
     pub mc: Option<crate::verify::VerifyResult>,
     pub prices_source: String,
+    /// Étape finale facultative hors MDP (instillation d'amulette) : coût fixe payé une seule fois, sur
+    /// l'objet réussi. Ses émotions figurent aussi dans `shopping`, mais PAS dans `expected_cost`.
+    pub instill: Option<InstillStep>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstillStep {
+    pub skill: u32,
+    pub name: String,
+    pub stats: Vec<String>,
+    /// libellés des trois émotions, dans l'ordre de la recette
+    pub emotions: Vec<String>,
+    pub cost: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -436,6 +450,7 @@ fn finish(
         solver: SolverInfo { states: sol.states.len(), sweeps: sol.sweeps, converged: sol.converged, millis: sol.millis, cost_from_visits },
         mc: None,
         prices_source: inp.prices_source.clone(),
+        instill: None,
     }
 }
 

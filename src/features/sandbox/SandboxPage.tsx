@@ -19,11 +19,14 @@ function applicable(a: ActionView, it: ItemDetail): boolean {
     case "chaos": return r === "rare" && it.mods.some((m) => !m.fractured);
     case "annul": return r !== "normal" && it.mods.some((m) => !m.fractured);
     case "fracture": return r === "rare" && n >= 4 && !it.mods.some((m) => m.fractured);
+    default: return false;
   }
 }
 
 export function SandboxPage() {
-  const { info, pools, actions, ensurePool, prices } = useStore();
+  const { info, pools, actions: allActions, ensurePool, prices } = useStore();
+  // Essences / Liquid Emotions : propres à chaque base, réservées au planificateur
+  const actions = useMemo(() => allActions.filter((a) => a.kind !== "essence"), [allActions]);
   const unit = shortUnit(info?.priceUnit);
   const [baseId, setBaseId] = useState(info?.bases[0]?.id ?? "");
   const [ilvl, setIlvl] = useState(81);

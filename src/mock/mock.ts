@@ -67,6 +67,7 @@ function applyCur(pool: T.PoolView, item: T.ItemView, c: T.ActionView): boolean 
     case "fracture":
       if (item.rarity !== "rare" || n < 4 || item.mods.some((m) => m.fractured)) return false;
       item.mods[Math.floor(Math.random() * n)].fractured = true; return true;
+    default: return false;
   }
 }
 

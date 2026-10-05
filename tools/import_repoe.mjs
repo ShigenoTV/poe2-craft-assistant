@@ -21,6 +21,8 @@
 //   d'attribut (str/dex/int et hybrides) devient une base séparée ; pour le reste, un seul représentant
 //   par classe. Dans chaque groupe, on garde la variante au plus haut drop_level (l'équivalent « fin de
 //   jeu ») : c'est elle qui compte pour un craft à haut niveau d'objet.
+// - Joyaux : Ruby/Emerald/Sapphire/Diamond et leurs versions Time-Lost (tags `*_radius_jewel`), chacun
+//   sous son vrai nom.
 // - Bijoux (Anneau, Amulette, Ceinture, Carquois) : CHAQUE vraie base est importée séparément avec son
 //   implicite propre (texte dans `implicits`), au lieu d'un représentant par classe. Leur pool d'affixes
 //   est le même au sein d'une classe (tags ring/amulet/belt/quiver + default), mais l'implicite change
@@ -40,12 +42,15 @@ const prettify = (key) => key.replace(/(?<!^)(?=[A-Z])/g, " ").replace(/\s+/g, "
 const ARCHETYPE_TAGS = new Set([
   "str_armour", "dex_armour", "int_armour", "str_dex_armour", "str_int_armour", "dex_int_armour", "str_dex_int_armour",
   "strjewel", "dexjewel", "intjewel",
+  // joyaux Time-Lost (« radius jewels ») : cibles des Liquid Emotions « Ancient »
+  "str_radius_jewel", "dex_radius_jewel", "int_radius_jewel",
 ]);
 const ARCHETYPE_LABEL = {
   str_armour: "Armour", dex_armour: "Evasion", int_armour: "Energy Shield",
   str_dex_armour: "Armour/Evasion", str_int_armour: "Armour/ES", dex_int_armour: "Evasion/ES",
   str_dex_int_armour: "Armour/Evasion/ES",
   strjewel: "Str", dexjewel: "Dex", intjewel: "Int",
+  str_radius_jewel: "Str", dex_radius_jewel: "Dex", int_radius_jewel: "Int",
 };
 const ARCHETYPE_SPLIT_CLASSES = new Set(["Gloves", "Boots", "Body Armour", "Helmet", "Shield", "Jewel"]);
 // domaine "item" : affixes normaux d'équipement. "misc" : affixes de joyaux (jamais rangés sous "item"
@@ -266,7 +271,7 @@ function main() {
   // comme cible par au moins une Essence — cette deuxième condition couvre tous les mods exclusifs sans
   // avoir à deviner leur nature un par un.
   const knownIds = new Set(outMods.map((m) => m.id));
-  const carriedEssenceTargetIds = new Set((carried.essences ?? []).flatMap((e) => e.targets.map((t) => t.mod_id)));
+  const carriedEssenceTargetIds = new Set((carried.essences ?? []).flatMap((e) => e.targets.map((t) => t.mod_id)).filter(Boolean));
   const toCarry = (carried.mods ?? []).filter((m) => m.desecrated || carriedEssenceTargetIds.has(m.id));
   for (const m of toCarry) {
     if (!knownIds.has(m.id)) outMods.push(m);
@@ -294,6 +299,8 @@ function main() {
     omens: carried.omens ?? [],
     prices: carried.prices ?? {},
     price_sources: carried.price_sources ?? {},
+    // recettes d'instillation d'amulette : tools/import_liquid_emotions.mjs, jamais dans l'export RePoE
+    instills: carried.instills ?? [],
   };
 
   // poids d'apparition : Craft of Exile (voir tools/coe_weights.mjs) ; sans fichier fourni, on reprend

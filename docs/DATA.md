@@ -136,8 +136,28 @@ Le même jour, les Lesser et normales ont été réalignées sur ces sources : 9
 Enhancement), cibles corrigées (Haste ne visait aucune épée/hache/masse, Seeking ignorait les armes
 martiales, Mind ignorait anneaux et amulettes, Body donnait trop aux bottes/gants), mods sur mesure
 remplacés par les vrais mods du jeu aux mêmes valeurs (Battle, Haste, Sorcery, Opulence), the Infinite
-retirée. Bilan : 18 familles × 4 tiers = 72 Essences, plus 6 Liquid Emotions et 13 Alloys = 91. Seul écart
+retirée. Bilan : 18 familles × 4 tiers = 72 Essences, plus 6 Liquid Emotions et 13 Alloys = 91 (108 depuis le 05/10/2026 : 23 Liquid Emotions, voir plus bas). Seul écart
 restant : Craft of Exile ne donne aucune Essence pour la griffe, le dataset l'y laisse (tag d'arme).
+
+Liquid Emotions et instillation d'amulette (05/10/2026), via `tools/import_liquid_emotions.mjs`
+(`node tools/import_liquid_emotions.mjs <LiquidEmotions.lua> <tree.lua> <mods.json RePoE>`). Source : les
+fichiers générés depuis le client du jeu par Path of Building PoE2 (`src/Data/LiquidEmotions.lua`, et le
+champ `recipe` de `src/TreeData/0_5/tree.lua`), recoupés avec poe2db (les 26 pages d'émotions, et les
+recettes de Fast Acting Toxins et Splinters). Le jeu compte 26 émotions : 10 de base, leurs 10 versions
+« Ancient » (joyaux Time-Lost seulement), 3 « Potent » et leurs 3 « Ancient ». 23 sont importées comme
+Essences sur joyau Rare (« retire un mod au hasard, ajoute un mod Crafted garanti »), 72 cibles au total.
+Les joyaux Time-Lost (Ruby, Emerald, Sapphire, Diamond) sont importés comme bases. Le Diamond ne reçoit
+que Concentrated Liquid Isolation et les Potent : sa cible vient en premier (`item_tags` « a&b&c » = tous
+ces tags), `mod_id` vide = émotion inapplicable. 12 mods « Crafted » à poids nul (ex. +1% Maximum Chaos
+Resistance, Upgrades Radius to Very Large) sont ajoutés et reportés par l'import RePoE comme toute cible
+d'Essence. Omises : Potent Liquid Ferocity, Potent Liquid Contempt et Ancient Potent Liquid Contempt, qui
+proposent un préfixe OU un suffixe sur le même joyau sans qu'aucune source ne dise lequel est ajouté
+(et « +1 Prefix/Suffix Modifier allowed » changerait le plafond en cours de craft, non géré). Non modélisé :
+le `tierLevel` de Path of Building (69 Fear, 73 Suffering, 77 Isolation, 65 Potent), sens non documenté.
+`instills` : 875 recettes (passif, ses stats, trois `price_id` dans l'ordre du jeu ; l'ordre compte : sans lui, il
+n'y aurait que 233 combinaisons distinctes). Le planificateur l'ajoute en étape finale sur
+une amulette : coût fixe payé une fois, inclus dans la liste de courses, pas dans le coût du craft.
+Prix : poe.ninja, catégorie « Delirium » (`diluted-liquid-ire`, `ancient-liquid-envy`…), pour les 26.
 
 `tools/import_repoe.mjs` (Node, pas de dépendance en plus) est appelé automatiquement par
 `update-dataset.bat` ; utilisable seul si besoin : `node tools/import_repoe.mjs <mods> <base_items> -o data/sample/dataset.json`.

@@ -2,13 +2,16 @@
 
 export type Slot = "prefix" | "suffix";
 export type Rarity = "normal" | "magic" | "rare";
-export type CurrencyKind = "transmute" | "augment" | "regal" | "alchemy" | "exalt" | "chaos" | "annul" | "fracture";
+export type CurrencyKind = "transmute" | "augment" | "regal" | "alchemy" | "exalt" | "chaos" | "annul" | "fracture" | "essence" | "desecrate";
 
 export interface BaseView { id: string; name: string; itemClass: string; tags: string[]; implicits: string[]; maxPrefixes: number; maxSuffixes: number }
 export interface DatasetInfo {
   source: string; gameVersion: string; generatedAt: string; notice: string; priceUnit: string;
   modCount: number; bases: BaseView[];
+  /** recettes d'instillation d'amulette (absent des anciennes fixtures du mode navigateur) */
+  instills?: InstillView[];
 }
+export interface InstillView { skill: number; name: string; stats: string[]; emotions: string[]; emotionIds: string[] }
 export interface TierInfo { tier: number; level: number; weight: number; name: string; text: string; affixIdx: number }
 export interface GroupInfo { group: number; familyId?: number; key: string; family: string; slot: Slot; totalWeight: number; tiers: TierInfo[] }
 export interface Affix {
@@ -38,6 +41,8 @@ export interface PlanRequest {
   enabledActions?: string[] | null; prices?: Record<string, number> | null;
   allowAbandon: boolean; mcTrials: number; nodeCap: number; seed: number;
   startingItem?: ItemView | null;
+  /** passif à instiller sur l'amulette (`InstillView.skill`) */
+  instill?: number | null;
 }
 export interface SimRequest {
   baseId: string; ilvl: number; start: ItemView; wanted: WantedReq[]; currencyId: string;
@@ -80,7 +85,10 @@ export interface CraftPlan {
   nodes: Record<string, CraftNode>; expectedCost: number; baseCost: number; shopping: ShoppingLine[];
   solver: { states: number; sweeps: number; converged: boolean; millis: number; costFromVisits: number };
   mc: VerifyResult | null; pricesSource: string;
+  /** étape finale hors craft : coût fixe, déjà dans `shopping` mais PAS dans `expectedCost` */
+  instill?: InstillStep | null;
 }
+export interface InstillStep { skill: number; name: string; stats: string[]; emotions: string[]; cost: number }
 
 // ── Presse-papiers / overlay
 export interface ParsedMod {

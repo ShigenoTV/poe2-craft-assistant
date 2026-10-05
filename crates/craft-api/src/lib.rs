@@ -110,17 +110,65 @@ pub fn list_actions(ds: &Dataset, prices: &BTreeMap<String, f64>) -> Result<Vec<
     Ok(ds
         .actions(prices, Some(&all))?
         .into_iter()
-        .map(|c| ActionView {
-            default_enabled: defaults.contains(&c.id),
-            id: c.id,
-            label: c.label,
-            kind: c.kind,
-            min_mod_level: c.min_mod_level,
-            add_slot: c.add_slot,
-            remove_slot: c.remove_slot,
-            unit_cost: c.unit_cost,
+        .map(|c| {
+            Ok(ActionView {
+                default_enabled: defaults.contains(&c.id),
+                id: c.id,
+                label: c.label,
+                kind: c.kind,
+                min_mod_level: c.min_mod_level,
+                add_slot: c.add_slot,
+                remove_slot: c.remove_slot,
+                unit_cost: c.unit_cost,
+            })
         })
-        .collect())
+        .chain(ds.essences.iter().map(|e| {
+            // Essences, Liquid Emotions et Alloys : leur mod garanti dépend de la base, mais l'interrupteur
+            // est global (sans lui, `enabled_actions` envoyé par l'interface les désactivait toutes)
+            Ok(ActionView {
+                id: e.id.clone(),
+                label: e.label.clone(),
+                kind: CurrencyKind::Essence,
+                min_mod_level: 0,
+                add_slot: None,
+                remove_slot: None,
+                unit_cost: prices.get(&e.price_id).copied().ok_or_else(|| format!("prix manquant : {}", e.price_id))?,
+                default_enabled: e.default_enabled,
+            })
+        }))
+        .collect::<Result<Vec<_>, String>>()?)
+}
+
+/// Libellé lisible d'un `price_id` : monnaie, Essence, sinon nom poe.ninja (ex. « Potent Liquid Ferocity »).
+pub fn price_label(ds: &Dataset, id: &str) -> String {
+    if let Some(e) = ds.essences.iter().find(|e| e.price_id == id) {
+        return e.label.clone();
+    }
+    if let Some(c) = ds.currencies.iter().find(|c| c.price_id == id) {
+        return c.label.clone();
+    }
+    match ds.price_sources.get(id) {
+        Some(s) => s.ninja_id.split('-').map(|w| w[..1].to_uppercase() + &w[1..]).collect::<Vec<_>>().join(" "),
+        None => id.to_string(),
+    }
+}
+
+/// Étape d'instillation d'une amulette, et ses lignes d'achat (une par émotion distincte).
+fn instill_step(ds: &Dataset, skill: u32, prices: &BTreeMap<String, f64>) -> Result<(InstillStep, Vec<ShoppingLine>), String> {
+    let (def, cost) = ds.instill_cost(skill, prices)?;
+    let mut lines: Vec<ShoppingLine> = Vec::new();
+    for e in &def.emotions {
+        let unit = prices[e];
+        match lines.iter_mut().find(|l| &l.id == e) {
+            Some(l) => {
+                l.expected_count += 1.0;
+                l.expected_cost += unit;
+            }
+            None => lines.push(ShoppingLine { id: e.clone(), label: price_label(ds, e), expected_count: 1.0, unit_cost: unit, expected_cost: unit }),
+        }
+    }
+    let step = InstillStep { skill, name: def.name.clone(), stats: def.stats.clone(), emotions: def.emotions.iter().map(|e| price_label(ds, e)).collect(), cost };
+    Ok((step, lines))
 }
 
 // ───────────────────────── Sandbox ─────────────────────────
@@ -241,6 +289,9 @@ pub struct PlanRequest {
     /// `base_id` (mêmes affixes résolubles) ; `None` = objet neuf (Normal, aucun mod), comme avant.
     #[serde(default)]
     pub starting_item: Option<ItemView>,
+    /// Passif à instiller sur l'amulette une fois l'objectif atteint (`InstillDef::skill`) ; amulettes seulement.
+    #[serde(default)]
+    pub instill: Option<u32>,
 }
 fn d_true() -> bool {
     true
@@ -267,6 +318,8 @@ pub struct PlanContext {
     /// lequel `ctx.solution` a été calculée. `make_plan`/`verify_policy` doivent repartir d'ici, jamais
     /// d'un `MacroState::empty` recalculé indépendamment, sous peine d'ignorer un objet déjà existant.
     pub start: MacroState,
+    /// instillation demandée (`req.instill`), résolue aux prix du plan
+    pub instill: Option<(InstillStep, Vec<ShoppingLine>)>,
     extra: Mutex<HashMap<MacroState, Arc<Solution>>>,
 }
 
@@ -281,6 +334,11 @@ pub fn build_context(ds: &Dataset, req: &PlanRequest, prices: &BTreeMap<String, 
         None => prices.clone(),
     };
     let (wanted, goal_items) = resolve_wanted(&bp, &req.wanted)?;
+    let instill = match req.instill {
+        Some(_) if bp.base.item_class != "Amulet" => return Err("l'instillation ne s'applique qu'aux amulettes".into()),
+        Some(skill) => Some(instill_step(ds, skill, &prices)?),
+        None => None,
+    };
     let pool = Arc::new(bp.pool.clone());
     let goal = Arc::new(Goal::new(&pool, &wanted)?);
     let enabled: Option<HashSet<String>> = req.enabled_actions.as_ref().map(|v| v.iter().cloned().collect());
@@ -319,6 +377,7 @@ pub fn build_context(ds: &Dataset, req: &PlanRequest, prices: &BTreeMap<String, 
         prices_source: req.prices_label.clone().unwrap_or_else(|| format!("{} ({})", ds.meta.source, ds.meta.generated_at)),
         solution,
         start,
+        instill,
         extra: Mutex::new(HashMap::new()),
     })
 }
@@ -339,6 +398,10 @@ pub fn make_plan(ctx: &PlanContext, on_progress: impl FnMut(u64, u64) -> bool) -
         prices_source: ctx.prices_source.clone(),
     };
     let mut plan = build_plan(&inputs, &PlanConfig { node_cap: ctx.req.node_cap, ..Default::default() })?;
+    if let Some((step, lines)) = &ctx.instill {
+        plan.instill = Some(step.clone());
+        plan.shopping.extend(lines.iter().cloned());
+    }
     if ctx.req.mc_trials > 0 {
         let start_item = match &ctx.req.starting_item {
             Some(view) => view.to_state(&ctx.model.pool)?,
@@ -506,6 +569,19 @@ pub struct DatasetInfo {
     pub price_unit: String,
     pub mod_count: usize,
     pub bases: Vec<BaseView>,
+    /// recettes d'instillation d'amulette, émotions en libellés
+    pub instills: Vec<InstillView>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstillView {
+    pub skill: u32,
+    pub name: String,
+    pub stats: Vec<String>,
+    pub emotions: Vec<String>,
+    /// `price_id` des émotions (même ordre), pour le coût aux prix courants
+    pub emotion_ids: Vec<String>,
 }
 
 pub fn dataset_info(ds: &Dataset) -> DatasetInfo {
@@ -517,6 +593,11 @@ pub fn dataset_info(ds: &Dataset) -> DatasetInfo {
         price_unit: ds.meta.price_unit.clone(),
         mod_count: ds.mods.len(),
         bases: ds.bases.iter().map(BaseView::from).collect(),
+        instills: ds
+            .instills
+            .iter()
+            .map(|i| InstillView { skill: i.skill, name: i.name.clone(), stats: i.stats.clone(), emotions: i.emotions.iter().map(|e| price_label(ds, e)).collect(), emotion_ids: i.emotions.clone() })
+            .collect(),
     }
 }
 
@@ -557,6 +638,7 @@ mod tests {
             seed: 1,
             prices_label: None,
                 starting_item: None,
+                instill: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
         assert!(
@@ -588,6 +670,7 @@ mod tests {
             seed: 1,
             prices_label: None,
                 starting_item: None,
+                instill: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
         assert!(
@@ -633,6 +716,7 @@ mod alloy_tests {
             seed: 1,
             prices_label: None,
                 starting_item: None,
+                instill: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
         assert!(
@@ -668,6 +752,7 @@ mod jewel_tests {
             seed: 1,
             prices_label: None,
                 starting_item: None,
+                instill: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context sur un joyau");
         let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
@@ -700,6 +785,7 @@ mod liquid_emotion_tests {
             seed: 1,
             prices_label: None,
                 starting_item: None,
+                instill: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context sur Rubis");
         assert!(
@@ -736,6 +822,7 @@ mod weapon_class_tests {
                 seed: 1,
                 prices_label: None,
                 starting_item: None,
+                instill: None,
             };
             let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).unwrap_or_else(|e| panic!("build_context sur {base_id} : {e}"));
             let plan = make_plan(&ctx, |_, _| true).unwrap_or_else(|e| panic!("make_plan sur {base_id} : {e}"));
@@ -771,6 +858,7 @@ mod starting_item_tests {
             seed: 1,
             prices_label: None,
             starting_item: None,
+            instill: None,
         };
         let fresh = build_context(&ds, &base_req, &prices, &AtomicBool::new(false)).expect("build_context (neuf)");
         let fresh_plan = make_plan(&fresh, |_, _| true).expect("make_plan (neuf)");
@@ -814,6 +902,7 @@ mod remaining_alloy_tests {
             seed: 1,
             prices_label: None,
             starting_item: None,
+            instill: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context sur focus");
         let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
@@ -847,6 +936,7 @@ mod jewellery_base_tests {
             seed: 1,
             prices_label: None,
             starting_item: None,
+            instill: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
         let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
@@ -890,6 +980,7 @@ mod base_cap_tests {
             seed: 1,
             prices_label: None,
             starting_item: None,
+            instill: None,
         };
         assert!(build_context(&ds, &req("sapphire_ring"), &prices, &AtomicBool::new(false)).is_err(), "4 préfixes impossibles sur une base 3/3");
         let ctx = build_context(&ds, &req("penumbra_ring"), &prices, &AtomicBool::new(false)).expect("build_context sur Penumbra Ring");
@@ -938,6 +1029,7 @@ mod family_split_tests {
             seed: 1,
             prices_label: None,
             starting_item: None,
+            instill: None,
         };
         let ctx = build_context(&ds, &req, &prices, &AtomicBool::new(false)).expect("build_context");
         assert_eq!(ctx.goal_items[0].family_id, fire.family_id);
@@ -962,7 +1054,7 @@ mod greater_perfect_essence_tests {
     use std::sync::atomic::AtomicBool;
 
     /// Mod garanti par une Essence sur une base, tel que le résout le solveur.
-    fn essence_target(ds: &Dataset, base: &str, essence: &str) -> Option<String> {
+    pub(super) fn essence_target(ds: &Dataset, base: &str, essence: &str) -> Option<String> {
         let bp = ds.build_pool(base).unwrap();
         let acts = ds.essence_currencies(&bp, &ds.prices, None).unwrap();
         acts.iter().find(|c| c.id == essence).map(|c| bp.pool.affixes[c.target.unwrap() as usize].id.clone())
@@ -1004,7 +1096,7 @@ mod greater_perfect_essence_tests {
         assert!(bow.pool.affixes.iter().filter(|a| a.id.starts_with("EssenceDamageasExtra")).all(|a| a.weight == 0));
     }
 
-    fn plan_with(ds: &Dataset, base: &str, enabled: &[&str], target_mod: &str) -> CraftPlan {
+    pub(super) fn plan_with(ds: &Dataset, base: &str, enabled: &[&str], target_mod: &str) -> CraftPlan {
         let bp = ds.build_pool(base).unwrap();
         let g = bp.groups.iter().find(|g| g.tiers.iter().any(|t| bp.pool.affixes[t.affix_idx as usize].id == target_mod)).expect("groupe de la cible");
         let tier = g.tiers.iter().find(|t| bp.pool.affixes[t.affix_idx as usize].id == target_mod).unwrap().tier;
@@ -1020,6 +1112,7 @@ mod greater_perfect_essence_tests {
             seed: 1,
             prices_label: None,
             starting_item: None,
+            instill: None,
         };
         let ctx = build_context(ds, &req, &ds.prices, &AtomicBool::new(false)).expect("build_context");
         let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
@@ -1028,7 +1121,7 @@ mod greater_perfect_essence_tests {
         plan
     }
 
-    fn used(plan: &CraftPlan, id: &str) -> f64 {
+    pub(super) fn used(plan: &CraftPlan, id: &str) -> f64 {
         plan.shopping.iter().find(|l| l.id == id).map_or(0.0, |l| l.expected_count)
     }
 
@@ -1114,11 +1207,148 @@ mod desecration_import_tests {
             seed: 1,
             prices_label: None,
             starting_item: None,
+            instill: None,
         };
         let ctx = build_context(&ds, &req, &ds.prices, &AtomicBool::new(false)).expect("build_context");
         assert!(ctx.model.actions.iter().all(|a| a.id != "desecrate_rib"), "la Rib ne désécre que les armures");
         let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
         assert!(plan.solver.converged);
         assert!(plan.shopping.iter().any(|l| l.id == "desecrate_jawbone" && l.expected_count > 0.0));
+    }
+}
+
+#[cfg(test)]
+mod liquid_emotions_complete_tests {
+    use super::greater_perfect_essence_tests::{essence_target, plan_with, used};
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Cibles du jeu (Path of Building, LiquidEmotions.lua ; recoupées sur poe2db) : joyau normal pour les
+    /// émotions de base, Time-Lost pour les « Ancient », et le Diamond seulement là où le jeu le prévoit.
+    #[test]
+    fn liquid_emotions_resolve_the_game_mod_per_jewel() {
+        let ds = Dataset::embedded();
+        let t = |base: &str, e: &str| essence_target(&ds, base, e);
+        let (ruby, sapphire, emerald, diamond) = ("jewel_strjewel", "jewel_intjewel", "jewel_dexjewel", "jewel_dexjewel_intjewel_strjewel");
+        let (tl_ruby, tl_sapphire, tl_diamond) = ("jewel_str_radius_jewel", "jewel_int_radius_jewel", "jewel_dex_radius_jewel_int_radius_jewel_str_radius_jewel");
+        assert_eq!(t(ruby, "liquid_despair").as_deref(), Some("JewelRageonHit"));
+        assert_eq!(t(sapphire, "liquid_fear").as_deref(), Some("JewelSpellCriticalDamage"));
+        assert_eq!(t(emerald, "liquid_suffering").as_deref(), Some("JewelMovementSpeed"));
+        assert_eq!(t(emerald, "liquid_disgust").as_deref(), Some("JewelLifeonKill"), "Disgust sur Émeraude : Life on Kill (cible manquante avant)");
+        assert_eq!(t(diamond, "liquid_isolation").as_deref(), Some("CraftedJewelMaximumChaosResistance"));
+        assert_eq!(t(diamond, "liquid_ire"), None, "le Diamond ne reçoit pas Liquid Ire (il porte pourtant le tag strjewel)");
+        assert_eq!(t(sapphire, "liquid_melancholy").as_deref(), Some("CraftedJewelExposureOnHitWhileRubyEmeraldSocketed"));
+        assert_eq!(t(tl_ruby, "liquid_ire_ancient").as_deref(), Some("JewelRadiusArmour"));
+        assert_eq!(t(tl_sapphire, "liquid_envy_ancient").as_deref(), Some("JewelRadiusSpellDamage"));
+        assert_eq!(t(tl_diamond, "liquid_ferocity_ancient").as_deref(), Some("CraftedJewelRadiusChaosResistance"));
+        assert_eq!(t(tl_diamond, "liquid_melancholy_ancient").as_deref(), Some("CraftedJewelRadiusExtraLargeSize"));
+        assert_eq!(t(tl_diamond, "liquid_ire_ancient"), None);
+        assert_eq!(t(ruby, "liquid_ire_ancient"), None, "une Ancient ne s'applique qu'à un joyau Time-Lost");
+        assert_eq!(t(tl_ruby, "liquid_ire"), None, "une émotion de base ne s'applique pas à un Time-Lost");
+        for omitted in ["liquid_ferocity", "liquid_contempt", "liquid_contempt_ancient"] {
+            assert!(ds.essences.iter().all(|e| e.id != omitted), "{omitted} : préfixe ou suffixe au choix non documenté, omise");
+        }
+        let liquids: Vec<_> = ds.essences.iter().filter(|e| e.id.starts_with("liquid_")).collect();
+        assert_eq!(liquids.len(), 23, "26 émotions dans le jeu, 3 omises");
+        assert_eq!(liquids.iter().flat_map(|e| &e.targets).filter(|t| !t.mod_id.is_empty()).count(), 72);
+        assert!(liquids.iter().all(|e| e.requires_rare && ds.price_sources.contains_key(&e.price_id)));
+    }
+
+    /// Cohérence : chaque cible d'Essence/Liquid Emotion/Alloy se résout sur au moins une base (avant,
+    /// The Runefather's Alloy visait les tags « mace_1h »/« mace_2h », qui n'existent pas).
+    #[test]
+    fn every_essence_target_reaches_a_base() {
+        let ds = Dataset::embedded();
+        for e in &ds.essences {
+            for t in e.targets.iter().filter(|t| !t.mod_id.is_empty()) {
+                assert!(ds.bases.iter().any(|b| t.matches(&b.tags)), "{} : aucune base pour {:?}", e.id, t.item_tags);
+            }
+        }
+        assert_eq!(essence_target(&ds, "mace_2h", "alloy_runefathers").as_deref(), Some("AlloyRunefathersMace"));
+    }
+
+    /// Bout en bout : « +1% to Maximum Chaos Resistance » n'existe sur un Diamond QUE par Concentrated
+    /// Liquid Isolation (mod Crafted, poids nul) ; le plan l'achète réellement après une Alchimie.
+    #[test]
+    fn solver_buys_liquid_isolation_on_a_diamond() {
+        let ds = Dataset::embedded();
+        let plan = plan_with(&ds, "jewel_dexjewel_intjewel_strjewel", &["alchemy", "liquid_isolation"], "CraftedJewelMaximumChaosResistance");
+        assert!(used(&plan, "liquid_isolation") > 0.0, "{:?}", plan.shopping.iter().map(|l| &l.id).collect::<Vec<_>>());
+        assert!(used(&plan, "alchemy") > 0.0, "la Liquid Emotion exige un joyau Rare");
+    }
+
+    /// Bout en bout : une émotion « Ancient » sur un joyau Time-Lost (Ancient Potent Liquid Ferocity →
+    /// résistance au froid, mod Crafted introuvable autrement).
+    #[test]
+    fn solver_buys_an_ancient_emotion_on_a_time_lost_jewel() {
+        let ds = Dataset::embedded();
+        let plan = plan_with(&ds, "jewel_int_radius_jewel", &["alchemy", "liquid_ferocity_ancient"], "CraftedJewelRadiusColdResistance");
+        assert!(used(&plan, "liquid_ferocity_ancient") > 0.0, "{:?}", plan.shopping.iter().map(|l| &l.id).collect::<Vec<_>>());
+    }
+
+    /// L'interface envoie la liste des actions cochées : les Essences/Liquid Emotions doivent y figurer,
+    /// sinon le planificateur de l'application ne les utilise jamais.
+    #[test]
+    fn listed_actions_include_essences_and_liquid_emotions() {
+        let ds = Dataset::embedded();
+        let acts = list_actions(&ds, &ds.prices).unwrap();
+        let ire = acts.iter().find(|a| a.id == "liquid_ire").expect("liquid_ire listée");
+        assert!(ire.default_enabled && ire.kind == CurrencyKind::Essence);
+        assert!(acts.iter().any(|a| a.id == "essence_flames_perfect"));
+        assert_eq!(acts.iter().filter(|a| a.kind == CurrencyKind::Essence).count(), ds.essences.len());
+    }
+
+    /// Recettes d'instillation : 875 passifs, trois émotions dans l'ordre (Fast Acting Toxins = Paranoia,
+    /// Greed, Isolation, vérifié sur poe2db).
+    #[test]
+    fn instill_recipes_are_imported_in_game_order() {
+        let ds = Dataset::embedded();
+        assert_eq!(ds.instills.len(), 875);
+        let fat = ds.instills.iter().find(|i| i.name == "Fast Acting Toxins").unwrap();
+        assert_eq!(fat.emotions, ["liquid_paranoia", "liquid_greed", "liquid_isolation"]);
+        let splinters = ds.instills.iter().find(|i| i.name == "Splinters").unwrap();
+        assert_eq!(splinters.emotions, ["liquid_envy", "liquid_paranoia", "liquid_despair"]);
+        let info = dataset_info(&ds);
+        let v = info.instills.iter().find(|i| i.skill == fat.skill).unwrap();
+        assert_eq!(v.emotions, ["Liquid Paranoia", "Diluted Liquid Greed", "Concentrated Liquid Isolation"]);
+        assert!(info.instills.iter().flat_map(|i| &i.emotions).any(|l| l == "Potent Liquid Ferocity"), "libellé tiré de poe.ninja pour une émotion sans entrée Essence");
+    }
+
+    /// Bout en bout : objectif sur une amulette + instillation. Le plan ajoute l'étape finale et ses trois
+    /// émotions à la liste de courses, sans toucher au coût du craft lui-même ; refusé hors amulette.
+    #[test]
+    fn plan_adds_the_instill_step_on_an_amulet() {
+        let ds = Dataset::embedded();
+        let bp = ds.build_pool("gold_amulet").unwrap();
+        let g = bp.groups.iter().find(|g| g.key == "IncreasedLife").expect("vie sur amulette");
+        let skill = ds.instills.iter().find(|i| i.name == "Fast Acting Toxins").unwrap().skill;
+        let mut req = PlanRequest {
+            base_id: "gold_amulet".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: g.key.clone(), max_tier: g.tiers.len() as u8 }],
+            enabled_actions: Some(vec!["transmute".into(), "augment".into()]),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: None,
+            instill: None,
+        };
+        let plain = make_plan(&build_context(&ds, &req, &ds.prices, &AtomicBool::new(false)).unwrap(), |_, _| true).unwrap();
+        req.instill = Some(skill);
+        let plan = make_plan(&build_context(&ds, &req, &ds.prices, &AtomicBool::new(false)).unwrap(), |_, _| true).unwrap();
+        let step = plan.instill.as_ref().expect("étape d'instillation");
+        assert_eq!(step.name, "Fast Acting Toxins");
+        let expected = ds.prices["liquid_paranoia"] + ds.prices["liquid_greed"] + ds.prices["liquid_isolation"];
+        assert!((step.cost - expected).abs() < 1e-9);
+        for id in ["liquid_paranoia", "liquid_greed", "liquid_isolation"] {
+            assert_eq!(used(&plan, id), 1.0, "{id} achetée une fois");
+        }
+        assert!((plan.expected_cost - plain.expected_cost).abs() < 1e-9, "l'instillation ne change pas le craft");
+        req.base_id = "ring".into();
+        let err = build_context(&ds, &req, &ds.prices, &AtomicBool::new(false)).err().expect("refusé sur un anneau");
+        assert!(err.contains("amulettes"), "{err}");
     }
 }

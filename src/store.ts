@@ -27,10 +27,12 @@ interface Store {
   mcTrials: number;
   /** Objet déjà existant dont on repart (au lieu d'une base neuve) ; `null` = base neuve, comme avant. */
   startingItem: ItemView | null;
+  /** passif à instiller sur l'amulette (`null` = aucun) */
+  instill: number | null;
   startingItemAnalysis: ItemAnalysis | null;
   startingItemError: string | null;
   analyzingStartingItem: boolean;
-  setPlanner: (p: Partial<Pick<Store, "baseId" | "ilvl" | "wanted" | "enabled" | "activate" | "mcTrials" | "startingItem">>) => void;
+  setPlanner: (p: Partial<Pick<Store, "baseId" | "ilvl" | "wanted" | "enabled" | "activate" | "mcTrials" | "startingItem" | "instill">>) => void;
   analyzeStartingItem: (text: string) => Promise<void>;
   clearStartingItem: () => void;
 
@@ -105,6 +107,7 @@ export const useStore = create<Store>((set, get) => ({
   activate: true,
   mcTrials: 20000,
   startingItem: null,
+  instill: null,
   startingItemAnalysis: null,
   startingItemError: null,
   analyzingStartingItem: false,
@@ -132,7 +135,7 @@ export const useStore = create<Store>((set, get) => ({
     set({ solving: true, solveError: null, progress: { stage: "solving", done: 0, total: 0 } });
     try {
       const plan = await api.solvePlan(
-        { baseId: s.baseId, ilvl: s.ilvl, wanted: s.wanted, enabledActions: s.enabled, allowAbandon: true, mcTrials: s.mcTrials, nodeCap: 220, seed: 42, startingItem: s.startingItem },
+        { baseId: s.baseId, ilvl: s.ilvl, wanted: s.wanted, enabledActions: s.enabled, allowAbandon: true, mcTrials: s.mcTrials, nodeCap: 220, seed: 42, startingItem: s.startingItem, instill: s.instill },
         s.activate,
         (progress) => set({ progress }),
       );

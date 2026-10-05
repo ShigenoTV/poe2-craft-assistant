@@ -94,12 +94,35 @@ fn yes() -> bool {
 
 /// Une cible d'Essence pour une catégorie d'objet donnée : le premier `item_tags` qui matche au
 /// moins un tag de la base (même règle que le poids de spawn des mods) fixe le mod garanti.
+/// Une entrée « a&b » exige TOUS ces tags (ex. le Diamond, seul joyau à porter strjewel, dexjewel et
+/// intjewel, placé avant la cible du Ruby).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EssenceTarget {
     pub item_tags: Vec<String>,
     /// identifiant d'un `ModDef` déjà présent dans `mods` (l'Essence garantit CE mod précis, au tier
-    /// que sa valeur réelle représente — pas un nouvel affixe inventé).
+    /// que sa valeur réelle représente — pas un nouvel affixe inventé). Vide : l'Essence ne
+    /// s'applique PAS à cette catégorie (ex. la plupart des Liquid Emotions sur un Diamond).
     pub mod_id: String,
+}
+
+impl EssenceTarget {
+    pub fn matches(&self, base_tags: &[String]) -> bool {
+        self.item_tags.iter().any(|t| t.split('&').all(|part| base_tags.iter().any(|bt| bt == part)))
+    }
+}
+
+/// Recette d'instillation d'amulette (The Withered Willow) : trois Liquid Emotions, dans cet ordre,
+/// enchantent l'amulette avec ce passif. N'occupe ni préfixe ni suffixe.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all(serialize = "camelCase"))]
+pub struct InstillDef {
+    /// identifiant du passif dans l'arbre du jeu (deux passifs peuvent porter le même nom)
+    pub skill: u32,
+    pub name: String,
+    #[serde(default)]
+    pub stats: Vec<String>,
+    /// `price_id` des trois émotions, dans l'ordre de la recette
+    pub emotions: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -155,6 +178,9 @@ pub struct Dataset {
     /// price_id -> objet poe.ninja correspondant (absent = prix saisi à la main uniquement)
     #[serde(default)]
     pub price_sources: BTreeMap<String, crate::prices::PriceSource>,
+    /// recettes d'instillation d'amulette (voir `tools/import_liquid_emotions.mjs`)
+    #[serde(default)]
+    pub instills: Vec<InstillDef>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -219,13 +245,25 @@ impl Dataset {
         }
         let mod_ids: HashSet<&str> = self.mods.iter().map(|m| m.id.as_str()).collect();
         for e in &self.essences {
-            for t in &e.targets {
+            for t in e.targets.iter().filter(|t| !t.mod_id.is_empty()) {
                 if !mod_ids.contains(t.mod_id.as_str()) {
                     return Err(format!("essence « {} » : mod_id inconnu « {} »", e.id, t.mod_id));
                 }
             }
         }
+        for i in &self.instills {
+            if i.emotions.len() != 3 || i.emotions.iter().any(|e| !self.prices.contains_key(e)) {
+                return Err(format!("instillation « {} » : il faut trois émotions ayant un prix ({:?})", i.name, i.emotions));
+            }
+        }
         Ok(())
+    }
+
+    /// Recette d'instillation du passif `skill` et son coût (somme des trois émotions aux `prices`).
+    pub fn instill_cost(&self, skill: u32, prices: &BTreeMap<String, f64>) -> Result<(&InstillDef, f64), String> {
+        let i = self.instills.iter().find(|i| i.skill == skill).ok_or_else(|| format!("instillation inconnue : {skill}"))?;
+        let cost = i.emotions.iter().map(|e| prices.get(e).copied().ok_or_else(|| format!("prix manquant : {e}"))).sum::<Result<f64, String>>()?;
+        Ok((i, cost))
     }
 
     pub fn base(&self, id: &str) -> Option<&BaseItem> {
@@ -248,8 +286,9 @@ impl Dataset {
         let essence_target_ids: HashSet<&str> = self
             .essences
             .iter()
-            .filter_map(|e| e.targets.iter().find(|t| t.item_tags.iter().any(|tag| base.tags.iter().any(|bt| bt == tag))))
+            .filter_map(|e| e.targets.iter().find(|t| t.matches(&base.tags)))
             .map(|t| t.mod_id.as_str())
+            .filter(|id| !id.is_empty())
             .collect();
 
         let mut by_group: BTreeMap<&str, Vec<(&ModDef, u32)>> = BTreeMap::new();
@@ -385,7 +424,7 @@ impl Dataset {
             if !enabled.map_or(e.default_enabled, |en| en.contains(&e.id)) {
                 continue;
             }
-            let Some(t) = e.targets.iter().find(|t| t.item_tags.iter().any(|tag| bp.base.tags.iter().any(|bt| bt == tag))) else {
+            let Some(t) = e.targets.iter().find(|t| t.matches(&bp.base.tags)).filter(|t| !t.mod_id.is_empty()) else {
                 continue;
             };
             let Some(idx) = bp.pool.affixes.iter().position(|a| a.id == t.mod_id) else {
