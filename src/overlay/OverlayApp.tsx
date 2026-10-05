@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, listen } from "@/lib/ipc";
 import { AdviceView } from "@/components/AdviceView";
+import { LivePanel } from "./LivePanel";
 import { prettyText, rarityLabel } from "@/lib/format";
 import type { ActiveInfo, ItemCaptured } from "@/lib/types";
 
@@ -9,15 +10,18 @@ export function OverlayApp() {
   const [interactive, setInteractive] = useState(false);
   const [active, setActive] = useState<ActiveInfo | null>(null);
   const [hkError, setHkError] = useState<string | null>(null);
+  const [hotkey, setHotkey] = useState("Ctrl+Shift+D");
 
   useEffect(() => {
     void api.overlayState().then(([, i]) => setInteractive(i));
     void api.hotkeyStatus().then(setHkError);
+    void api.getSettings().then((s) => setHotkey(s.hotkeyInteractive));
     const refresh = () => void api.activePlan().then(setActive);
     refresh();
     const offs: (() => void)[] = [];
     void listen<ItemCaptured>("item-captured", (c) => { setCap(c); refresh(); }).then((f) => offs.push(f));
     void listen<boolean>("overlay-interactive", setInteractive).then((f) => offs.push(f));
+    void listen<null>("plan-refreshed", refresh).then((f) => offs.push(f));
     return () => offs.forEach((f) => f());
   }, []);
 
@@ -39,9 +43,16 @@ export function OverlayApp() {
         </div>
         <div className="ov-body">
           {hkError && <div className="ov-warn">Raccourcis inactifs : utilise l'icône de l'application près de l'horloge pour masquer cet overlay.</div>}
-          {!cap && <p className="muted small">Survole un objet en jeu et copie-le (<span className="kbd">Ctrl+Alt+C</span>) : le conseil apparaît ici.</p>}
-          {a?.error && <div className="ov-warn">{a.error}</div>}
-          {a && !a.error && (
+          {active && (
+            <>
+              {a?.error && <div className="ov-warn">{a.error}</div>}
+              {cap?.adviceError && <div className="ov-warn">Objet copié ignoré : {cap.adviceError}</div>}
+              <LivePanel active={active} interactive={interactive} hotkey={hotkey} />
+            </>
+          )}
+          {!active && !cap && <p className="muted small">Survole un objet en jeu et copie-le (<span className="kbd">Ctrl+Alt+C</span>) : le conseil apparaît ici.</p>}
+          {!active && a?.error && <div className="ov-warn">{a.error}</div>}
+          {!active && a && !a.error && (
             <>
               <div className={`ov-name ${rarity}`}>
                 <b>{a.parsed.name ?? "Objet"}</b>

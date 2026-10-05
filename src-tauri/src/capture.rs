@@ -35,6 +35,12 @@ pub fn process_text(app: &AppHandle, st: &Arc<AppState>, text: &str) -> ItemCapt
     } else if let (Some(ctx), Some(detail)) = (&ctx, &analysis.detail) {
         if analysis.base_id.as_deref() == Some(ctx.req.base_id.as_str()) {
             *st.last_item.lock().unwrap() = Some((ctx.req.base_id.clone(), detail.view.clone()));
+            // l'objet copié en jeu fait foi pour le suivi en direct (étape annulable comme une saisie)
+            let view = detail.view.clone();
+            let _ = crate::commands::live_run(app, st, move |_, s| {
+                s.set(view);
+                Ok(())
+            });
             match detail.view.to_state(&ctx.bp.pool).and_then(|it| advise_item(ctx, &it, &AtomicBool::new(false))) {
                 Ok(a) => advice = Some(a),
                 Err(e) => advice_error = Some(e),

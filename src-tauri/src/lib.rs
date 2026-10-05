@@ -85,6 +85,10 @@ pub fn run() {
             commands::hotkey_status,
             commands::price_state,
             commands::refresh_prices,
+            commands::live_state,
+            commands::live_edit,
+            commands::live_undo,
+            commands::live_reset,
         ])
         .on_window_event(|w, e| {
             // fermer la fenêtre principale quitte l'app (l'overlay caché ne doit pas la garder en vie)

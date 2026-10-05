@@ -3,7 +3,7 @@ import { cost, num, pct } from "@/lib/format";
 
 /** Conseil du solveur pour l'objet capturé (utilisé dans l'app et dans l'overlay).
  * `compact` : mode overlay en jeu — la prochaine étape prend toute la place, le reste est replié. */
-export function AdviceView({ cap, compact = false }: { cap: ItemCaptured; compact?: boolean }) {
+export function AdviceView({ cap, compact = false }: { cap: Pick<ItemCaptured, "advice" | "adviceError">; compact?: boolean }) {
   const r = cap.advice;
   if (cap.adviceError) return <div className="ov-warn">{cap.adviceError}</div>;
   if (!r) return <p className="muted small">Aucun plan actif : pas de conseil. Calcule un plan dans l'application.</p>;

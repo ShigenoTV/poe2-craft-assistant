@@ -96,7 +96,7 @@ pub struct ActiveInfo {
 }
 
 #[tauri::command]
-pub async fn solve_plan(st: St<'_>, mut req: PlanRequest, activate: bool, on_event: Channel<Progress>) -> Result<CraftPlan, String> {
+pub async fn solve_plan(app: AppHandle, st: St<'_>, mut req: PlanRequest, activate: bool, on_event: Channel<Progress>) -> Result<CraftPlan, String> {
     let st = st.inner().clone();
     let cancel = st.new_job();
     tauri::async_runtime::spawn_blocking(move || {
@@ -114,6 +114,8 @@ pub async fn solve_plan(st: St<'_>, mut req: PlanRequest, activate: bool, on_eve
         })?;
         if activate {
             *st.active.lock().unwrap() = Some(ctx);
+            *st.live.lock().unwrap() = None; // nouveau plan : le suivi repart de son objet de départ
+            let _ = tauri::Emitter::emit(&app, "plan-refreshed", ());
         }
         Ok(plan)
     })
@@ -137,8 +139,10 @@ pub fn active_plan(st: St) -> Option<ActiveInfo> {
 }
 
 #[tauri::command]
-pub fn clear_active_plan(st: St) {
+pub fn clear_active_plan(app: AppHandle, st: St) {
     *st.active.lock().unwrap() = None;
+    *st.live.lock().unwrap() = None;
+    let _ = tauri::Emitter::emit(&app, "plan-refreshed", ());
 }
 
 /// Analyse un texte d'objet collé à la main ; même chemin que le presse-papiers (met à jour l'overlay).
@@ -201,6 +205,75 @@ pub fn overlay_state(st: St) -> (bool, bool) {
 
 #[allow(dead_code)]
 type _Unused = Advice;
+
+// ───────────────────────── Suivi de craft en direct ─────────────────────────
+
+/// Applique `f` à l'objet suivi du plan actif (session créée depuis l'objet de départ du plan si besoin),
+/// puis recalcule le conseil. `None` sans plan actif.
+pub(crate) fn live_run(
+    app: &AppHandle,
+    st: &AppState,
+    f: impl FnOnce(&craft_api::PlanContext, &mut craft_api::LiveSession) -> Result<(), String>,
+) -> Result<Option<craft_api::LiveView>, String> {
+    use tauri::Emitter;
+    let Some(ctx) = st.active.lock().unwrap().clone() else { return Ok(None) };
+    let session = {
+        let mut g = st.live.lock().unwrap();
+        let mut s = match g.take() {
+            Some(s) if s.base_id == ctx.req.base_id => s,
+            _ => craft_api::live::live_start(&ctx),
+        };
+        let r = f(&ctx, &mut s);
+        let snapshot = s.clone();
+        *g = Some(s);
+        r?;
+        snapshot
+    };
+    *st.last_item.lock().unwrap() = Some((session.base_id.clone(), session.current().clone()));
+    let view = craft_api::live::live_view(&ctx, &session, &std::sync::atomic::AtomicBool::new(false))?;
+    let _ = app.emit("live-updated", &view);
+    Ok(Some(view))
+}
+
+async fn live_blocking(
+    app: AppHandle,
+    st: Arc<AppState>,
+    f: impl FnOnce(&craft_api::PlanContext, &mut craft_api::LiveSession) -> Result<(), String> + Send + 'static,
+) -> Result<Option<craft_api::LiveView>, String> {
+    tauri::async_runtime::spawn_blocking(move || live_run(&app, &st, f)).await.map_err(|e| e.to_string())?
+}
+
+/// Objet suivi et meilleur coup suivant (sans rien modifier).
+#[tauri::command]
+pub async fn live_state(app: AppHandle, st: St<'_>) -> Result<Option<craft_api::LiveView>, String> {
+    live_blocking(app, st.inner().clone(), |_, _| Ok(())).await
+}
+
+/// Saisie de ce qui vient d'être obtenu (une seule étape d'historique pour toute la liste).
+#[tauri::command]
+pub async fn live_edit(app: AppHandle, st: St<'_>, edits: Vec<craft_api::LiveEdit>) -> Result<Option<craft_api::LiveView>, String> {
+    live_blocking(app, st.inner().clone(), move |ctx, s| s.apply(&ctx.bp.pool, &edits)).await
+}
+
+/// Annule la dernière saisie (erreur de clic, mauvais tier...).
+#[tauri::command]
+pub async fn live_undo(app: AppHandle, st: St<'_>) -> Result<Option<craft_api::LiveView>, String> {
+    live_blocking(app, st.inner().clone(), |_, s| {
+        s.undo();
+        Ok(())
+    })
+    .await
+}
+
+/// Repart d'une base neuve (objet abandonné, nouvelle base achetée) ; annulable.
+#[tauri::command]
+pub async fn live_reset(app: AppHandle, st: St<'_>) -> Result<Option<craft_api::LiveView>, String> {
+    live_blocking(app, st.inner().clone(), |ctx, s| {
+        s.set(ItemView { rarity: Rarity::Normal, ilvl: ctx.req.ilvl, mods: vec![] });
+        Ok(())
+    })
+    .await
+}
 
 // ───────────────────────── Mises à jour ─────────────────────────
 

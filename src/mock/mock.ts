@@ -71,6 +71,42 @@ function applyCur(pool: T.PoolView, item: T.ItemView, c: T.ActionView): boolean 
   }
 }
 
+// Suivi en direct factice (`?live`) : vraie mécanique de saisie, conseil figé repris de la capture d'exemple.
+const liveMode = () => typeof location !== "undefined" && new URLSearchParams(location.search).has("live");
+let liveHist: T.ItemView[] = [];
+function liveView(): T.LiveView {
+  const plan = get<T.CraftPlan>("plan");
+  const pool = get<T.PoolView>(`pool_${plan.baseId}`);
+  if (!liveHist.length) liveHist = [{ rarity: "normal", ilvl: plan.ilvl, mods: [] }];
+  const item = liveHist[liveHist.length - 1];
+  const cap = get<T.ItemCaptured>("capture");
+  const status = plan.goal.map((g) => {
+    const m = item.mods.map((x) => pool.affixes[x.affixIdx]).find((a) => a.group === g.group);
+    return !m ? "missing" : m.tier <= g.maxTier ? "held" : "blocked";
+  }) as T.AdviceResult["wantedStatus"];
+  const advice = cap.advice && { ...cap.advice, wantedStatus: status };
+  return { baseId: plan.baseId, item: detail(pool, item), advice, adviceError: null, canUndo: liveHist.length > 1, steps: liveHist.length - 1 };
+}
+function liveEdit(edits: T.LiveEdit[]) {
+  const pool = get<T.PoolView>(`pool_${get<T.CraftPlan>("plan").baseId}`);
+  const it = structuredClone(liveHist[liveHist.length - 1]);
+  const cnt = (s: T.Slot) => it.mods.filter((m) => pool.affixes[m.affixIdx].slot === s).length;
+  const over = () => { const c = it.rarity === "magic" ? 1 : it.rarity === "rare" ? 3 : 0; return cnt("prefix") > c || cnt("suffix") > c; };
+  for (const e of edits) {
+    if (e.kind === "add") {
+      if (it.mods.some((m) => pool.affixes[m.affixIdx].group === pool.affixes[e.affixIdx].group)) throw "l'objet porte déjà un affixe de ce groupe";
+      if (it.rarity === "normal") it.rarity = "magic";
+      it.mods.push({ affixIdx: e.affixIdx, fractured: false });
+      if (it.rarity === "magic" && over()) it.rarity = "rare";
+    } else if (e.kind === "remove") it.mods = it.mods.filter((m) => m.affixIdx !== e.affixIdx);
+    else if (e.kind === "replace") it.mods = it.mods.map((m) => (m.affixIdx === e.from ? { ...m, affixIdx: e.to } : m));
+    else if (e.kind === "rarity") { it.rarity = e.rarity; if (e.rarity === "normal") it.mods = []; }
+    else if (e.kind === "fracture") it.mods = it.mods.map((m) => (m.affixIdx === e.affixIdx ? { ...m, fractured: true } : m));
+    if (over()) throw "trop d'affixes pour cette rareté";
+  }
+  liveHist.push(it);
+}
+
 export async function handle(cmd: string, a: Record<string, unknown>): Promise<unknown> {
   await wait();
   switch (cmd) {
@@ -104,7 +140,15 @@ export async function handle(cmd: string, a: Record<string, unknown>): Promise<u
       return get("plan");
     }
     case "cancel_job": return null;
-    case "active_plan": return null;
+    case "active_plan": {
+      if (!liveMode()) return null;
+      const plan = get<T.CraftPlan>("plan");
+      return { baseId: plan.baseId, ilvl: plan.ilvl, goal: plan.goal, expectedCost: plan.expectedCost } satisfies T.ActiveInfo;
+    }
+    case "live_state": return liveMode() ? liveView() : null;
+    case "live_edit": liveEdit(a.edits as T.LiveEdit[]); return liveView();
+    case "live_undo": if (liveHist.length > 1) liveHist.pop(); return liveView();
+    case "live_reset": liveHist.push({ rarity: "normal", ilvl: get<T.CraftPlan>("plan").ilvl, mods: [] }); return liveView();
     case "clear_active_plan": return null;
     case "submit_item_text": return get("capture") ?? null;
     case "analyze_item_text": return (get("capture") as { analysis?: T.ItemAnalysis } | null)?.analysis ?? { parsed: { itemClass: null, rarityLabel: null, rarity: null, name: null, baseType: null, itemLevel: null, corrupted: false, advanced: false, mods: [] }, baseId: null, detail: null, unmatched: [], error: "Mode démo : analyse d'objet non simulée." };
@@ -121,7 +165,7 @@ export async function handle(cmd: string, a: Record<string, unknown>): Promise<u
     }
     case "overlay_toggle": emit("overlay-wanted", true); return null;
     case "overlay_set_interactive": emit("overlay-interactive", a.value); return null;
-    case "overlay_state": return [true, false];
+    case "overlay_state": return [true, liveMode()];
     case "app_version": return "0.1.0";
     case "check_update":
       if (new URLSearchParams(location.search).has("update")) return { version: "0.2.0", current: "0.1.0", notes: "Nouveaux réglages d'overlay et corrections du parseur.", date: "2026-09-28" };

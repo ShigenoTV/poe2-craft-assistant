@@ -17,6 +17,8 @@ export interface GroupInfo { group: number; familyId?: number; key: string; fami
 export interface Affix {
   id: string; name: string; family: string; text: string; group: number; slot: Slot;
   tier: number; reqIlvl: number; weight: number; tags: number;
+  /** mod Désécré : jamais tiré par une monnaie normale */
+  desecrated?: boolean;
 }
 export interface PoolView {
   base: BaseView; groups: GroupInfo[]; affixes: Affix[];
@@ -111,6 +113,15 @@ export interface Advice {
 }
 export interface AdviceResult { dead: boolean; advice: Advice | null; goal: GoalItem[]; wantedStatus: ("held" | "blocked" | "missing")[] }
 export interface ItemCaptured { analysis: ItemAnalysis; advice: AdviceResult | null; adviceError: string | null; raw: string }
+
+// ── Suivi de craft en direct (craft-api/src/live.rs)
+export type LiveEdit =
+  | { kind: "add"; affixIdx: number }
+  | { kind: "remove"; affixIdx: number }
+  | { kind: "replace"; from: number; to: number }
+  | { kind: "rarity"; rarity: Rarity }
+  | { kind: "fracture"; affixIdx: number };
+export interface LiveView { baseId: string; item: ItemDetail; advice: AdviceResult | null; adviceError: string | null; canUndo: boolean; steps: number }
 export interface ActiveInfo { baseId: string; ilvl: number; goal: GoalItem[]; expectedCost: number }
 
 export interface Settings {

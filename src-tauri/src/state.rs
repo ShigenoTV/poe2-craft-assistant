@@ -71,6 +71,8 @@ pub struct AppState {
     /// dernier objet capturé compatible avec le plan actif (base, objet) : sert de point de départ quand
     /// le plan est recalculé (prix rafraîchis) plutôt que de reconsidérer une base neuve.
     pub last_item: Mutex<Option<(String, craft_api::ItemView)>>,
+    /// suivi de craft en direct : objet saisi coup par coup dans l'overlay (base du plan actif)
+    pub live: Mutex<Option<craft_api::LiveSession>>,
     pub cpu: Mutex<Arc<rayon::ThreadPool>>,
     pub cancel: Mutex<Arc<AtomicBool>>,
     pub overlay_wanted: AtomicBool,
@@ -113,6 +115,7 @@ impl AppState {
             settings: Mutex::new(settings),
             active: Mutex::new(None),
             last_item: Mutex::new(None),
+            live: Mutex::new(None),
             cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
             overlay_wanted: AtomicBool::new(false),
             overlay_interactive: AtomicBool::new(false),
