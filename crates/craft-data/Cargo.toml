@@ -8,3 +8,7 @@ craft-core = { path = "../craft-core" }
 serde.workspace = true
 serde_json.workspace = true
 regex = "1"
+flate2 = "1"
+
+[build-dependencies]
+flate2 = "1"

@@ -4,6 +4,10 @@ Tout le moteur lit un fichier JSON unique (schéma `1`). Le fichier embarqué, `
 un vrai export du jeu (RePoE) — pas un exemple. Il n'y a rien à importer depuis l'application : pour le
 rafraîchir après une mise à jour de Path of Exile 2, voir `update-dataset.bat` plus bas.
 
+L'exécutable n'embarque pas ce JSON tel quel : `crates/craft-data/build.rs` le compresse en gzip à la
+compilation (1,13 Mo → 105 Ko) et `Dataset::embedded()` le décompresse une fois au démarrage (~3 ms). Le
+fichier du dépôt reste du JSON lisible que les outils modifient comme avant.
+
 ## Schéma
 
 ```jsonc

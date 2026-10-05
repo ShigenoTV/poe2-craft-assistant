@@ -2,7 +2,19 @@ use craft_core::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-const EMBEDDED: &str = include_str!("../../../data/sample/dataset.json");
+/// `data/sample/dataset.json` compressé en gzip par `build.rs` (l'exécutable ne garde que cette version).
+const EMBEDDED_GZ: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/dataset.json.gz"));
+
+/// JSON du dataset embarqué, décompressé une seule fois par processus.
+fn embedded_json() -> &'static str {
+    static JSON: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    JSON.get_or_init(|| {
+        let mut s = String::new();
+        std::io::Read::read_to_string(&mut flate2::read::GzDecoder::new(EMBEDDED_GZ), &mut s)
+            .expect("dataset embarqué : décompression impossible");
+        s
+    })
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Meta {
@@ -249,7 +261,7 @@ impl BaseItem {
 
 impl Dataset {
     pub fn embedded() -> Self {
-        Self::from_json(EMBEDDED).expect("dataset embarqué invalide")
+        Self::from_json(embedded_json()).expect("dataset embarqué invalide")
     }
 
     pub fn from_json(s: &str) -> Result<Self, String> {
@@ -495,6 +507,14 @@ impl Dataset {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn embedded_dataset_is_compressed_copy_of_repo_file() {
+        // l'exécutable embarque la version gzip (build.rs) : elle doit redonner exactement le fichier du dépôt
+        let repo = include_str!("../../../data/sample/dataset.json");
+        assert!(EMBEDDED_GZ.len() * 5 < repo.len(), "compression inefficace : {} octets", EMBEDDED_GZ.len());
+        assert_eq!(embedded_json(), repo);
+    }
 
     #[test]
     fn embedded_dataset_loads_and_pools_are_consistent() {
