@@ -85,6 +85,8 @@ export interface ShoppingLine { id: string; label: string; expectedCount: number
 export interface VerifyResult {
   trials: number; meanCost: number; ci95Mean: [number, number]; medianCost: number; p90Cost: number; p99Cost: number;
   meanSteps: number; meanAbandons: number; censored: number;
+  /** coût (hors base neuve) aux quantiles 0 %, 0,5 %, …, 100 % des essais réussis ; absent des anciens plans */
+  costQuantiles?: number[];
 }
 export interface CraftPlan {
   version: number; baseId: string; ilvl: number; goal: GoalItem[]; rootId: string;

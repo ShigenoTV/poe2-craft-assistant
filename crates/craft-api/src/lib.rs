@@ -1526,4 +1526,81 @@ mod liquid_emotions_complete_tests {
         let err = build_context(&ds, &req, &ds.prices, &AtomicBool::new(false)).err().expect("refusé sur un anneau");
         assert!(err.contains("amulettes"), "{err}");
     }
+
+    /// Budget, bout en bout sur le vrai dataset : le plan vérifié sur le moteur exact renvoie la loi du
+    /// coût (quantiles) que l'interface lit pour « j'ai X Exalted, quelle chance de réussir ? ».
+    #[test]
+    fn plan_reports_cost_distribution_for_budget_questions() {
+        let ds = Dataset::embedded();
+        let bp = ds.build_pool("gold_amulet").unwrap();
+        let g = bp.groups.iter().find(|g| g.key == "IncreasedLife").expect("vie sur amulette");
+        let req = PlanRequest {
+            base_id: "gold_amulet".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: g.key.clone(), max_tier: 3 }],
+            enabled_actions: Some(vec!["transmute".into(), "augment".into()]),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 20_000,
+            node_cap: 50,
+            seed: 3,
+            prices_label: None,
+            starting_item: None,
+            instill: None,
+        };
+        let plan = make_plan(&build_context(&ds, &req, &ds.prices, &AtomicBool::new(false)).unwrap(), |_, _| true).unwrap();
+        let mc = plan.mc.as_ref().expect("vérification Monte Carlo");
+        assert_eq!(mc.cost_quantiles.len(), craft_solver::QUANTILE_STEPS + 1);
+        assert_eq!(mc.cost_quantiles[craft_solver::QUANTILE_STEPS / 10 * 9], mc.p90_cost, "le P90 est le quantile à 90 %");
+        let p90 = mc.success_probability(mc.p90_cost);
+        assert!((0.895..0.95).contains(&p90), "P(coût ≤ P90) = {p90}");
+        let at_mean = mc.success_probability(plan.expected_cost);
+        assert!(at_mean > 0.3 && at_mean < p90, "P(coût ≤ moyenne) = {at_mean}");
+        assert!(mc.success_probability(mc.cost_quantiles[0] * 0.5) < 0.01);
+        assert!(mc.p90_cost > plan.expected_cost, "la loi du coût a une queue : P90 au-dessus de la moyenne");
+        let json = serde_json::to_value(mc).unwrap();
+        assert_eq!(json["costQuantiles"].as_array().unwrap().len(), craft_solver::QUANTILE_STEPS + 1, "nom attendu par l'interface");
+    }
+
+    /// Bout en bout, Désécration sur des gants (mods Désécrés en suffixe seulement) : sur un objet plein,
+    /// le mod retiré au hasard peut être un préfixe, et aucun mod Désécré ne peut alors prendre sa place.
+    /// Ce cas ne doit ni disparaître des transitions du solveur (il passait pour un succès gratuit : plan
+    /// annoncé ~13 ex, ~12 000 ex sur le moteur exact), ni amputer l'objet dans le moteur exact.
+    #[test]
+    fn desecration_on_full_gloves_keeps_solver_and_exact_engine_aligned() {
+        let ds = Dataset::embedded();
+        let req = PlanRequest {
+            base_id: "gloves_dex".into(),
+            ilvl: 81,
+            wanted: ["IncreasedLife", "FireResistance"].iter().map(|g| WantedReq { group: (*g).into(), max_tier: 3 }).collect(),
+            // actions par défaut sans les Alloys : leur mod garanti n'est pas suivi par l'état abstrait (écart
+            // distinct, hors de ce test)
+            enabled_actions: Some(list_actions(&ds, &ds.prices).unwrap().into_iter().filter(|a| a.default_enabled && !a.id.starts_with("alloy_")).map(|a| a.id).collect()),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 6_000,
+            node_cap: 50,
+            seed: 5,
+            prices_label: None,
+            starting_item: None,
+            instill: None,
+        };
+        let ctx = build_context(&ds, &req, &ds.prices, &AtomicBool::new(false)).unwrap();
+        let (m, sol) = (&ctx.model, &ctx.solution);
+        assert!(m.actions.iter().any(|a| a.id == "desecrate_rib"), "Preserved Rib proposée sur des gants");
+        let mut out = Vec::new();
+        for (i, s) in sol.states.iter().enumerate() {
+            for a in 0..m.actions.len() {
+                out.clear();
+                m.outcomes(*s, a, &mut out);
+                let sum: f64 = out.iter().map(|t| t.p).sum();
+                assert!(out.is_empty() || (sum - 1.0).abs() < 1e-9, "état {i} {s:?}, {} : probabilités sommant à {sum}", m.actions[a].id);
+            }
+        }
+        let plan = make_plan(&ctx, |_, _| true).unwrap();
+        let mc = plan.mc.as_ref().expect("vérification Monte Carlo");
+        assert!(mc.censored * 100 < mc.trials, "{mc:?}");
+        let gap = (mc.mean_cost - plan.expected_cost).abs() / plan.expected_cost;
+        assert!(gap < 0.1, "coût moteur exact {:.1} vs solveur {:.1}", mc.mean_cost, plan.expected_cost);
+    }
 }

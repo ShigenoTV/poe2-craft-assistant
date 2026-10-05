@@ -19,6 +19,30 @@ pub struct VerifyResult {
     pub mean_abandons: f64,
     /// essais interrompus (max_steps atteint) : exclus des statistiques
     pub censored: u64,
+    /// Coût (hors base neuve) aux quantiles 0 %, 0,5 %, …, 100 % des essais réussis (`QUANTILE_STEPS` + 1
+    /// valeurs croissantes) : permet de répondre à « j'ai X, quelle chance de finir ? » sans renvoyer
+    /// tous les essais.
+    pub cost_quantiles: Vec<f64>,
+}
+
+/// Résolution de `VerifyResult::cost_quantiles` : un point tous les 0,5 %.
+pub const QUANTILE_STEPS: usize = 200;
+
+impl VerifyResult {
+    /// Probabilité de finir le craft en dépensant au plus `budget` (hors base neuve), en suivant le plan.
+    /// Lecture prudente des quantiles (palier inférieur, jamais interpolé : un coût discret reste exact) ;
+    /// les essais interrompus comptent comme des échecs. Même calcul côté interface (`successProbability`).
+    pub fn success_probability(&self, budget: f64) -> f64 {
+        let q = &self.cost_quantiles;
+        // les coûts des essais sont stockés en f32 : tolérance relative pour qu'un budget pile égal compte
+        let budget = budget + budget.abs() * 1e-6;
+        if q.is_empty() || budget < q[0] {
+            return 0.0;
+        }
+        let i = q.partition_point(|&c| c <= budget) - 1;
+        let done = self.trials as f64 / (self.trials + self.censored) as f64;
+        i as f64 / (q.len() - 1) as f64 * done
+    }
 }
 
 /// Exécute la politique sur le moteur EXACT (tirage pondéré réel, exclusion de groupes complète).
@@ -76,6 +100,7 @@ pub fn verify_policy(
         mean_steps: ok.iter().map(|r| r.1 as f64).sum::<f64>() / n,
         mean_abandons: ok.iter().map(|r| r.2 as f64).sum::<f64>() / n,
         censored,
+        cost_quantiles: (0..=QUANTILE_STEPS).map(|i| q(i as f64 / QUANTILE_STEPS as f64)).collect(),
     })
 }
 

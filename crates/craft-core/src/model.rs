@@ -406,13 +406,19 @@ impl AffixPool {
                 item.push(Mod { idx: pick, fractured: false });
             }
             Desecrate if item.rarity == Rarity::Rare && !self.has_desecrated(item) => {
+                let before = *item;
                 if !self.has_room(item) && !self.remove_random(item, None, false, false, rng) {
                     return Outcome::NotApplicable;
                 }
                 let f = DrawFilter { min_mod_level: 0, force_slot: c.add_slot, require_desecrated: true, require_tag: c.require_tag };
                 match self.draw(item, &f, rng) {
                     Some(idx) => item.push(Mod { idx, fractured: false }),
-                    None => return Outcome::NotApplicable,
+                    // aucun mod Désécré possible dans la place libérée (ex. gants : suffixes seulement, mod
+                    // retiré = préfixe) : l'objet reste tel quel, jamais amputé du mod retiré
+                    None => {
+                        *item = before;
+                        return Outcome::NotApplicable;
+                    }
                 }
             }
             _ => return Outcome::NotApplicable,

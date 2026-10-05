@@ -496,6 +496,11 @@ impl Model {
                     let mut ad = Vec::new();
                     if self.add_outcomes(s1, w, &mut ad) {
                         v.extend(ad.into_iter().map(|(t, q)| (MacroState { desecrated: true, ..t }, p1 * q)));
+                    } else if s1 != s {
+                        // mod retiré mais aucun mod Désécré possible dans la place libérée : l'objet reste tel
+                        // quel (même règle que le moteur exact). Perdre cette probabilité la ferait passer pour
+                        // un succès gratuit.
+                        v.push((s, p1));
                     }
                 }
             }

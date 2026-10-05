@@ -4,6 +4,7 @@ import { GoalPicker } from "@/components/GoalPicker";
 import { cost, num, pct, shortUnit } from "@/lib/format";
 import { BaseSelect } from "@/components/BaseSelect";
 import { InstillPicker } from "@/components/InstillPicker";
+import { budgetFor, successProbability } from "@/lib/budget";
 import { PlanGraph } from "./PlanGraph";
 import { ShoppingList } from "./ShoppingList";
 import type { ActionView } from "@/lib/types";
@@ -65,6 +66,42 @@ function Ledger() {
         <div className={`v ${gapCls}`}>{gap === null ? "—" : `${gap >= 0 ? "+" : "−"}${num(Math.abs(gap) * 100, 1)} %`}</div>
         <div className="s">{mc ? `${num(mc.trials, 0)} essais · ${plan.solver.states} états · ${plan.solver.millis} ms` : ""}</div>
       </div>
+    </div>
+  );
+}
+
+function BudgetBox() {
+  const { plan, info, budget, setPlanner } = useStore();
+  if (!plan) return null;
+  const unit = shortUnit(info?.priceUnit);
+  const b = plan.baseCost + (plan.instill?.cost ?? 0);
+  const mc = plan.mc;
+  const p = mc && budget !== null ? successProbability(mc, budget - b) : null;
+  const marks = mc ? ([0.5, 0.75, 0.9, 0.99] as const).map((q) => [q, budgetFor(mc, q)] as const) : [];
+  return (
+    <div className="panel pad budget">
+      <label className="f">J'ai ({unit})
+        <input type="number" min={0} step="any" value={budget ?? ""} placeholder={num(Math.ceil(plan.expectedCost + b), 0)}
+          onChange={(e) => setPlanner({ budget: e.target.value === "" ? null : Math.max(0, +e.target.value) })} />
+      </label>
+      {!mc || !mc.costQuantiles ? (
+        <p className="muted small grow">Active la vérification sur le moteur exact (à gauche) pour estimer tes chances de réussir avec un budget donné.</p>
+      ) : (
+        <div className="grow stack" style={{ gap: 6 }}>
+          {p === null ? (
+            <div className="muted small">Indique ce que tu as en poche pour connaître tes chances de finir ce craft en suivant le plan.</div>
+          ) : (
+            <div>
+              <div className="row"><span className="grow small">Chances de finir le craft avec {cost(budget!, unit)}</span><b className={p >= 0.9 ? "ok-t" : p >= 0.5 ? "warn-t" : "bad-t"}>{p === 0 ? "0\u202f%" : pct(p)}</b></div>
+              <div className="meter"><i style={{ width: `${p * 100}%` }} /></div>
+            </div>
+          )}
+          <div className="small muted">
+            Budget à prévoir : {marks.map(([q, v], i) => <span key={q}>{i > 0 && " · "}{Math.round(q * 100)} % de chances {v === null ? "hors d'atteinte" : cost(v + b, unit)}</span>)}
+            {` (base neuve${plan.instill ? " et instillation" : ""} comprise${plan.instill ? "s" : ""}, sur ${num(mc.trials, 0)} essais simulés).`}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -178,6 +215,7 @@ export function PlannerPage() {
             <>
               {stale && <div className="note">Ce plan concerne une autre base que celle sélectionnée.</div>}
               <Ledger />
+              <BudgetBox />
               <div className="tabs" role="tablist">
                 {([["graph", "Arbre de décision"], ["shop", "Liste de courses"], ["goal", "Objectif"]] as const).map(([k, l]) => (
                   <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>

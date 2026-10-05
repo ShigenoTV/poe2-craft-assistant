@@ -195,3 +195,37 @@ fn shifted_base_cap_allows_four_prefixes_and_matches_monte_carlo() {
     let rel = (mc.mean_cost - v0).abs() / v0;
     assert!(rel < 0.07, "V={v0:.3} MC={:.3} (écart {:.1} %)", mc.mean_cost, rel * 100.0);
 }
+
+/// Budget, bout en bout : Transmutation (0,1) puis, si raté, abandon (base 0,5) et on recommence. Une
+/// Transmutation pose le préfixe voulu avec p = 200/1000 = 0,2, donc avec k tentatives réussies au plus
+/// P(coût ≤ 0,6·k − 0,5) = 1 − 0,8^k. La politique du solveur, rejouée sur le moteur exact, doit donner
+/// cette loi du coût (quantiles, P90, probabilité de réussir avec un budget donné).
+#[test]
+fn budget_success_probability_matches_closed_form() {
+    let pool = Arc::new(pool(3));
+    let goal = Arc::new(Goal::new(&pool, &[WantedAffix { group: 1, family: 0, max_tier: 2 }]).unwrap());
+    let actions = vec![
+        cur("transmute", CurrencyKind::Transmute, 0.1),
+        Action { id: "abandon".into(), label: "Abandon".into(), cost: 0.0, kind: ActionKind::Abandon },
+    ];
+    let m = Model::new(pool, goal, 80, actions, 0.5, 0.0);
+    let s = solve(&m, &[MacroState::empty(Rarity::Normal)], &SolveConfig::default(), &AtomicBool::new(false)).unwrap();
+    // espérance : 5 tentatives, 4 abandons → 5 × 0,1 + 4 × 0,5 = 2,5
+    assert!((s.value[start_id(&m, &s)] - 2.5).abs() < 1e-6, "V={}", s.value[start_id(&m, &s)]);
+    let mc = verify_policy(&m, &s, ItemState::new(Rarity::Normal, 80), 100_000, 5_000, 777, |_, _| true).unwrap();
+    assert_eq!(mc.censored, 0);
+    assert_eq!(mc.cost_quantiles.len(), QUANTILE_STEPS + 1);
+    assert!(mc.cost_quantiles.windows(2).all(|w| w[0] <= w[1]), "quantiles croissants");
+    let exact = |budget: f64| {
+        let k = ((budget + 0.5) / 0.6 + 1e-9).floor().max(0.0);
+        1.0 - 0.8f64.powf(k)
+    };
+    for budget in [0.05, 0.1, 0.7, 1.3, 2.5, 4.3, 6.1, 10.0, 20.0] {
+        let p = mc.success_probability(budget);
+        assert!((p - exact(budget)).abs() < 0.012, "budget {budget} : {p:.4} contre {:.4} attendu", exact(budget));
+    }
+    // 1 − 0,8^k ≥ 0,9 dès k = 11 tentatives : 11 × 0,1 + 10 × 0,5 = 6,1
+    assert!((mc.p90_cost - 6.1).abs() < 1e-4, "P90 = {}", mc.p90_cost);
+    assert_eq!(mc.success_probability(-1.0), 0.0);
+    assert!(mc.success_probability(1e9) > 0.999);
+}

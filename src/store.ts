@@ -29,10 +29,12 @@ interface Store {
   startingItem: ItemView | null;
   /** passif à instiller sur l'amulette (`null` = aucun) */
   instill: number | null;
+  /** budget total (en monnaie de prix) saisi dans le bloc Budget ; `null` = pas de saisie */
+  budget: number | null;
   startingItemAnalysis: ItemAnalysis | null;
   startingItemError: string | null;
   analyzingStartingItem: boolean;
-  setPlanner: (p: Partial<Pick<Store, "baseId" | "ilvl" | "wanted" | "enabled" | "activate" | "mcTrials" | "startingItem" | "instill">>) => void;
+  setPlanner: (p: Partial<Pick<Store, "baseId" | "ilvl" | "wanted" | "enabled" | "activate" | "mcTrials" | "startingItem" | "instill" | "budget">>) => void;
   analyzeStartingItem: (text: string) => Promise<void>;
   clearStartingItem: () => void;
 
@@ -108,6 +110,7 @@ export const useStore = create<Store>((set, get) => ({
   mcTrials: 20000,
   startingItem: null,
   instill: null,
+  budget: null,
   startingItemAnalysis: null,
   startingItemError: null,
   analyzingStartingItem: false,
