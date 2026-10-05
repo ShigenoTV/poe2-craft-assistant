@@ -16,8 +16,8 @@
 // Jewel] with a new guaranteed Crafted modifier » = une Essence sur objet Rare (`requires_rare`).
 // Potent Ferocity, Potent Contempt et Ancient Potent Contempt proposent un préfixe OU un suffixe sur un
 // même joyau (infobulle du jeu : « Ruby Prefix: … / Ruby Suffix: … ») : `mod_id` = le préfixe,
-// `alt_mod_id` = le suffixe, ajoutés à 50/50 (règle donnée par Max le 2026-10-05, non écrite dans le
-// jeu) parmi ceux qui ont la place. Les mods « +1 Prefix/Suffix Modifier allowed » portent leur décalage
+// `alt_mod_id` = le suffixe : slot tiré à 50/50, puis le mod remplace un affixe non fracturé de ce slot
+// (règle donnée par Max le 2026-10-05, non écrite dans le jeu). Les mods « +1 Prefix/Suffix Modifier allowed » portent leur décalage
 // de plafond (`prefix_cap_delta` / `suffix_cap_delta`, stats `local_maximum_*_allowed_+` de RePoE).
 import { readFileSync, writeFileSync } from "node:fs";
 

@@ -152,8 +152,8 @@ ces tags), `mod_id` vide = émotion inapplicable. 16 mods « Crafted » à poids
 Resistance, Upgrades Radius to Very Large) sont ajoutés et reportés par l'import RePoE comme toute cible
 d'Essence. Potent Liquid Ferocity, Potent Liquid Contempt et Ancient Potent Liquid Contempt proposent un
 préfixe OU un suffixe (infobulle du jeu « Ruby Prefix: … / Ruby Suffix: … ») : `mod_id` = le préfixe,
-`alt_mod_id` = le suffixe, ajoutés à 50/50 parmi ceux qui ont la place après le retrait (le 50/50 vient de
-Max, 2026-10-05 ; le jeu ne l'écrit pas). Les mods « +1 Suffix/Prefix Modifier allowed » de Contempt portent
+`alt_mod_id` = le suffixe : le slot est tiré à 50/50, puis le mod remplace un affixe non fracturé de ce
+slot (règle donnée par Max le 2026-10-05 ; le jeu ne l'écrit pas). Les mods « +1 Suffix/Prefix Modifier allowed » de Contempt portent
 `suffix_cap_delta` / `prefix_cap_delta` (stats `local_maximum_*_allowed_+` de RePoE) : tant qu'ils sont sur
 l'objet, le plafond s'élargit ; retirés, les affixes en trop restent mais plus rien n'entre dans ce slot.
 Non modélisé :

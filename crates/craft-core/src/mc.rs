@@ -201,8 +201,8 @@ pub(crate) mod tests {
         }
     }
 
-    /// Potent Liquid Contempt : retire un mod puis ajoute le préfixe « +1 Suffix Modifier allowed » OU le
-    /// suffixe « +1 Prefix Modifier allowed », à 50/50 quand les deux ont la place. Avec le préfixe, le
+    /// Potent Liquid Contempt : slot tiré à 50/50, puis le préfixe « +1 Suffix Modifier allowed » OU le
+    /// suffixe « +1 Prefix Modifier allowed » remplace un affixe non fracturé de ce slot. Avec le préfixe, le
     /// joyau 2/2 accepte un 3e suffixe ; une fois ce préfixe retiré, les 3 suffixes restent mais aucun
     /// nouveau ne rentre.
     #[test]
@@ -216,15 +216,19 @@ pub(crate) mod tests {
         let contempt = Currency { target: Some(plus_suffix), alt_target: Some(plus_prefix), requires_rare: true, ..cur(CurrencyKind::Essence) };
         let mut rng = rand::rngs::SmallRng::seed_from_u64(11);
 
-        // Rare 1 préfixe + 1 suffixe : après le retrait, les deux slots ont la place
+        // joyau plein (2 + 2, un préfixe fracturé) : le mod ajouté remplace toujours un affixe de son slot
         let mut got_suffix_room = 0;
         for _ in 0..4000 {
             let mut it = ItemState::new(Rarity::Rare, 80);
-            it.push(Mod { idx: 0, fractured: false });
-            it.push(Mod { idx: 6, fractured: false });
+            it.push(Mod { idx: 0, fractured: true });
+            for idx in [1, 6, 7] {
+                it.push(Mod { idx, fractured: false });
+            }
             assert_eq!(jewel.apply(&mut it, &contempt, &mut rng), Outcome::Applied);
             let has = |i: AffixIdx| it.mods().iter().any(|m| m.idx == i);
             assert!(has(plus_suffix) != has(plus_prefix));
+            assert!(has(0), "l'affixe fracturé reste");
+            assert_eq!((jewel.count(&it, Slot::Prefix), jewel.count(&it, Slot::Suffix)), (2, 2));
             got_suffix_room += has(plus_suffix) as u32;
         }
         assert!((1800..2200).contains(&got_suffix_room), "50/50 attendu, {got_suffix_room}/4000");

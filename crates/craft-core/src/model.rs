@@ -150,8 +150,8 @@ pub struct Currency {
     /// pour toutes les autres monnaies et ignoré si `kind != Essence`.
     #[serde(default)]
     pub target: Option<AffixIdx>,
-    /// Second affixe garanti possible (Potent Liquid Ferocity/Contempt : un préfixe OU un suffixe) : après
-    /// le retrait, l'un des deux est ajouté à 50/50 parmi ceux qui ont la place. `None` : seulement `target`.
+    /// Second affixe garanti possible (Potent Liquid Ferocity/Contempt : un préfixe OU un suffixe) : le slot
+    /// est tiré à 50/50, puis le mod remplace un affixe non fracturé de ce slot. `None` : seulement `target`.
     #[serde(default)]
     pub alt_target: Option<AffixIdx>,
     /// Omen « the Sovereign/Liege/Blackblooded » : restreint la Désécration à un sous-pool (Ulaman /
@@ -376,30 +376,32 @@ impl AffixPool {
             }
             Essence if (item.rarity == Rarity::Magic && !c.requires_rare) || (item.rarity == Rarity::Rare && c.requires_rare) => {
                 let Some(target) = c.target else { return Outcome::NotApplicable };
-                // aucun affixe garanti n'a la place après le retrait : l'objet reste tel quel
+                // affixe garanti sans place ou en conflit de groupe : l'objet reste tel quel
                 let before = *item;
-                if c.requires_rare && !self.remove_random(item, None, false, false, rng) {
+                // un préfixe OU un suffixe (Potent Liquid Ferocity/Contempt) : le slot est tiré à 50/50, puis le
+                // mod remplace un affixe non fracturé de CE slot (règle donnée par Max) ; sinon retrait au hasard
+                let pick = match c.alt_target {
+                    Some(alt) if rng.gen_bool(0.5) => alt,
+                    _ => target,
+                };
+                if c.alt_target.is_some() {
+                    self.remove_random(item, Some(self.affixes[pick as usize].slot), false, false, rng);
+                } else if c.requires_rare && !self.remove_random(item, None, false, false, rng) {
                     return Outcome::NotApplicable;
                 }
                 let mut rare = *item;
                 rare.rarity = Rarity::Rare;
                 let (cap_p, cap_s) = self.cap_of(&rare);
-                let held: Vec<GroupId> = item.mods().iter().map(|m| self.affixes[m.idx as usize].group).collect();
-                let fits = |t: AffixIdx| {
-                    let a = &self.affixes[t as usize];
-                    let room = match a.slot {
-                        Slot::Prefix => self.count(item, Slot::Prefix) < cap_p,
-                        Slot::Suffix => self.count(item, Slot::Suffix) < cap_s,
-                    };
-                    room && !held.contains(&a.group)
+                let a = &self.affixes[pick as usize];
+                let room = match a.slot {
+                    Slot::Prefix => self.count(item, Slot::Prefix) < cap_p,
+                    Slot::Suffix => self.count(item, Slot::Suffix) < cap_s,
                 };
-                // un préfixe OU un suffixe (Potent Liquid Ferocity/Contempt) : 50/50 parmi ceux qui ont la place
-                let cands: Vec<AffixIdx> = [Some(target), c.alt_target].into_iter().flatten().filter(|&t| fits(t)).collect();
-                if cands.is_empty() {
+                let held = item.mods().iter().any(|m| self.affixes[m.idx as usize].group == a.group);
+                if !room || held {
                     *item = before;
                     return Outcome::NotApplicable;
                 }
-                let pick = cands[rng.gen_range(0..cands.len())];
                 item.rarity = Rarity::Rare;
                 item.push(Mod { idx: pick, fractured: false });
             }

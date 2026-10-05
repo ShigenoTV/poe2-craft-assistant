@@ -119,8 +119,8 @@ pub struct EssenceTarget {
     /// que sa valeur réelle représente — pas un nouvel affixe inventé). Vide : l'Essence ne
     /// s'applique PAS à cette catégorie (ex. la plupart des Liquid Emotions sur un Diamond).
     pub mod_id: String,
-    /// Second mod possible (Potent Liquid Ferocity/Contempt : un préfixe OU un suffixe selon le tirage,
-    /// 50/50 parmi ceux qui ont la place). Vide : seulement `mod_id`.
+    /// Second mod possible (Potent Liquid Ferocity/Contempt : slot tiré à 50/50, le mod remplace un affixe
+    /// non fracturé de ce slot). Vide : seulement `mod_id`.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub alt_mod_id: String,
 }

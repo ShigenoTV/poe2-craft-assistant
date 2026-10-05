@@ -425,54 +425,62 @@ impl Model {
             }
             Essence if (s.rarity == Rarity::Magic && !cur.requires_rare) || (s.rarity == Rarity::Rare && cur.requires_rare) => {
                 let targets = &self.essence_class[ai];
-                if !targets.is_empty() {
-                    let mut base: Vec<(MacroState, f64)> = vec![(s, 1.0)];
-                    if cur.requires_rare {
-                        let mut rm = Vec::new();
-                        base = if self.remove_outcomes(s, None, &mut rm) { rm } else { Vec::new() };
+                // état après l'ajout de l'affixe garanti `t` dans `s1`, `None` sans place ou en conflit de groupe
+                let add = |s1: MacroState, (t, slot, class): (AffixIdx, Slot, Class)| -> Option<MacroState> {
+                    let (cap_p, cap_s) = self.caps(&s1, Rarity::Rare);
+                    let (np, ns) = self.counts(&s1);
+                    let room = match slot {
+                        Slot::Prefix => np < cap_p,
+                        Slot::Suffix => ns < cap_s,
+                    };
+                    let shift = self.pool.affixes[t as usize].cap_shift != (0, 0);
+                    if !room || (shift && s1.shifter.is_some()) {
+                        return None;
                     }
-                    for (s1, p1) in base {
-                        let (cap_p, cap_s) = self.caps(&s1, Rarity::Rare);
-                        let (np, ns) = self.counts(&s1);
-                        // affixes garantis qui ont la place dans cette branche ; deux : 50/50 entre eux
-                        let fits: Vec<MacroState> = targets
-                            .iter()
-                            .filter_map(|&(t, slot, class)| {
-                                let room = match slot {
-                                    Slot::Prefix => np < cap_p,
-                                    Slot::Suffix => ns < cap_s,
-                                };
-                                let shift = self.pool.affixes[t as usize].cap_shift != (0, 0);
-                                if !room || (shift && s1.shifter.is_some()) {
-                                    return None;
-                                }
-                                match class {
-                                    Class::Wanted(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => {
-                                        Some(MacroState { rarity: Rarity::Rare, held: s1.held | 1 << k, ..s1 })
-                                    }
-                                    Class::Blocked(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => {
-                                        Some(MacroState { rarity: Rarity::Rare, blocked: s1.blocked | 1 << k, ..s1 })
-                                    }
-                                    Class::Other => {
-                                        let st = match slot {
-                                            Slot::Prefix => MacroState { rarity: Rarity::Rare, bad_p: s1.bad_p + 1, ..s1 },
-                                            Slot::Suffix => MacroState { rarity: Rarity::Rare, bad_s: s1.bad_s + 1, ..s1 },
-                                        };
-                                        Some(if shift { MacroState { shifter: Some(t), ..st } } else { st })
-                                    }
-                                    _ => None, // groupe voulu déjà occupé (held ou blocked) : inapplicable pour cette branche
-                                }
-                            })
-                            .collect();
-                        if fits.is_empty() {
-                            // rien n'a la place après ce retrait : l'objet reste tel quel (même règle que le moteur
-                            // exact), plutôt que de perdre cette probabilité (qui passerait pour un succès gratuit)
-                            v.push((s, p1));
-                            continue;
+                    match class {
+                        Class::Wanted(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => Some(MacroState { rarity: Rarity::Rare, held: s1.held | 1 << k, ..s1 }),
+                        Class::Blocked(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => Some(MacroState { rarity: Rarity::Rare, blocked: s1.blocked | 1 << k, ..s1 }),
+                        Class::Other => {
+                            let st = match slot {
+                                Slot::Prefix => MacroState { rarity: Rarity::Rare, bad_p: s1.bad_p + 1, ..s1 },
+                                Slot::Suffix => MacroState { rarity: Rarity::Rare, bad_s: s1.bad_s + 1, ..s1 },
+                            };
+                            Some(if shift { MacroState { shifter: Some(t), ..st } } else { st })
                         }
-                        let k = fits.len() as f64;
-                        v.extend(fits.into_iter().map(|st| (st, p1 / k)));
+                        _ => None, // groupe voulu déjà occupé (held ou blocked)
                     }
+                };
+                // (affixe ajouté, état après retrait, probabilité)
+                let mut branches: Vec<((AffixIdx, Slot, Class), MacroState, f64)> = Vec::new();
+                match targets.as_slice() {
+                    [one] => {
+                        if cur.requires_rare {
+                            let mut rm = Vec::new();
+                            if self.remove_outcomes(s, None, &mut rm) {
+                                branches.extend(rm.into_iter().map(|(s1, p1)| (*one, s1, p1)));
+                            }
+                        } else {
+                            branches.push((*one, s, 1.0));
+                        }
+                    }
+                    // préfixe OU suffixe (Potent Liquid Ferocity/Contempt) : slot tiré à 50/50, puis le mod remplace un
+                    // affixe non fracturé de CE slot (aucun retrait si ce slot n'en a pas)
+                    [a, b] => {
+                        for t in [*a, *b] {
+                            let mut rm = Vec::new();
+                            if self.remove_outcomes(s, Some(t.1), &mut rm) {
+                                branches.extend(rm.into_iter().map(|(s1, p1)| (t, s1, 0.5 * p1)));
+                            } else {
+                                branches.push((t, s, 0.5));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                for (t, s1, p1) in branches {
+                    // sans place ou en conflit : l'objet reste tel quel (même règle que le moteur exact), plutôt que de
+                    // perdre cette probabilité (qui passerait pour un succès gratuit)
+                    v.push((add(s1, t).unwrap_or(s), p1));
                 }
             }
             Desecrate if s.rarity == Rarity::Rare && !s.desecrated => {
