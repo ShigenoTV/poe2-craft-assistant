@@ -2,7 +2,9 @@ use craft_core::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-const EMBEDDED: &str = include_str!("../../../data/sample/dataset.json");
+/// `data/sample/dataset.json` compressé en gzip par `build.rs` : le fichier du dépôt reste du JSON lisible
+/// (outils d'import, diffs git), seul l'exécutable embarque la version compressée.
+const EMBEDDED_GZ: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/dataset.json.gz"));
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Meta {
@@ -247,9 +249,19 @@ impl BaseItem {
     }
 }
 
+/// Texte JSON du dataset embarqué, décompressé.
+pub fn embedded_json() -> String {
+    use std::io::Read;
+    let mut s = String::new();
+    flate2::read::GzDecoder::new(EMBEDDED_GZ)
+        .read_to_string(&mut s)
+        .expect("dataset embarqué : gzip illisible");
+    s
+}
+
 impl Dataset {
     pub fn embedded() -> Self {
-        Self::from_json(EMBEDDED).expect("dataset embarqué invalide")
+        Self::from_json(&embedded_json()).expect("dataset embarqué invalide")
     }
 
     pub fn from_json(s: &str) -> Result<Self, String> {
@@ -495,6 +507,14 @@ impl Dataset {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn embedded_gzip_matches_repository_json() {
+        // l'exécutable embarque exactement le fichier du dépôt, octet pour octet
+        let on_disk = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../data/sample/dataset.json")).unwrap();
+        assert_eq!(embedded_json(), on_disk);
+        assert!(EMBEDDED_GZ.len() * 5 < on_disk.len(), "gzip {} o pour {} o de JSON", EMBEDDED_GZ.len(), on_disk.len());
+    }
 
     #[test]
     fn embedded_dataset_loads_and_pools_are_consistent() {
