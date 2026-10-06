@@ -170,11 +170,15 @@ pub fn state_of(st: &AppState, note: Option<String>) -> PriceState {
 pub fn refresh(st: &AppState) -> Result<PriceState, String> {
     // une seule actualisation à la fois (bouton et arrière-plan) : la seconde voit le relevé tout frais et s'arrête
     let _one_at_a_time = st.price_fetch.lock().unwrap();
-    if let Some(m) = st.market.lock().unwrap().as_ref() {
-        let age = now_unix().saturating_sub(m.fetched_at);
+    // Le verrou `market` est relâché avant d'appeler `state_of`, qui le reprend : un `if let` sur
+    // `st.market.lock()` le garderait jusqu'à la fin du bloc et bloquerait l'appli pour de bon (Mutex non réentrant)
+    // dès qu'on clique « Actualiser » moins de 5 min après l'actualisation de démarrage.
+    let last = st.market.lock().unwrap().as_ref().map(|m| (m.fetched_at, m.league.clone()));
+    if let Some((fetched_at, league)) = last {
+        let age = now_unix().saturating_sub(fetched_at);
         let same_league = {
             let pref = st.settings.lock().unwrap().price_league.trim().to_string();
-            pref.is_empty() || pref == m.league
+            pref.is_empty() || pref == league
         };
         if age < MIN_REFETCH_SECS && same_league {
             return Ok(state_of(st, Some(format!("Prix déjà actualisés il y a {} min : poe.ninja ne les met à jour qu'environ toutes les heures.", age / 60))));
@@ -429,6 +433,34 @@ Connection: close
         assert!(s2.next_refresh_at.unwrap() >= s2.now + RETRY_AFTER_ERROR_SECS - 5, "nouvel essai espacé après l'échec");
         // le relevé reste persisté pour le prochain démarrage
         assert!(dir.join("market_prices.json").exists());
+
+        std::env::remove_var("POE2_NINJA_BASE");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn clicking_refresh_right_after_a_refresh_answers_instead_of_freezing_the_app() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let dir = std::env::temp_dir().join(format!("poe2-prices-twice-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let st = std::sync::Arc::new(AppState::load(dir.clone()));
+        let (base, hits) = spawn_server(None);
+        std::env::set_var("POE2_NINJA_BASE", &base);
+        refresh(&st).expect("première actualisation (comme celle du démarrage)");
+        let after_first = hits.load(Ordering::SeqCst);
+
+        // second clic dans les 5 minutes, dans un thread : s'il reste bloqué, le test échoue au lieu de pendre
+        let (tx, rx) = std::sync::mpsc::channel();
+        let st2 = st.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(refresh(&st2));
+        });
+        let s = rx.recv_timeout(Duration::from_secs(10)).expect("l'actualisation rapprochée ne doit pas bloquer l'appli").expect("doit réussir");
+        assert!(s.note.as_deref().unwrap_or("").contains("déjà actualisés"), "{:?}", s.note);
+        assert_eq!(hits.load(Ordering::SeqCst), after_first, "pas de nouvelle requête réseau");
+        // l'état reste utilisable ensuite (verrous libérés)
+        assert!(st.market.try_lock().is_ok() && st.price_fetch.try_lock().is_ok());
+        assert!(!st.prices().is_empty());
 
         std::env::remove_var("POE2_NINJA_BASE");
         let _ = std::fs::remove_dir_all(&dir);
