@@ -68,6 +68,7 @@ pub fn run() {
             commands::item_detail,
             commands::run_simulation,
             commands::solve_plan,
+            commands::compare_paths,
             commands::cancel_job,
             commands::active_plan,
             commands::clear_active_plan,

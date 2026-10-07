@@ -41,6 +41,8 @@ export const api = {
     call<T.SimResult | null>("run_simulation", { req, onEvent: channel(onProgress) }),
   solvePlan: (req: T.PlanRequest, activate: boolean, onProgress?: (p: T.Progress) => void) =>
     call<T.CraftPlan>("solve_plan", { req, activate, onEvent: channel(onProgress) }),
+  comparePaths: (trials: number, onProgress?: (p: T.Progress) => void) =>
+    call<T.ComparedPath[]>("compare_paths", { trials, onEvent: channel(onProgress) }),
   cancelJob: () => call<void>("cancel_job"),
   activePlan: () => call<T.ActiveInfo | null>("active_plan"),
   clearActivePlan: () => call<void>("clear_active_plan"),

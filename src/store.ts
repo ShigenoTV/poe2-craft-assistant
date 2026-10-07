@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { api, listen } from "@/lib/ipc";
-import type { ActionView, CraftPlan, DatasetInfo, ItemAnalysis, ItemView, PoolView, Progress, UpdateInfo, WantedReq } from "@/lib/types";
+import type { ActionView, ComparedPath, CraftPlan, DatasetInfo, ItemAnalysis, ItemView, PoolView, Progress, UpdateInfo, WantedReq } from "@/lib/types";
 
 export type Page = "planner" | "sandbox" | "item" | "data" | "settings";
 
@@ -44,6 +44,15 @@ interface Store {
   solveError: string | null;
   solve: () => Promise<void>;
   cancel: () => Promise<void>;
+
+  /** comparateur de chemins du plan affiché (`null` = pas encore calculé) */
+  comparison: ComparedPath[] | null;
+  comparing: boolean;
+  compareProgress: Progress | null;
+  compareError: string | null;
+  compare: () => Promise<void>;
+  /** relance le plan sans les monnaies écartées par ce chemin */
+  usePath: (p: ComparedPath) => Promise<void>;
 
   version: string;
   update: UpdateInfo | null;
@@ -134,8 +143,8 @@ export const useStore = create<Store>((set, get) => ({
   solveError: null,
   solve: async () => {
     const s = get();
-    if (s.solving) return;
-    set({ solving: true, solveError: null, progress: { stage: "solving", done: 0, total: 0 } });
+    if (s.solving || s.comparing) return;
+    set({ solving: true, solveError: null, comparison: null, compareError: null, progress: { stage: "solving", done: 0, total: 0 } });
     try {
       const plan = await api.solvePlan(
         { baseId: s.baseId, ilvl: s.ilvl, wanted: s.wanted, enabledActions: s.enabled, allowAbandon: true, mcTrials: s.mcTrials, nodeCap: 220, seed: 42, startingItem: s.startingItem, instill: s.instill },
@@ -150,6 +159,29 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
   cancel: async () => { await api.cancelJob(); },
+
+  comparison: null,
+  comparing: false,
+  compareProgress: null,
+  compareError: null,
+  compare: async () => {
+    const s = get();
+    if (s.solving || s.comparing || !s.plan) return;
+    set({ comparing: true, compareError: null, compareProgress: { stage: "solving", done: 0, total: 0 } });
+    try {
+      const comparison = await api.comparePaths(s.mcTrials > 0 ? s.mcTrials : 20000, (compareProgress) => set({ compareProgress }));
+      set({ comparison });
+    } catch (e) {
+      set({ compareError: String(e) });
+    } finally {
+      set({ comparing: false, compareProgress: null });
+    }
+  },
+  usePath: async (p) => {
+    const banned = new Set(p.excludedActions);
+    set({ enabled: get().enabled.filter((id) => !banned.has(id)) });
+    await get().solve();
+  },
 
   version: "",
   update: null,

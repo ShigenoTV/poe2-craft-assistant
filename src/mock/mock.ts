@@ -139,6 +139,19 @@ export async function handle(cmd: string, a: Record<string, unknown>): Promise<u
       for (let i = 1; i <= 4; i++) { await wait(120); ch.onmessage({ stage: "verifying", done: (req.mcTrials * i) / 4, total: req.mcTrials }); }
       return get("plan");
     }
+    case "compare_paths": {
+      const ch = a.onEvent as { onmessage: (p: T.Progress) => void };
+      ch.onmessage({ stage: "solving", done: 0, total: 0 });
+      await wait(400);
+      const plan = get<T.CraftPlan>("plan");
+      const lines = plan.shopping.filter((l) => l.id !== "__base");
+      const path = (label: string, excluded: string | null, f: number, sd: number): T.ComparedPath => {
+        const mean = plan.expectedCost * f;
+        const mc = plan.mc ? { ...plan.mc, meanCost: mean, medianCost: mean * 0.75, p99Cost: mean * (3 + sd), stdDev: mean * sd } : null;
+        return { label, excluded, excludedActions: excluded ? [excluded] : [], expectedCost: mean, mainCurrencies: lines.slice(0, 3), converged: true, mc };
+      };
+      return [path("Plan optimal", null, 1, 0.95), path("Sans Chaos", "chaos", 1.12, 0.7), path("Sans Omens", "omens", 1.3, 1.1)];
+    }
     case "cancel_job": return null;
     case "active_plan": {
       if (!liveMode()) return null;

@@ -10,6 +10,8 @@ use serde::Serialize;
 pub struct VerifyResult {
     pub trials: u64,
     pub mean_cost: f64,
+    /// écart-type du coût des essais réussis (racine de la variance) : la régularité du chemin
+    pub std_dev: f64,
     pub ci95_mean: (f64, f64),
     pub median_cost: f64,
     pub p90_cost: f64,
@@ -92,6 +94,7 @@ pub fn verify_policy(
     Some(VerifyResult {
         trials: ok.len() as u64,
         mean_cost: mean,
+        std_dev: var.sqrt(),
         ci95_mean: (mean - 1.96 * se, mean + 1.96 * se),
         median_cost: q(0.5),
         p90_cost: q(0.9),

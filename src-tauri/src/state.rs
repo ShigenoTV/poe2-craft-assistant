@@ -68,6 +68,8 @@ pub struct AppState {
     pub price_fetch: Mutex<()>,
     pub settings: Mutex<Settings>,
     pub active: Mutex<Option<Arc<PlanContext>>>,
+    /// contexte du dernier plan calculé (actif ou non) : base du comparateur de chemins
+    pub last_plan: Mutex<Option<Arc<PlanContext>>>,
     /// dernier objet capturé compatible avec le plan actif (base, objet) : sert de point de départ quand
     /// le plan est recalculé (prix rafraîchis) plutôt que de reconsidérer une base neuve.
     pub last_item: Mutex<Option<(String, craft_api::ItemView)>>,
@@ -114,6 +116,7 @@ impl AppState {
             price_fetch: Mutex::new(()),
             settings: Mutex::new(settings),
             active: Mutex::new(None),
+            last_plan: Mutex::new(None),
             last_item: Mutex::new(None),
             live: Mutex::new(None),
             cancel: Mutex::new(Arc::new(AtomicBool::new(false))),

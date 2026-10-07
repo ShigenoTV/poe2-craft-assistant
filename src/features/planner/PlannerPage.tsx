@@ -7,6 +7,7 @@ import { InstillPicker } from "@/components/InstillPicker";
 import { budgetFor, successProbability } from "@/lib/budget";
 import { PlanGraph } from "./PlanGraph";
 import { ShoppingList } from "./ShoppingList";
+import { ComparePaths } from "./ComparePaths";
 import type { ActionView } from "@/lib/types";
 
 const KIND_ORDER = ["transmute", "augment", "regal", "alchemy", "exalt", "chaos", "annul", "fracture", "desecrate", "essence"];
@@ -148,7 +149,7 @@ function StartingItemPicker() {
 export function PlannerPage() {
   const s = useStore();
   const { info, pools, baseId, ilvl, wanted, setPlanner, plan, solving, progress, solveError } = s;
-  const [tab, setTab] = useState<"graph" | "shop" | "goal">("graph");
+  const [tab, setTab] = useState<"graph" | "shop" | "compare" | "goal">("graph");
   const pool = pools[baseId];
   const isAmulet = pool?.base.itemClass === "Amulet";
   useEffect(() => { if (baseId) void s.ensurePool(baseId); }, [baseId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -217,12 +218,13 @@ export function PlannerPage() {
               <Ledger />
               <BudgetBox />
               <div className="tabs" role="tablist">
-                {([["graph", "Arbre de décision"], ["shop", "Liste de courses"], ["goal", "Objectif"]] as const).map(([k, l]) => (
+                {([["graph", "Arbre de décision"], ["shop", "Liste de courses"], ["compare", "Comparer les chemins"], ["goal", "Objectif"]] as const).map(([k, l]) => (
                   <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>
                 ))}
               </div>
               {tab === "graph" && <PlanGraph plan={plan} />}
               {tab === "shop" && <ShoppingList plan={plan} unit={shortUnit(info?.priceUnit)} />}
+              {tab === "compare" && <ComparePaths plan={plan} unit={shortUnit(info?.priceUnit)} />}
               {tab === "goal" && (
                 <div className="panel pad stack">
                   <div>{plan.goal.map((g) => <div key={g.label} className="row" style={{ padding: "3px 0" }}><span className={`pill ${g.slot}`}>{g.slot === "prefix" ? "préfixe" : "suffixe"}</span>{g.label}</div>)}</div>

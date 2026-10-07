@@ -10,7 +10,9 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
+pub mod compare;
 pub mod live;
+pub use compare::{compare_paths, ComparedPath};
 pub use live::{LiveEdit, LiveSession, LiveView};
 
 pub use craft_core;

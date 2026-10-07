@@ -83,6 +83,8 @@ export interface TerminalNodeData {
 export type CraftNode = ActionNodeData | TerminalNodeData;
 export interface ShoppingLine { id: string; label: string; expectedCount: number; unitCost: number; expectedCost: number }
 export interface VerifyResult {
+  /** écart-type du coût (racine de la variance) ; absent des anciens plans */
+  stdDev?: number;
   trials: number; meanCost: number; ci95Mean: [number, number]; medianCost: number; p90Cost: number; p99Cost: number;
   meanSteps: number; meanAbandons: number; censored: number;
   /** coût (hors base neuve) aux quantiles 0 %, 0,5 %, …, 100 % des essais réussis ; absent des anciens plans */
@@ -95,6 +97,11 @@ export interface CraftPlan {
   mc: VerifyResult | null; pricesSource: string;
   /** étape finale hors craft : coût fixe, déjà dans `shopping` mais PAS dans `expectedCost` */
   instill?: InstillStep | null;
+}
+/** Un chemin du comparateur : plan optimal, ou meilleur plan privé d'une famille de monnaies. */
+export interface ComparedPath {
+  label: string; excluded: string | null; excludedActions: string[]; expectedCost: number;
+  mainCurrencies: ShoppingLine[]; converged: boolean; mc: VerifyResult | null;
 }
 export interface InstillStep { skill: number; name: string; stats: string[]; emotions: string[]; cost: number }
 

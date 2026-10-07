@@ -86,6 +86,26 @@ pub async fn run_simulation(st: St<'_>, req: SimRequest, on_event: Channel<Progr
     .map_err(|e| e.to_string())?
 }
 
+/// Compare le dernier plan calculé à ses meilleures alternatives (sans l'une de ses familles de monnaies).
+#[tauri::command]
+pub async fn compare_paths(st: St<'_>, trials: u64, on_event: Channel<Progress>) -> Result<Vec<ComparedPath>, String> {
+    let st = st.inner().clone();
+    let ctx = st.last_plan.lock().unwrap().clone().ok_or("calcule d'abord un plan")?;
+    let cancel = st.new_job();
+    tauri::async_runtime::spawn_blocking(move || {
+        let pool = st.cpu.lock().unwrap().clone();
+        let _ = on_event.send(Progress { stage: "solving".into(), done: 0, total: 0 });
+        pool.install(|| {
+            craft_api::compare_paths(&ctx, 2, trials.max(1_000), &cancel, |done, total| {
+                let _ = on_event.send(Progress { stage: "verifying".into(), done, total });
+                !cancel.load(std::sync::atomic::Ordering::Relaxed)
+            })
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActiveInfo {
@@ -112,6 +132,7 @@ pub async fn solve_plan(app: AppHandle, st: St<'_>, mut req: PlanRequest, activa
                 !cancel.load(std::sync::atomic::Ordering::Relaxed)
             })
         })?;
+        *st.last_plan.lock().unwrap() = Some(ctx.clone());
         if activate {
             *st.active.lock().unwrap() = Some(ctx);
             *st.live.lock().unwrap() = None; // nouveau plan : le suivi repart de son objet de départ
