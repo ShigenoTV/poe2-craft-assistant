@@ -19,7 +19,7 @@ const emit = (e: string, p: unknown) => listeners.get(e)?.forEach((f) => f(p));
 const wait = (ms = 60) => new Promise((r) => setTimeout(r, ms));
 let settings: T.Settings = {
   hotkeyToggle: "Ctrl+D", hotkeyInteractive: "Ctrl+Shift+D", watchClipboard: true, checkUpdatesOnStart: true, autoShowOnCopy: true, cpuThreads: 0,
-  defaultIlvl: 80, gameWindowTitle: "Path of Exile 2", overlayAutoHideSecs: 10, priceLeague: "", autoRefreshPrices: true, priceRefreshMinutes: 60, overlayWidth: 400, overlayHeight: 640, overlayMarginX: 24, overlayMarginY: 96,
+  defaultIlvl: 80, gameWindowTitle: "Path of Exile 2", overlayAutoHideSecs: 10, priceLeague: "", autoRefreshPrices: true, priceRefreshMinutes: 60, overlayWidth: 400, overlayHeight: 640, overlayMarginX: 24, overlayMarginY: 96, costUnit: "ex",
 };
 let overrides: Record<string, number> = {};
 
@@ -167,7 +167,7 @@ export async function handle(cmd: string, a: Record<string, unknown>): Promise<u
     case "analyze_item_text": return (get("capture") as { analysis?: T.ItemAnalysis } | null)?.analysis ?? { parsed: { itemClass: null, rarityLabel: null, rarity: null, name: null, baseType: null, itemLevel: null, corrupted: false, advanced: false, mods: [] }, baseId: null, detail: null, unmatched: [], error: "Mode démo : analyse d'objet non simulée." };
     case "last_clipboard": return "";
     case "get_settings": return settings;
-    case "set_settings": settings = a.settings as T.Settings; return null;
+    case "set_settings": settings = a.settings as T.Settings; emit("settings-changed", settings); return null;
     case "hotkey_status": return null;
     case "price_state": case "refresh_prices": {
       const eff = { ...get<Record<string, number>>("prices"), ...overrides };

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/store";
 import { GoalPicker } from "@/components/GoalPicker";
-import { cost, num, pct, shortUnit } from "@/lib/format";
+import { num, pct } from "@/lib/format";
+import { Cost, useCost, useDisplay } from "@/lib/display";
+import { exaltedToInput, inputToExalted } from "@/lib/money";
 import { BaseSelect } from "@/components/BaseSelect";
 import { InstillPicker } from "@/components/InstillPicker";
 import { budgetFor, successProbability } from "@/lib/budget";
@@ -14,8 +16,7 @@ const KIND_ORDER = ["transmute", "augment", "regal", "alchemy", "exalt", "chaos"
 const KIND_LABEL: Record<string, string> = { transmute: "Transmutation", augment: "Augmentation", regal: "Regal", alchemy: "Alchimie", exalt: "Exaltation", chaos: "Chaos", annul: "Annulation", fracture: "Fracture", desecrate: "Désécration", essence: "Essences, Liquid Emotions et Alloys (selon la base)" };
 
 function ActionsPicker() {
-  const { actions, enabled, setPlanner, info } = useStore();
-  const unit = shortUnit(info?.priceUnit);
+  const { actions, enabled, setPlanner } = useStore();
   const on = new Set(enabled);
   const byKind = useMemo(() => {
     const m = new Map<string, ActionView[]>();
@@ -38,7 +39,7 @@ function ActionsPicker() {
             {list.map((a) => (
               <label key={a.id} className="row small" style={{ padding: "2px 0" }}>
                 <input type="checkbox" checked={on.has(a.id)} onChange={() => toggle(a.id)} />
-                <span className="grow">{a.label}</span><span className="muted">{cost(a.unitCost, unit)}</span>
+                <span className="grow">{a.label}</span><span className="muted"><Cost ex={a.unitCost} /></span>
               </label>
             ))}
           </div>
@@ -49,9 +50,9 @@ function ActionsPicker() {
 }
 
 function Ledger() {
-  const { plan, info } = useStore();
+  const { plan } = useStore();
+  const fmt = useCost();
   if (!plan) return null;
-  const unit = shortUnit(info?.priceUnit);
   // base neuve + instillation éventuelle : coûts fixes, payés une fois sur l'objet réussi
   const b = plan.baseCost + (plan.instill?.cost ?? 0);
   const mc = plan.mc;
@@ -59,9 +60,9 @@ function Ledger() {
   const gapCls = gap === null ? "" : Math.abs(gap) < 0.05 ? "ok-t" : Math.abs(gap) < 0.1 ? "warn-t" : "bad-t";
   return (
     <div className="ledger">
-      <div><div className="k">Coût moyen</div><div className="v">{cost(plan.expectedCost + b, unit)}</div><div className="s">{plan.instill ? "base neuve et instillation comprises" : "base neuve comprise"}</div></div>
-      <div><div className="k">Une fois sur deux</div><div className="v">{mc ? cost(mc.medianCost + b, unit) : "—"}</div><div className="s">médiane simulée</div></div>
-      <div><div className="k">Budget sûr (9 sur 10)</div><div className="v">{mc ? cost(mc.p90Cost + b, unit) : "—"}</div><div className="s">{mc ? `99 sur 100 : ${cost(mc.p99Cost + b, unit)}` : ""}</div></div>
+      <div><div className="k">Coût moyen</div><div className="v"><Cost ex={plan.expectedCost + b} /></div><div className="s">{plan.instill ? "base neuve et instillation comprises" : "base neuve comprise"}</div></div>
+      <div><div className="k">Une fois sur deux</div><div className="v">{mc ? <Cost ex={mc.medianCost + b} /> : "—"}</div><div className="s">médiane simulée</div></div>
+      <div><div className="k">Budget sûr (9 sur 10)</div><div className="v">{mc ? <Cost ex={mc.p90Cost + b} /> : "—"}</div><div className="s">{mc ? `99 sur 100 : ${fmt(mc.p99Cost + b)}` : ""}</div></div>
       <div>
         <div className="k">Vérification moteur exact</div>
         <div className={`v ${gapCls}`}>{gap === null ? "—" : `${gap >= 0 ? "+" : "−"}${num(Math.abs(gap) * 100, 1)} %`}</div>
@@ -72,9 +73,12 @@ function Ledger() {
 }
 
 function BudgetBox() {
-  const { plan, info, budget, setPlanner } = useStore();
+  const { plan, budget, setPlanner } = useStore();
+  const { unit: shown, divine } = useDisplay();
   if (!plan) return null;
-  const unit = shortUnit(info?.priceUnit);
+  // le budget est gardé en Exalted ; il se saisit dans l'unité d'affichage choisie
+  const unit = divine ? shown : "ex";
+  const toInput = (ex: number) => Number(exaltedToInput(ex, unit, divine).toPrecision(12));
   const b = plan.baseCost + (plan.instill?.cost ?? 0);
   const mc = plan.mc;
   const p = mc && budget !== null ? successProbability(mc, budget - b) : null;
@@ -82,8 +86,8 @@ function BudgetBox() {
   return (
     <div className="panel pad budget">
       <label className="f">J'ai ({unit})
-        <input type="number" min={0} step="any" value={budget ?? ""} placeholder={num(Math.ceil(plan.expectedCost + b), 0)}
-          onChange={(e) => setPlanner({ budget: e.target.value === "" ? null : Math.max(0, +e.target.value) })} />
+        <input type="number" min={0} step="any" value={budget === null ? "" : toInput(budget)} placeholder={num(Math.ceil(toInput(plan.expectedCost + b)), 0)}
+          onChange={(e) => setPlanner({ budget: e.target.value === "" ? null : Math.max(0, inputToExalted(+e.target.value, unit, divine)) })} />
       </label>
       {!mc || !mc.costQuantiles ? (
         <p className="muted small grow">Active la vérification sur le moteur exact (à gauche) pour estimer tes chances de réussir avec un budget donné.</p>
@@ -93,12 +97,12 @@ function BudgetBox() {
             <div className="muted small">Indique ce que tu as en poche pour connaître tes chances de finir ce craft en suivant le plan.</div>
           ) : (
             <div>
-              <div className="row"><span className="grow small">Chances de finir le craft avec {cost(budget!, unit)}</span><b className={p >= 0.9 ? "ok-t" : p >= 0.5 ? "warn-t" : "bad-t"}>{p === 0 ? "0\u202f%" : pct(p)}</b></div>
+              <div className="row"><span className="grow small">Chances de finir le craft avec <Cost ex={budget!} /></span><b className={p >= 0.9 ? "ok-t" : p >= 0.5 ? "warn-t" : "bad-t"}>{p === 0 ? "0\u202f%" : pct(p)}</b></div>
               <div className="meter"><i style={{ width: `${p * 100}%` }} /></div>
             </div>
           )}
           <div className="small muted">
-            Budget à prévoir : {marks.map(([q, v], i) => <span key={q}>{i > 0 && " · "}{Math.round(q * 100)} % de chances {v === null ? "hors d'atteinte" : cost(v + b, unit)}</span>)}
+            Budget à prévoir : {marks.map(([q, v], i) => <span key={q}>{i > 0 && " · "}{Math.round(q * 100)} % de chances {v === null ? "hors d'atteinte" : <Cost ex={v + b} />}</span>)}
             {` (base neuve${plan.instill ? " et instillation" : ""} comprise${plan.instill ? "s" : ""}, sur ${num(mc.trials, 0)} essais simulés).`}
           </div>
         </div>
@@ -177,7 +181,7 @@ export function PlannerPage() {
             />
             {pool ? <GoalPicker pool={pool} wanted={wanted} onChange={(w) => setPlanner({ wanted: w })} /> : <p className="muted">Chargement de la base…</p>}
             {isAmulet && (info?.instills?.length ?? 0) > 0 && (
-              <InstillPicker instills={info!.instills!} prices={s.prices} unit={shortUnit(info?.priceUnit)} value={s.instill} onChange={(instill) => setPlanner({ instill })} />
+              <InstillPicker instills={info!.instills!} prices={s.prices} value={s.instill} onChange={(instill) => setPlanner({ instill })} />
             )}
           </div>
           <StartingItemPicker />
@@ -223,18 +227,18 @@ export function PlannerPage() {
                 ))}
               </div>
               {tab === "graph" && <PlanGraph plan={plan} />}
-              {tab === "shop" && <ShoppingList plan={plan} unit={shortUnit(info?.priceUnit)} />}
-              {tab === "compare" && <ComparePaths plan={plan} unit={shortUnit(info?.priceUnit)} />}
+              {tab === "shop" && <ShoppingList plan={plan} />}
+              {tab === "compare" && <ComparePaths plan={plan} />}
               {tab === "goal" && (
                 <div className="panel pad stack">
                   <div>{plan.goal.map((g) => <div key={g.label} className="row" style={{ padding: "3px 0" }}><span className={`pill ${g.slot}`}>{g.slot === "prefix" ? "préfixe" : "suffixe"}</span>{g.label}</div>)}</div>
                   {plan.instill && (
                     <p className="small">
-                      Puis instiller <b>{plan.instill.name}</b> ({plan.instill.stats.join(" ; ")}) avec {plan.instill.emotions.join(" → ")}, dans cet ordre : {cost(plan.instill.cost, shortUnit(info?.priceUnit))}, compté une seule fois.
+                      Puis instiller <b>{plan.instill.name}</b> ({plan.instill.stats.join(" ; ")}) avec {plan.instill.emotions.join(" → ")}, dans cet ordre : <Cost ex={plan.instill.cost} />, compté une seule fois.
                     </p>
                   )}
                   <p className="muted small">
-                    Prix : {plan.pricesSource}. Le coût de la première base ({cost(plan.baseCost, shortUnit(info?.priceUnit))}) est inclus en haut de l'écran ;
+                    Prix : {plan.pricesSource}. Le coût de la première base (<Cost ex={plan.baseCost} />) est inclus en haut de l'écran ;
                     {plan.mc && ` chaque craft abandonné en coûte en moyenne ${num(plan.mc.meanAbandons, 2)} de plus.`}
                     {" "}Probabilité de réussir un craft sans jamais abandonner : voir l'arbre (chemin vert).
                     {plan.mc && plan.mc.censored > 0 && ` ${pct(plan.mc.censored / (plan.mc.trials + plan.mc.censored))} des essais ont été interrompus (trop longs) et sont exclus des statistiques.`}

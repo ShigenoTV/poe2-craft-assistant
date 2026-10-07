@@ -1,6 +1,7 @@
 import { useStore } from "@/store";
 import type { ComparedPath, CraftPlan } from "@/lib/types";
-import { cost, num } from "@/lib/format";
+import { num } from "@/lib/format";
+import { Cost, useCost } from "@/lib/display";
 
 /** Indice du chemin qui minimise `f` parmi ceux vérifiés sur le moteur exact (`-1` s'il y en a moins de deux). */
 function best(paths: ComparedPath[], f: (p: ComparedPath) => number | undefined): number {
@@ -14,8 +15,9 @@ function best(paths: ComparedPath[], f: (p: ComparedPath) => number | undefined)
   return n >= 2 ? bi : -1;
 }
 
-export function ComparePaths({ plan, unit }: { plan: CraftPlan; unit: string }) {
+export function ComparePaths({ plan }: { plan: CraftPlan }) {
   const { comparison, comparing, compareProgress, compareError, compare, usePath, cancel, solving } = useStore();
+  const fmt = useCost();
   // base neuve + instillation éventuelle : coûts fixes identiques pour tous les chemins
   const b = plan.baseCost + (plan.instill?.cost ?? 0);
   const paths = comparison ?? [];
@@ -62,11 +64,11 @@ export function ComparePaths({ plan, unit }: { plan: CraftPlan; unit: string }) 
                     {tag(i) && <div className="small ok-t">{tag(i)}</div>}
                     {!p.converged && <div className="small warn-t">résultat approché</div>}
                   </td>
-                  <td className="n">{cost((p.mc?.meanCost ?? p.expectedCost) + b, unit)}</td>
-                  <td className="n">{p.mc ? cost(p.mc.medianCost + b, unit) : "—"}</td>
-                  <td className="n">{p.mc ? cost(p.mc.p99Cost + b, unit) : "—"}</td>
-                  <td className="n">{p.mc?.stdDev !== undefined ? cost(p.mc.stdDev, unit) : "—"}</td>
-                  <td className="small">{p.mainCurrencies.map((l) => `${l.label} (${cost(l.expectedCost, unit)})`).join(", ")}</td>
+                  <td className="n"><Cost ex={(p.mc?.meanCost ?? p.expectedCost) + b} /></td>
+                  <td className="n">{p.mc ? <Cost ex={p.mc.medianCost + b} /> : "—"}</td>
+                  <td className="n">{p.mc ? <Cost ex={p.mc.p99Cost + b} /> : "—"}</td>
+                  <td className="n">{p.mc?.stdDev !== undefined ? <Cost ex={p.mc.stdDev} /> : "—"}</td>
+                  <td className="small">{p.mainCurrencies.map((l) => `${l.label} (${fmt(l.expectedCost)})`).join(", ")}</td>
                   <td>{p.excluded && <button className="btn sm" disabled={solving || comparing} onClick={() => void usePath(p)}>Suivre ce chemin</button>}</td>
                 </tr>
               ))}

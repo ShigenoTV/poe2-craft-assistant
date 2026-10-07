@@ -30,6 +30,9 @@ pub struct Settings {
     pub auto_refresh_prices: bool,
     /// intervalle de cette actualisation, en minutes (15 au minimum)
     pub price_refresh_minutes: u32,
+    /// unité d'affichage des coûts : « ex » (Exalted) ou « div » (Divine, au prix courant de la Divine).
+    /// Affichage seulement : le solveur et les prix restent en Exalted.
+    pub cost_unit: String,
 }
 
 impl Default for Settings {
@@ -51,6 +54,7 @@ impl Default for Settings {
             price_league: String::new(),
             auto_refresh_prices: true,
             price_refresh_minutes: 60,
+            cost_unit: "ex".into(),
         }
     }
 }
@@ -159,5 +163,23 @@ impl AppState {
         g.store(true, Ordering::Relaxed);
         *g = Arc::new(AtomicBool::new(false));
         g.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Settings;
+
+    #[test]
+    fn cost_unit_defaults_to_exalted_and_is_kept() {
+        // réglages enregistrés par une version précédente, sans le champ : coûts en Exalted comme avant
+        let old: Settings = serde_json::from_str(r#"{"priceLeague":"Standard","defaultIlvl":82}"#).unwrap();
+        assert_eq!(old.cost_unit, "ex");
+        assert_eq!(old.default_ilvl, 82);
+        let mut s = Settings::default();
+        s.cost_unit = "div".into();
+        let back: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
+        assert_eq!(back.cost_unit, "div");
+        assert!(serde_json::to_string(&s).unwrap().contains(r#""costUnit":"div""#), "nom du champ attendu par l'interface");
     }
 }

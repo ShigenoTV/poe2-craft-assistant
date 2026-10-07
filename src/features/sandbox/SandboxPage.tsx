@@ -3,7 +3,8 @@ import { useStore } from "@/store";
 import { api } from "@/lib/ipc";
 import { GoalPicker } from "@/components/GoalPicker";
 import { goalFamilies, ItemCard } from "@/components/ItemCard";
-import { cost, num, pct, shortUnit } from "@/lib/format";
+import { num, pct } from "@/lib/format";
+import { Cost, useCost } from "@/lib/display";
 import { BaseSelect } from "@/components/BaseSelect";
 import { findGroup, type ActionView, type ItemDetail, type SimResult, type WantedReq } from "@/lib/types";
 
@@ -27,7 +28,7 @@ export function SandboxPage() {
   const { info, pools, actions: allActions, ensurePool, prices } = useStore();
   // Essences / Liquid Emotions : propres à chaque base, réservées au planificateur
   const actions = useMemo(() => allActions.filter((a) => a.kind !== "essence"), [allActions]);
-  const unit = shortUnit(info?.priceUnit);
+  const fmt = useCost();
   const [baseId, setBaseId] = useState(info?.bases[0]?.id ?? "");
   const [ilvl, setIlvl] = useState(81);
   const [item, setItem] = useState<ItemDetail>(blank(81));
@@ -93,11 +94,11 @@ export function SandboxPage() {
           <ItemCard item={item} title={pool ? pool.base.name : ""} goal={{ families: fam }} />
           <div className="panel pad stack" style={{ gap: 10 }}>
             <div className="row"><h3 className="hd">Monnaies</h3>
-              <span className="muted small right">Dépensé : <b style={{ color: "var(--rare)" }}>{cost(spent, unit)}</b> · {log.filter((l) => l.ok).length} applications</span></div>
+              <span className="muted small right">Dépensé : <b style={{ color: "var(--rare)" }}><Cost ex={spent} /></b> · {log.filter((l) => l.ok).length} applications</span></div>
             <div className="cur-grid">
               {plain.map((a) => (
                 <button key={a.id} className="cur" disabled={!applicable(a, item)} onClick={() => void apply(a)}>
-                  {a.label}<small>{cost(a.unitCost, unit)}{a.minModLevel > 0 && ` · mod niv. ${a.minModLevel}+`}</small>
+                  {a.label}<small><Cost ex={a.unitCost} />{a.minModLevel > 0 && ` · mod niv. ${a.minModLevel}+`}</small>
                 </button>
               ))}
             </div>
@@ -105,7 +106,7 @@ export function SandboxPage() {
               <div className="cur-grid" style={{ paddingTop: 8 }}>
                 {omens.map((a) => (
                   <button key={a.id} className="cur" disabled={!applicable(a, item)} onClick={() => void apply(a)}>
-                    {a.label}<small>{cost(a.unitCost, unit)}</small>
+                    {a.label}<small><Cost ex={a.unitCost} /></small>
                   </button>
                 ))}
               </div>
@@ -114,7 +115,7 @@ export function SandboxPage() {
               <button className="btn" onClick={undo} disabled={hist.length === 0}>Annuler la dernière</button>
               <button className="btn" onClick={() => reset()}>Nouvelle base</button>
             </div>
-            {log.length > 0 && <div className="log">{log.map((l, i) => <div key={i}><b>{l.label}</b> {l.ok ? `− ${cost(l.cost, unit)}` : "— sans effet (conditions non remplies)"}</div>)}</div>}
+            {log.length > 0 && <div className="log">{log.map((l, i) => <div key={i}><b>{l.label}</b> {l.ok ? `− ${fmt(l.cost)}` : "— sans effet (conditions non remplies)"}</div>)}</div>}
           </div>
         </div>
 
@@ -147,7 +148,7 @@ export function SandboxPage() {
                 <tr><td>Probabilité d'obtenir l'objectif</td><td className="n"><b>{pct(res.pHat)}</b> <span className="muted small">[{pct(res.ci95[0])} ; {pct(res.ci95[1])}]</span></td></tr>
                 <tr><td>Monnaies utilisées en moyenne (toutes tentatives)</td><td className="n">{num(res.meanOrbsAll, 2)}</td></tr>
                 <tr><td>… quand ça réussit</td><td className="n">{res.meanOrbsOnSuccess === null ? "—" : num(res.meanOrbsOnSuccess, 2)}</td></tr>
-                <tr><td>Coût moyen par réussite (bases comprises)</td><td className="n">{res.costPerSuccess === null ? "—" : cost(res.costPerSuccess, unit)}</td></tr>
+                <tr><td>Coût moyen par réussite (bases comprises)</td><td className="n">{res.costPerSuccess === null ? "—" : <Cost ex={res.costPerSuccess} />}</td></tr>
                 <tr><td className="muted small" colSpan={2}>{num(res.trials, 0)} essais · intervalle de confiance à 95 %</td></tr>
               </tbody></table>
             )}

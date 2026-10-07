@@ -205,6 +205,8 @@ pub fn set_settings(app: AppHandle, st: St, settings: Settings) -> Result<(), St
     }
     st.save_settings();
     crate::overlay::refresh(&app, &st);
+    // l'overlay (autre fenêtre) suit le changement d'unité des coûts sans attendre
+    let _ = tauri::Emitter::emit(&app, "settings-changed", &settings);
     Ok(())
 }
 

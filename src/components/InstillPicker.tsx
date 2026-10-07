@@ -1,11 +1,11 @@
 import { useState } from "react";
 import type { InstillView } from "@/lib/types";
-import { cost } from "@/lib/format";
+import { Cost } from "@/lib/display";
 
 /** Instillation d'amulette (The Withered Willow) : trois Liquid Emotions, dans l'ordre, ajoutent un passif
  * à l'amulette une fois l'objectif atteint. Coût fixe, ajouté au plan. */
-export function InstillPicker({ instills, prices, unit, value, onChange }: {
-  instills: InstillView[]; prices: Record<string, number>; unit: string; value: number | null; onChange: (skill: number | null) => void;
+export function InstillPicker({ instills, prices, value, onChange }: {
+  instills: InstillView[]; prices: Record<string, number>; value: number | null; onChange: (skill: number | null) => void;
 }) {
   const [q, setQ] = useState("");
   const recipeCost = (i: InstillView) => i.emotionIds.reduce((s, e) => s + (prices[e] ?? 0), 0);
@@ -19,7 +19,7 @@ export function InstillPicker({ instills, prices, unit, value, onChange }: {
         <div className="want">
           <div className="want-top">
             <b className="grow">{chosen.name}</b>
-            <span className="muted small">{cost(recipeCost(chosen), unit)}</span>
+            <span className="muted small"><Cost ex={recipeCost(chosen)} /></span>
             <button className="btn ghost sm" onClick={() => onChange(null)} aria-label={`Retirer ${chosen.name}`}>Retirer</button>
           </div>
           {chosen.stats.map((s) => <div key={s} className="small">{s}</div>)}
@@ -35,7 +35,7 @@ export function InstillPicker({ instills, prices, unit, value, onChange }: {
               {filtered.map((i) => (
                 <button key={i.skill} className="addrow" title={`${i.stats.join("\n")}\n${i.emotions.join(" → ")}`} onClick={() => { onChange(i.skill); setQ(""); }}>
                   <span>{i.name}</span>
-                  <span className="share">{cost(recipeCost(i), unit)}</span>
+                  <span className="share"><Cost ex={recipeCost(i)} /></span>
                 </button>
               ))}
             </div>

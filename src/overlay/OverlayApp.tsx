@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, listen } from "@/lib/ipc";
 import { AdviceView } from "@/components/AdviceView";
 import { LivePanel } from "./LivePanel";
+import { useDisplay } from "@/lib/display";
 import { prettyText, rarityLabel } from "@/lib/format";
 import type { ActiveInfo, ItemCaptured } from "@/lib/types";
 
@@ -13,6 +14,7 @@ export function OverlayApp() {
   const [hotkey, setHotkey] = useState("Ctrl+Shift+D");
 
   useEffect(() => {
+    useDisplay.getState().init();
     void api.overlayState().then(([, i]) => setInteractive(i));
     void api.hotkeyStatus().then(setHkError);
     void api.getSettings().then((s) => setHotkey(s.hotkeyInteractive));

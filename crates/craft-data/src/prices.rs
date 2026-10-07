@@ -92,6 +92,16 @@ mod tests {
     }
 
     #[test]
+    fn divine_price_in_exalted_comes_from_the_currency_response() {
+        // sert à afficher les coûts en Divine : 1 Divine = 1 / 0,002125 ≈ 470,6 Exalted dans la réponse réelle
+        let r = extract(&fixture("ninja_currency.json"), &w(&[("divine", "divine")])).unwrap();
+        assert!((r.prices["divine"] - 470.6).abs() < 0.1, "{}", r.prices["divine"]);
+        let ds = crate::Dataset::embedded();
+        assert_eq!(ds.price_sources["divine"], PriceSource { ninja_type: "Currency".into(), ninja_id: "divine".into() });
+        assert!((ds.prices["divine"] - 470.6).abs() < 0.1, "prix par défaut de la Divine : {}", ds.prices["divine"]);
+    }
+
+    #[test]
     fn omens_come_from_the_ritual_category() {
         let r = extract(&fixture("ninja_ritual.json"), &w(&[("omen_sinistral_exaltation", "omen-of-sinistral-exaltation"), ("omen_dextral_annulment", "omen-of-dextral-annulment")])).unwrap();
         assert!((r.prices["omen_sinistral_exaltation"] - 37.6).abs() < 0.5);

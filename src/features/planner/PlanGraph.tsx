@@ -5,7 +5,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { ActionNodeData, CraftPlan } from "@/lib/types";
-import { cost, num, pct } from "@/lib/format";
+import { num, pct } from "@/lib/format";
+import { Cost } from "@/lib/display";
 import { layout, planToFlow, type EdgeData, type FlowData } from "./planToFlow";
 
 const PLATE: Record<string, string> = {
@@ -41,7 +42,7 @@ const ActionNode = memo(function ActionNode({ data, selected }: NodeProps<Node<F
         </div>
       </div>
       <div className="cn-foot">
-        <span>reste <b>{cost(n.costToGo)}</b></span>
+        <span>reste <b><Cost ex={n.costToGo} /></b></span>
         {n.repeat && <span title="Boucle sur le même état">~{num(n.repeat.expectedAttempts, 1)} essais</span>}
       </div>
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
@@ -149,14 +150,14 @@ export function PlanGraph({ plan }: { plan: CraftPlan }) {
         <aside className="node-panel" aria-label="Détail de l'étape">
           <div className="row"><h3 className="hd grow">{node.action.label}</h3><button className="btn ghost sm" onClick={() => setSel(null)}>Fermer</button></div>
           <p className="muted small" style={{ margin: "4px 0 10px" }}>
-            Coût restant espéré {cost(node.costToGo)} · {num(node.expectedVisits, 2)} passage(s) par craft
+            Coût restant espéré <Cost ex={node.costToGo} /> · {num(node.expectedVisits, 2)} passage(s) par craft
             {node.repeat && ` · ${num(node.repeat.expectedAttempts, 1)} essais avant de changer d'état (9 fois sur 10 : ${Math.ceil(node.repeat.p90Attempts)})`}
           </p>
           <div className="hd small" style={{ marginBottom: 4 }}>Selon le tirage</div>
           {node.branches.map((b) => (
             <div key={b.id} className={`br ${b.kind}`}>
               <b>{pct(b.probability)}</b>
-              <span>{b.label}{b.loopback && <span className="faint"> ↺</span>}{b.extraCost > 0 && <span className="faint"> (−{cost(b.extraCost)})</span>}</span>
+              <span>{b.label}{b.loopback && <span className="faint"> ↺</span>}{b.extraCost > 0 && <span className="faint"> (−<Cost ex={b.extraCost} />)</span>}</span>
             </div>
           ))}
           {node.mergedMinorCount > 0 && <p className="faint small" style={{ marginTop: 8 }}>+ {node.mergedMinorCount} issue(s) rare(s) : {pct(node.mergedMinorProbability)} au total</p>}

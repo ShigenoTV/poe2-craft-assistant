@@ -8,6 +8,7 @@
     "dev:web": "vite --open /?mock",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
+    "test": "node --test tools/money.test.mjs",
     "tauri": "tauri",
     "fixtures": "cargo run -q -p craft-api --bin craft-cli -- export-fixtures src/mock/fixtures",
     "setup-updates": "node tools/setup-updates.mjs",

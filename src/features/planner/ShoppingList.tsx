@@ -1,7 +1,8 @@
 import type { CraftPlan } from "@/lib/types";
-import { cost, num } from "@/lib/format";
+import { num } from "@/lib/format";
+import { Cost } from "@/lib/display";
 
-export function ShoppingList({ plan, unit }: { plan: CraftPlan; unit: string }) {
+export function ShoppingList({ plan }: { plan: CraftPlan }) {
   const total = plan.shopping.reduce((s, l) => s + l.expectedCost, 0);
   const max = Math.max(...plan.shopping.map((l) => l.expectedCost), 1);
   return (
@@ -13,12 +14,12 @@ export function ShoppingList({ plan, unit }: { plan: CraftPlan; unit: string }) 
             <tr key={l.id}>
               <td>{l.label}</td>
               <td className="n">{num(l.expectedCount, l.expectedCount < 10 ? 2 : 1)}</td>
-              <td className="n muted">{cost(l.unitCost, unit)}</td>
-              <td className="n">{cost(l.expectedCost, unit)}</td>
+              <td className="n muted"><Cost ex={l.unitCost} /></td>
+              <td className="n"><Cost ex={l.expectedCost} /></td>
               <td><div className="bar"><i style={{ width: `${(100 * l.expectedCost) / max}%` }} /></div></td>
             </tr>
           ))}
-          <tr><td colSpan={3}><b>Total moyen</b></td><td className="n"><b>{cost(total, unit)}</b></td><td /></tr>
+          <tr><td colSpan={3}><b>Total moyen</b></td><td className="n"><b><Cost ex={total} /></b></td><td /></tr>
         </tbody>
       </table>
       <p className="muted small" style={{ padding: "10px 12px" }}>

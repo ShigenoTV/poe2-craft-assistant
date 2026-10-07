@@ -7,6 +7,7 @@ import { DataPage } from "@/features/data/DataPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { isTauri } from "@/lib/ipc";
 import { UpdateBox } from "@/components/UpdateBox";
+import { CostUnitSwitch, useDisplay } from "@/lib/display";
 
 const NAV: [Page, string][] = [["planner", "Reverse-crafting"], ["sandbox", "Simulateur"], ["item", "Objet en jeu"], ["data", "Données"], ["settings", "Réglages"]];
 
@@ -21,7 +22,7 @@ function Mark() {
 
 export function App() {
   const { page, setPage, boot, ready, bootError, info } = useStore();
-  useEffect(() => { void boot(); }, [boot]);
+  useEffect(() => { void boot(); useDisplay.getState().init(); }, [boot]);
   const sample = info?.source.includes("placeholder");
   return (
     <div className="app">
@@ -30,6 +31,7 @@ export function App() {
         <div className="nav">
           {NAV.map(([id, label]) => <button key={id} aria-current={page === id ? "page" : undefined} onClick={() => setPage(id)}>{label}</button>)}
         </div>
+        <div className="cost-unit">Coûts affichés en<CostUnitSwitch /></div>
         <div className="rail-foot">
           <UpdateBox />
           {sample && <span className="badge-warn">Données d'exemple : poids et prix inventés. Importe un vrai jeu de données.</span>}

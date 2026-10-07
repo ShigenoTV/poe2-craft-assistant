@@ -392,6 +392,8 @@ Connection: close
         assert!((m.prices["exalt"] - 1.0).abs() < 1e-9, "{:?}", m.prices.get("exalt"));
         assert!((m.prices["chaos"] - 56.38).abs() < 0.1, "{:?}", m.prices.get("chaos"));
         assert!((m.prices["omen_sinistral_exaltation"] - 37.6).abs() < 0.5, "{:?}", m.prices.get("omen_sinistral_exaltation"));
+        // prix de la Divine en Exalted : sert à afficher les coûts en Divine
+        assert!((m.prices["divine"] - 470.6).abs() < 0.1, "{:?}", m.prices.get("divine"));
         assert!(m.prices.len() >= 15, "seuls {} prix trouvés", m.prices.len());
         let types: BTreeSet<&str> = ds.price_sources.values().map(|s| s.ninja_type.as_str()).collect();
         assert_eq!(hits.load(Ordering::SeqCst), 1 + types.len(), "leagues + une requête par catégorie, pas plus");

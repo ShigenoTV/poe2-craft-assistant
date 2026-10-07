@@ -1,5 +1,6 @@
 import type { ItemCaptured } from "@/lib/types";
-import { cost, num, pct } from "@/lib/format";
+import { num, pct } from "@/lib/format";
+import { Cost } from "@/lib/display";
 
 /** Conseil du solveur pour l'objet capturé (utilisé dans l'app et dans l'overlay).
  * `compact` : mode overlay en jeu — la prochaine étape prend toute la place, le reste est replié. */
@@ -41,7 +42,7 @@ export function AdviceView({ cap, compact = false }: { cap: Pick<ItemCaptured, "
           <div className="small muted">Prochaine étape</div>
           <div className="act">{a.action.isAbandon ? "Abandonner cet objet" : a.action.label}</div>
           <div className="small muted" style={{ marginTop: 2 }}>
-            {a.costToGo !== null && <>Coût restant espéré {cost(a.costToGo)}</>}
+            {a.costToGo !== null && <>Coût restant espéré <Cost ex={a.costToGo} /></>}
             {a.repeat && a.repeat.expectedAttempts > 1.15 && <> · à répéter jusqu'à changement (~{num(a.repeat.expectedAttempts, 1)} fois)</>}
           </div>
         </div>
