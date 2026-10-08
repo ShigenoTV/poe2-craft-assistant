@@ -224,6 +224,8 @@ details.box > div { padding: 4px 12px 12px; }
 
 /* Suivi de craft en direct (overlay) */
 .lv-head, .lv-rarity, .lv-add { display: flex; align-items: center; gap: 6px; }
+.lv-cost { display: flex; align-items: center; gap: 8px; }
+.lv-cost select { min-width: 0; font-size: 12px; padding: 2px 4px; }
 .lv-rarity .btn.on { opacity: 1; border-color: #86702c; }
 .lv-rarity .btn.rare { color: var(--rare); } .lv-rarity .btn.magic { color: var(--magic); } .lv-rarity .btn.normal { color: var(--normal); }
 .lv-mods { display: flex; flex-direction: column; gap: 2px; }

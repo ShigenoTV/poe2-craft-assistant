@@ -19,3 +19,8 @@ export function exaltedToInput(ex: number, unit: CostUnit, divine: number | null
 }
 
 export const isCostUnit = (u: unknown): u is CostUnit => u === "ex" || u === "div";
+
+/** Écart relatif du coût réel au coût prévu (historique des crafts) ; `null` sans prévision. */
+export function gapOf(planned: number, real: number): number | null {
+  return Number.isFinite(planned) && planned > 0 && Number.isFinite(real) ? (real - planned) / planned : null;
+}

@@ -37,8 +37,10 @@ pub fn process_text(app: &AppHandle, st: &Arc<AppState>, text: &str) -> ItemCapt
             *st.last_item.lock().unwrap() = Some((ctx.req.base_id.clone(), detail.view.clone()));
             // l'objet copié en jeu fait foi pour le suivi en direct (étape annulable comme une saisie)
             let view = detail.view.clone();
-            let _ = crate::commands::live_run(app, st, move |_, s| {
-                s.set(view);
+            // un objet copié qui a changé compte la monnaie conseillée, comme une saisie
+            let _ = crate::commands::live_run(app, st, move |ctx, s| {
+                let spend = craft_api::live::advised_spend(ctx, s);
+                s.set_spending(view, spend);
                 Ok(())
             });
             match detail.view.to_state(&ctx.bp.pool).and_then(|it| advise_item(ctx, &it, &AtomicBool::new(false))) {

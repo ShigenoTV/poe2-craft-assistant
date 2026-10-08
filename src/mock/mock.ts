@@ -74,10 +74,22 @@ function applyCur(pool: T.PoolView, item: T.ItemView, c: T.ActionView): boolean 
 // Suivi en direct factice (`?live`) : vraie mécanique de saisie, conseil figé repris de la capture d'exemple.
 const liveMode = () => typeof location !== "undefined" && new URLSearchParams(location.search).has("live");
 let liveHist: T.ItemView[] = [];
+// monnaie comptée pour chaque étape (même index que liveHist ; la première est l'état de départ)
+let liveSpend: (T.Spend | null)[] = [];
+let history: T.CraftRecord[] = [];
+function spendChoices(): T.Spend[] {
+  const acts = get<T.ActionView[]>("actions").filter((a) => a.defaultEnabled).map((a) => ({ actionId: a.id, label: a.label, cost: a.unitCost }));
+  return [...acts, { actionId: "new_base", label: "Base neuve", cost: get<T.CraftPlan>("plan").baseCost }];
+}
+const advisedSpend = (): T.Spend | null => {
+  const a = get<T.ItemCaptured>("capture").advice?.advice?.action;
+  return a && !a.isAbandon ? { actionId: a.id, label: a.label, cost: a.unitCost } : null;
+};
+const spent = () => liveSpend.reduce((x, s) => x + (s?.cost ?? 0), 0);
 function liveView(): T.LiveView {
   const plan = get<T.CraftPlan>("plan");
   const pool = get<T.PoolView>(`pool_${plan.baseId}`);
-  if (!liveHist.length) liveHist = [{ rarity: "normal", ilvl: plan.ilvl, mods: [] }];
+  if (!liveHist.length) { liveHist = [{ rarity: "normal", ilvl: plan.ilvl, mods: [] }]; liveSpend = [null]; }
   const item = liveHist[liveHist.length - 1];
   const cap = get<T.ItemCaptured>("capture");
   const status = plan.goal.map((g) => {
@@ -85,7 +97,10 @@ function liveView(): T.LiveView {
     return !m ? "missing" : m.tier <= g.maxTier ? "held" : "blocked";
   }) as T.AdviceResult["wantedStatus"];
   const advice = cap.advice && { ...cap.advice, wantedStatus: status };
-  return { baseId: plan.baseId, item: detail(pool, item), advice, adviceError: null, canUndo: liveHist.length > 1, steps: liveHist.length - 1 };
+  return {
+    baseId: plan.baseId, item: detail(pool, item), advice, adviceError: null, canUndo: liveHist.length > 1, steps: liveHist.length - 1,
+    plannedCost: plan.expectedCost, spent: spent(), lastSpend: liveHist.length > 1 ? liveSpend[liveSpend.length - 1] : null, spendChoices: spendChoices(),
+  };
 }
 function liveEdit(edits: T.LiveEdit[]) {
   const pool = get<T.PoolView>(`pool_${get<T.CraftPlan>("plan").baseId}`);
@@ -105,6 +120,30 @@ function liveEdit(edits: T.LiveEdit[]) {
     if (over()) throw "trop d'affixes pour cette rareté";
   }
   liveHist.push(it);
+  liveSpend.push(advisedSpend());
+}
+function liveFinish(): T.CraftRecord {
+  const plan = get<T.CraftPlan>("plan");
+  const v = liveView();
+  if (v.steps === 0) throw "rien à enregistrer : aucune saisie depuis le début du suivi";
+  const uses: T.UseLine[] = [];
+  for (const s of liveSpend) {
+    if (!s) continue;
+    const u = uses.find((x) => x.actionId === s.actionId);
+    if (u) { u.count++; u.cost += s.cost; } else uses.push({ actionId: s.actionId, label: s.label, count: 1, cost: s.cost });
+  }
+  uses.sort((a, b) => b.cost - a.cost);
+  const r: T.CraftRecord = {
+    id: Math.max(0, ...history.map((h) => h.id)) + 1, finishedAt: Math.floor(Date.now() / 1000), baseId: plan.baseId,
+    baseName: get<T.DatasetInfo>("dataset_info").bases.find((b) => b.id === plan.baseId)?.name ?? plan.baseId, ilvl: plan.ilvl,
+    goal: plan.goal.map((g) => g.label), success: v.advice?.wantedStatus.every((x) => x === "held") ?? false,
+    plannedCost: v.plannedCost, realCost: v.spent, steps: v.steps, uses, pricesSource: plan.pricesSource,
+  };
+  history = [r, ...history];
+  liveHist = [];
+  liveSpend = [];
+  emit("history-updated", null);
+  return r;
 }
 
 export async function handle(cmd: string, a: Record<string, unknown>): Promise<unknown> {
@@ -160,8 +199,12 @@ export async function handle(cmd: string, a: Record<string, unknown>): Promise<u
     }
     case "live_state": return liveMode() ? liveView() : null;
     case "live_edit": liveEdit(a.edits as T.LiveEdit[]); return liveView();
-    case "live_undo": if (liveHist.length > 1) liveHist.pop(); return liveView();
-    case "live_reset": liveHist.push({ rarity: "normal", ilvl: get<T.CraftPlan>("plan").ilvl, mods: [] }); return liveView();
+    case "live_undo": if (liveHist.length > 1) { liveHist.pop(); liveSpend.pop(); } return liveView();
+    case "live_reset": liveView(); liveHist.push({ rarity: "normal", ilvl: get<T.CraftPlan>("plan").ilvl, mods: [] }); { const c = spendChoices(); liveSpend.push(c[c.length - 1]); } return liveView();
+    case "live_set_spend": if (liveHist.length > 1) liveSpend[liveSpend.length - 1] = spendChoices().find((c) => c.actionId === a.actionId) ?? null; return liveView();
+    case "live_finish": return liveFinish();
+    case "history_list": return history;
+    case "history_delete": history = a.id === null || a.id === undefined ? [] : history.filter((h) => h.id !== a.id); emit("history-updated", null); return null;
     case "clear_active_plan": return null;
     case "submit_item_text": return get("capture") ?? null;
     case "analyze_item_text": return (get("capture") as { analysis?: T.ItemAnalysis } | null)?.analysis ?? { parsed: { itemClass: null, rarityLabel: null, rarity: null, name: null, baseType: null, itemLevel: null, corrupted: false, advanced: false, mods: [] }, baseId: null, detail: null, unmatched: [], error: "Mode démo : analyse d'objet non simulée." };

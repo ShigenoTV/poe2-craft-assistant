@@ -275,7 +275,22 @@ pub async fn live_state(app: AppHandle, st: St<'_>) -> Result<Option<craft_api::
 /// Saisie de ce qui vient d'être obtenu (une seule étape d'historique pour toute la liste).
 #[tauri::command]
 pub async fn live_edit(app: AppHandle, st: St<'_>, edits: Vec<craft_api::LiveEdit>) -> Result<Option<craft_api::LiveView>, String> {
-    live_blocking(app, st.inner().clone(), move |ctx, s| s.apply(&ctx.bp.pool, &edits)).await
+    // la saisie compte la monnaie conseillée juste avant (corrigeable ensuite avec `live_set_spend`)
+    live_blocking(app, st.inner().clone(), move |ctx, s| {
+        let spend = craft_api::live::advised_spend(ctx, s);
+        s.apply_spending(&ctx.bp.pool, &edits, spend)
+    })
+    .await
+}
+
+/// Change la monnaie comptée pour la dernière saisie (`None` : correction de saisie, rien n'est compté).
+#[tauri::command]
+pub async fn live_set_spend(app: AppHandle, st: St<'_>, action_id: Option<String>) -> Result<Option<craft_api::LiveView>, String> {
+    live_blocking(app, st.inner().clone(), move |ctx, s| {
+        let spend = action_id.map(|id| craft_api::live::spend_of(ctx, &id)).transpose()?;
+        s.set_last_spend(spend)
+    })
+    .await
 }
 
 /// Annule la dernière saisie (erreur de clic, mauvais tier...).
@@ -292,10 +307,59 @@ pub async fn live_undo(app: AppHandle, st: St<'_>) -> Result<Option<craft_api::L
 #[tauri::command]
 pub async fn live_reset(app: AppHandle, st: St<'_>) -> Result<Option<craft_api::LiveView>, String> {
     live_blocking(app, st.inner().clone(), |ctx, s| {
-        s.set(ItemView { rarity: Rarity::Normal, ilvl: ctx.req.ilvl, mods: vec![] });
+        s.set_spending(ItemView { rarity: Rarity::Normal, ilvl: ctx.req.ilvl, mods: vec![] }, Some(craft_api::live::new_base_spend(ctx)));
         Ok(())
     })
     .await
+}
+
+// ───────────────────────── Historique des crafts ─────────────────────────
+
+/// Clôt le craft suivi (réussi si l'objectif est atteint, sinon abandonné), l'ajoute à l'historique et
+/// repart d'une base neuve pour le craft suivant.
+#[tauri::command]
+pub async fn live_finish(app: AppHandle, st: St<'_>) -> Result<craft_api::CraftRecord, String> {
+    let st = st.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri::Emitter;
+        let ctx = st.active.lock().unwrap().clone().ok_or("aucun plan actif")?;
+        let rec = {
+            let live = st.live.lock().unwrap();
+            let s = live.as_ref().filter(|s| s.base_id == ctx.req.base_id).ok_or("rien à enregistrer : aucune saisie depuis le début du suivi")?;
+            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+            craft_api::history::finish_record(&ctx, s, st.history.lock().unwrap().next_id(), now)?
+        };
+        st.history.lock().unwrap().add(rec.clone());
+        st.save_history();
+        let fresh = ItemView { rarity: Rarity::Normal, ilvl: ctx.req.ilvl, mods: vec![] };
+        *st.live.lock().unwrap() = Some(craft_api::live::start_from(&ctx, fresh));
+        let _ = app.emit("history-updated", ());
+        live_run(&app, &st, |_, _| Ok(()))?;
+        Ok(rec)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn history_list(st: St) -> Vec<craft_api::CraftRecord> {
+    st.history.lock().unwrap().records.clone()
+}
+
+/// Supprime une fiche (`id`) ou tout l'historique (`None`).
+#[tauri::command]
+pub fn history_delete(app: AppHandle, st: St, id: Option<u64>) -> Result<(), String> {
+    match id {
+        Some(id) => {
+            if !st.history.lock().unwrap().remove(id) {
+                return Err("fiche introuvable".into());
+            }
+        }
+        None => st.history.lock().unwrap().records.clear(),
+    }
+    st.save_history();
+    let _ = tauri::Emitter::emit(&app, "history-updated", ());
+    Ok(())
 }
 
 // ───────────────────────── Mises à jour ─────────────────────────

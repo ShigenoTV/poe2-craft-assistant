@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { api, listen } from "@/lib/ipc";
 import type { ActionView, ComparedPath, CraftPlan, DatasetInfo, ItemAnalysis, ItemView, PoolView, Progress, UpdateInfo, WantedReq } from "@/lib/types";
 
-export type Page = "planner" | "sandbox" | "item" | "data" | "settings";
+export type Page = "planner" | "sandbox" | "item" | "history" | "data" | "settings";
 
 interface Store {
   page: Page;

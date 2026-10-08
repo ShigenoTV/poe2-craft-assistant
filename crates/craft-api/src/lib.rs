@@ -11,9 +11,11 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 pub mod compare;
+pub mod history;
 pub mod live;
 pub use compare::{compare_paths, ComparedPath};
-pub use live::{LiveEdit, LiveSession, LiveView};
+pub use history::{CraftRecord, History};
+pub use live::{LiveEdit, LiveSession, LiveView, Spend};
 
 pub use craft_core;
 pub use craft_data;

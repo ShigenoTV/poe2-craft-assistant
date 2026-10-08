@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, listen } from "@/lib/ipc";
 import { AdviceView } from "@/components/AdviceView";
 import { prettyText, rarityLabel } from "@/lib/format";
+import { useCost } from "@/lib/display";
 import type { ActiveInfo, GroupInfo, LiveEdit, LiveView, PoolView, Rarity, Slot, TierInfo } from "@/lib/types";
 
 const slotLabel: Record<Slot, string> = { prefix: "préfixe", suffix: "suffixe" };
@@ -15,6 +16,8 @@ export function LivePanel({ active, interactive, hotkey }: { active: ActiveInfo;
   const [error, setError] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ slot: Slot; replace?: number } | null>(null);
   const [filter, setFilter] = useState("");
+  const [saved, setSaved] = useState<string | null>(null);
+  const fmt = useCost();
 
   useEffect(() => {
     void api.basePool(active.baseId).then(setPool);
@@ -39,7 +42,21 @@ export function LivePanel({ active, interactive, hotkey }: { active: ActiveInfo;
       setBusy(false);
     }
   };
-  const edit = (...edits: LiveEdit[]) => void run(api.liveEdit(edits));
+  const edit = (...edits: LiveEdit[]) => { setSaved(null); void run(api.liveEdit(edits)); };
+  /** Clôt le craft dans l'historique (réussi ou abandonné) et repart d'une base neuve. */
+  const finish = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.liveFinish();
+      setSaved(`${r.success ? "Craft réussi" : "Craft abandonné"} enregistré : prévu ${fmt(r.plannedCost)}, réel ${fmt(r.realCost)}.`);
+      setView(await api.liveState());
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const groups = pool?.groups ?? [];
   const wanted = (g: GroupInfo) => active.goal.some((x) => x.group === g.group && (x.familyId ?? 0) === (g.familyId ?? 0));
@@ -82,6 +99,8 @@ export function LivePanel({ active, interactive, hotkey }: { active: ActiveInfo;
   const count = (s: Slot) => item?.mods.filter((m) => m.slot === s).length ?? 0;
   const cap = (s: Slot) => (rarity === "normal" ? 0 : rarity === "magic" ? 1 : s === "prefix" ? pool?.base.maxPrefixes ?? 3 : pool?.base.maxSuffixes ?? 3);
   const hasFractured = item?.mods.some((m) => m.fractured) ?? false;
+  const reached = view?.advice?.advice?.goalReached ?? false;
+  const canFinish = !!view && (view.steps > 0 || view.spent > 0);
 
   return (
     <div className="stack" style={{ gap: 10 }}>
@@ -90,6 +109,24 @@ export function LivePanel({ active, interactive, hotkey }: { active: ActiveInfo;
         <button className="btn sm" disabled={off || !view?.canUndo} title="Annuler la dernière saisie" onClick={() => void run(api.liveUndo())}>↶ Annuler</button>
         <button className="btn sm" disabled={off} title="Repartir d'une base neuve" onClick={() => void run(api.liveReset())}>Base neuve</button>
       </div>
+      {view && (
+        <div className="lv-cost small">
+          <span className="grow">Prévu <b>{fmt(view.plannedCost)}</b> · dépensé <b className={view.spent > view.plannedCost ? "warn-t" : ""}>{fmt(view.spent)}</b></span>
+          <button className={`btn sm ${reached ? "primary" : ""}`} disabled={off || !canFinish} title="Range ce craft dans l'historique (coût prévu contre coût réel) et repart d'une base neuve" onClick={() => void finish()}>
+            {reached ? "Réussi : enregistrer" : "Abandonner et enregistrer"}
+          </button>
+        </div>
+      )}
+      {view?.canUndo && (
+        <label className="lv-cost small">
+          <span className="muted">Dernière saisie comptée</span>
+          <select className="grow" disabled={off} value={view.lastSpend?.actionId ?? ""} onChange={(e) => void run(api.liveSetSpend(e.target.value || null))}>
+            <option value="">Aucune monnaie (correction de saisie)</option>
+            {view.spendChoices.map((c) => <option key={c.actionId} value={c.actionId}>{c.label} ({fmt(c.cost)})</option>)}
+          </select>
+        </label>
+      )}
+      {saved && <p className="ok-t small" style={{ margin: 0 }}>{saved}</p>}
       {!interactive && <p className="muted small" style={{ margin: 0 }}>Passe l'overlay en interactif (<span className="kbd">{hotkey}</span>) pour saisir ce que tu viens d'obtenir, ou copie l'objet en jeu.</p>}
 
       <div className="lv-rarity">

@@ -130,7 +130,24 @@ export type LiveEdit =
   | { kind: "replace"; from: number; to: number }
   | { kind: "rarity"; rarity: Rarity }
   | { kind: "fracture"; affixIdx: number };
-export interface LiveView { baseId: string; item: ItemDetail; advice: AdviceResult | null; adviceError: string | null; canUndo: boolean; steps: number }
+/** Monnaie comptée pour une saisie, au prix du plan actif (`actionId` « new_base » : rachat d'une base). */
+export interface Spend { actionId: string; label: string; cost: number }
+export interface LiveView {
+  baseId: string; item: ItemDetail; advice: AdviceResult | null; adviceError: string | null; canUndo: boolean; steps: number;
+  /** coût espéré au départ du suivi, hors première base */
+  plannedCost: number;
+  /** coût des monnaies comptées jusqu'ici */
+  spent: number;
+  lastSpend: Spend | null;
+  spendChoices: Spend[];
+}
+
+// ── Historique des crafts (craft-api/src/history.rs)
+export interface UseLine { actionId: string; label: string; count: number; cost: number }
+export interface CraftRecord {
+  id: number; finishedAt: number; baseId: string; baseName: string; ilvl: number; goal: string[]; success: boolean;
+  plannedCost: number; realCost: number; steps: number; uses: UseLine[]; pricesSource: string;
+}
 export interface ActiveInfo { baseId: string; ilvl: number; goal: GoalItem[]; expectedCost: number }
 
 export interface Settings {

@@ -3,13 +3,14 @@ import { useStore, type Page } from "@/store";
 import { PlannerPage } from "@/features/planner/PlannerPage";
 import { SandboxPage } from "@/features/sandbox/SandboxPage";
 import { ItemPage } from "@/features/item/ItemPage";
+import { HistoryPage } from "@/features/history/HistoryPage";
 import { DataPage } from "@/features/data/DataPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { isTauri } from "@/lib/ipc";
 import { UpdateBox } from "@/components/UpdateBox";
 import { CostUnitSwitch, useDisplay } from "@/lib/display";
 
-const NAV: [Page, string][] = [["planner", "Reverse-crafting"], ["sandbox", "Simulateur"], ["item", "Objet en jeu"], ["data", "Données"], ["settings", "Réglages"]];
+const NAV: [Page, string][] = [["planner", "Reverse-crafting"], ["sandbox", "Simulateur"], ["item", "Objet en jeu"], ["history", "Historique"], ["data", "Données"], ["settings", "Réglages"]];
 
 function Mark() {
   return (
@@ -46,6 +47,7 @@ export function App() {
             {page === "planner" && <PlannerPage />}
             {page === "sandbox" && <SandboxPage />}
             {page === "item" && <ItemPage />}
+            {page === "history" && <HistoryPage />}
             {page === "data" && <DataPage />}
             {page === "settings" && <SettingsPage />}
           </>

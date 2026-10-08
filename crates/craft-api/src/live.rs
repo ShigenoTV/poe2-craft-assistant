@@ -31,20 +31,69 @@ pub enum LiveEdit {
 
 const MAX_HISTORY: usize = 200;
 
+/// Identifiant de la dépense « base neuve » (rachat d'une base après abandon), hors actions du modèle.
+pub const NEW_BASE: &str = "new_base";
+
+/// Monnaie comptée pour une saisie (historique des crafts : coût réel), au prix du plan actif.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Spend {
+    pub action_id: String,
+    pub label: String,
+    pub cost: f64,
+}
+
+#[derive(Clone, Debug)]
+struct Step {
+    item: ItemView,
+    /// monnaie utilisée pour arriver à cet objet (`None` : état de départ, correction de saisie)
+    spend: Option<Spend>,
+}
+
 /// Objet suivi et son historique de saisies (le dernier élément est l'état courant).
 #[derive(Clone, Debug)]
 pub struct LiveSession {
     pub base_id: String,
-    history: Vec<ItemView>,
+    /// coût espéré du plan depuis l'objet de départ du suivi (hors première base), figé au démarrage :
+    /// un recalcul du plan (prix rafraîchis) ne change pas ce qui était prévu.
+    pub planned_cost: f64,
+    history: Vec<Step>,
+    /// dépenses des étapes sorties de l'historique (plus de `MAX_HISTORY` saisies) : toujours comptées
+    dropped: Vec<Spend>,
 }
 
 impl LiveSession {
     pub fn new(base_id: impl Into<String>, item: ItemView) -> Self {
-        Self { base_id: base_id.into(), history: vec![item] }
+        Self { base_id: base_id.into(), planned_cost: 0.0, history: vec![Step { item, spend: None }], dropped: vec![] }
     }
 
     pub fn current(&self) -> &ItemView {
-        self.history.last().expect("historique jamais vide")
+        &self.history.last().expect("historique jamais vide").item
+    }
+
+    /// Monnaie comptée pour la dernière saisie.
+    pub fn last_spend(&self) -> Option<&Spend> {
+        if self.can_undo() { self.history.last().and_then(|s| s.spend.as_ref()) } else { None }
+    }
+
+    /// Change la monnaie comptée pour la dernière saisie (autre monnaie que celle conseillée, ou `None` pour
+    /// une simple correction de saisie).
+    pub fn set_last_spend(&mut self, spend: Option<Spend>) -> Result<(), String> {
+        if !self.can_undo() {
+            return Err("aucune saisie à corriger".into());
+        }
+        self.history.last_mut().unwrap().spend = spend;
+        Ok(())
+    }
+
+    /// Toutes les monnaies comptées depuis le début du suivi, dans l'ordre.
+    pub fn spends(&self) -> impl Iterator<Item = &Spend> {
+        self.dropped.iter().chain(self.history.iter().filter_map(|s| s.spend.as_ref()))
+    }
+
+    /// Coût réel du craft suivi (hors première base), aux prix du plan au moment de chaque saisie.
+    pub fn spent(&self) -> f64 {
+        self.spends().map(|s| s.cost).sum()
     }
 
     pub fn can_undo(&self) -> bool {
@@ -58,17 +107,27 @@ impl LiveSession {
 
     /// Applique les modifications d'un seul coup (une seule étape d'historique) ; rien n'est changé en cas d'erreur.
     pub fn apply(&mut self, pool: &AffixPool, edits: &[LiveEdit]) -> Result<(), String> {
+        self.apply_spending(pool, edits, None)
+    }
+
+    /// Comme `apply`, en comptant `spend` pour cette saisie (rien n'est compté si l'objet ne change pas).
+    pub fn apply_spending(&mut self, pool: &AffixPool, edits: &[LiveEdit], spend: Option<Spend>) -> Result<(), String> {
         let mut it = self.current().to_state(pool)?;
         for e in edits {
             apply_edit(pool, &mut it, e)?;
         }
-        self.push(ItemView::from_state(&it));
+        self.push(ItemView::from_state(&it), spend);
         Ok(())
     }
 
     /// Remplace l'objet suivi par un état connu (objet copié en jeu, base neuve), annulable comme une saisie.
     pub fn set(&mut self, item: ItemView) {
-        self.push(item);
+        self.push(item, None);
+    }
+
+    /// Comme `set`, en comptant `spend` si l'objet change.
+    pub fn set_spending(&mut self, item: ItemView, spend: Option<Spend>) {
+        self.push(item, spend);
     }
 
     /// Revient à l'état précédent ; `false` s'il n'y en a pas.
@@ -80,7 +139,7 @@ impl LiveSession {
         true
     }
 
-    fn push(&mut self, item: ItemView) {
+    fn push(&mut self, item: ItemView, spend: Option<Spend>) {
         let same = {
             let c = self.current();
             c.rarity == item.rarity && c.ilvl == item.ilvl && c.mods.len() == item.mods.len() && c.mods.iter().zip(&item.mods).all(|(a, b)| a.affix_idx == b.affix_idx && a.fractured == b.fractured)
@@ -88,9 +147,13 @@ impl LiveSession {
         if same {
             return; // rien n'a changé : pas d'étape vide à annuler
         }
-        self.history.push(item);
+        self.history.push(Step { item, spend });
         if self.history.len() > MAX_HISTORY {
+            // l'ancien état de départ disparaît ; la dépense de l'étape suivante (nouveau départ) reste comptée
             self.history.remove(0);
+            if let Some(sp) = self.history[0].spend.take() {
+                self.dropped.push(sp);
+            }
         }
     }
 }
@@ -184,6 +247,14 @@ pub struct LiveView {
     pub advice_error: Option<String>,
     pub can_undo: bool,
     pub steps: usize,
+    /// coût espéré au départ du suivi (hors première base)
+    pub planned_cost: f64,
+    /// coût réel des monnaies comptées jusqu'ici
+    pub spent: f64,
+    /// monnaie comptée pour la dernière saisie (modifiable)
+    pub last_spend: Option<Spend>,
+    /// monnaies que la dernière saisie peut compter à la place : actions du plan et base neuve
+    pub spend_choices: Vec<Spend>,
 }
 
 /// Recalcule le meilleur coup suivant pour l'objet suivi (résolution à la volée si l'état est nouveau).
@@ -196,13 +267,76 @@ pub fn live_view(ctx: &PlanContext, s: &LiveSession, cancel: &AtomicBool) -> Res
         Ok(a) => (Some(a), None),
         Err(e) => (None, Some(e)),
     };
-    Ok(LiveView { base_id: s.base_id.clone(), item: detail(&ctx.bp.pool, &it), advice, advice_error, can_undo: s.can_undo(), steps: s.steps() })
+    Ok(LiveView {
+        base_id: s.base_id.clone(),
+        item: detail(&ctx.bp.pool, &it),
+        advice,
+        advice_error,
+        can_undo: s.can_undo(),
+        steps: s.steps(),
+        planned_cost: s.planned_cost,
+        spent: s.spent(),
+        last_spend: s.last_spend().cloned(),
+        spend_choices: spend_choices(ctx),
+    })
 }
 
 /// Point de départ du suivi pour un plan : l'objet de départ du plan s'il y en a un, sinon une base neuve.
 pub fn live_start(ctx: &PlanContext) -> LiveSession {
     let item = ctx.req.starting_item.clone().unwrap_or(ItemView { rarity: Rarity::Normal, ilvl: ctx.req.ilvl, mods: Vec::<ModView>::new() });
-    LiveSession::new(ctx.req.base_id.clone(), item)
+    start_from(ctx, item)
+}
+
+/// Nouveau suivi depuis `item`, avec le coût espéré du plan depuis cet objet comme coût prévu.
+pub fn start_from(ctx: &PlanContext, item: ItemView) -> LiveSession {
+    let planned = item
+        .to_state(&ctx.bp.pool)
+        .ok()
+        .and_then(|it| advise_item(ctx, &it, &AtomicBool::new(false)).ok())
+        .and_then(|a| a.advice?.cost_to_go)
+        .unwrap_or(0.0);
+    let mut s = LiveSession::new(ctx.req.base_id.clone(), item);
+    s.planned_cost = planned;
+    s
+}
+
+/// Rachat d'une base (prix de la base moins sa revente), comme le compte le solveur à chaque abandon.
+pub fn new_base_spend(ctx: &PlanContext) -> Spend {
+    Spend { action_id: NEW_BASE.into(), label: "Base neuve".into(), cost: ctx.model.abandon_extra }
+}
+
+/// Monnaie de l'action `id` du plan (ou la base neuve), à son prix dans le plan.
+pub fn spend_of(ctx: &PlanContext, id: &str) -> Result<Spend, String> {
+    if id == NEW_BASE {
+        return Ok(new_base_spend(ctx));
+    }
+    let a = ctx.model.actions.iter().find(|a| a.id == id).ok_or_else(|| format!("monnaie « {id} » absente du plan actif"))?;
+    Ok(Spend { action_id: a.id.clone(), label: a.label.clone(), cost: a.cost })
+}
+
+/// Monnaie conseillée pour l'objet suivi : c'est elle qu'une saisie compte par défaut (l'utilisateur suit le
+/// conseil affiché). `None` si aucun coup n'est conseillé (objectif atteint, objet mort) ou si le conseil
+/// est d'abandonner (le rachat est compté par « Base neuve »).
+pub fn advised_spend(ctx: &PlanContext, s: &LiveSession) -> Option<Spend> {
+    let it = s.current().to_state(&ctx.bp.pool).ok()?;
+    let a = advise_item(ctx, &it, &AtomicBool::new(false)).ok()?.advice?.action?;
+    if a.is_abandon {
+        return None;
+    }
+    Some(Spend { action_id: a.id, label: a.label, cost: a.unit_cost })
+}
+
+fn spend_choices(ctx: &PlanContext) -> Vec<Spend> {
+    let mut v: Vec<Spend> = ctx
+        .model
+        .actions
+        .iter()
+        .filter(|a| !matches!(a.kind, craft_solver::ActionKind::Abandon))
+        .map(|a| Spend { action_id: a.id.clone(), label: a.label.clone(), cost: a.cost })
+        .collect();
+    v.sort_by(|a, b| a.label.cmp(&b.label));
+    v.push(new_base_spend(ctx));
+    v
 }
 
 #[cfg(test)]
@@ -351,5 +485,21 @@ mod tests {
         s.apply(pool, &[LiveEdit::Rarity { rarity: Rarity::Normal }]).unwrap();
         assert!(s.current().mods.is_empty());
         assert_eq!(s.steps(), 3);
+    }
+
+    /// Au-delà de 200 saisies, les plus anciennes ne sont plus annulables mais leur coût reste compté.
+    #[test]
+    fn spends_survive_the_history_limit() {
+        let ctx = ctx();
+        let mut s = live_start(&ctx);
+        let j = junk(&ctx, Slot::Suffix, &[]);
+        let sp = Spend { action_id: "annul".into(), label: "Annul".into(), cost: 2.5 };
+        for _ in 0..150 {
+            s.apply_spending(&ctx.bp.pool, &[LiveEdit::Add { affix_idx: j }], Some(sp.clone())).unwrap();
+            s.apply_spending(&ctx.bp.pool, &[LiveEdit::Remove { affix_idx: j }], Some(sp.clone())).unwrap();
+        }
+        assert_eq!(s.steps(), MAX_HISTORY - 1);
+        assert_eq!(s.spends().count(), 300);
+        assert!((s.spent() - 750.0).abs() < 1e-9);
     }
 }

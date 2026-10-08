@@ -79,6 +79,8 @@ pub struct AppState {
     pub last_item: Mutex<Option<(String, craft_api::ItemView)>>,
     /// suivi de craft en direct : objet saisi coup par coup dans l'overlay (base du plan actif)
     pub live: Mutex<Option<craft_api::LiveSession>>,
+    /// historique des crafts terminés (coût prévu contre coût réel), persisté dans `craft-history.json`
+    pub history: Mutex<craft_api::History>,
     pub cpu: Mutex<Arc<rayon::ThreadPool>>,
     pub cancel: Mutex<Arc<AtomicBool>>,
     pub overlay_wanted: AtomicBool,
@@ -110,6 +112,7 @@ impl AppState {
         let ds = Dataset::embedded();
         let prices = read_json(&data_dir.join("prices.json")).unwrap_or_default();
         let market: Option<crate::prices::MarketPrices> = read_json(&data_dir.join("market_prices.json"));
+        let history: craft_api::History = read_json(&data_dir.join("craft-history.json")).unwrap_or_default();
         Self {
             cpu: Mutex::new(make_pool(settings.cpu_threads)),
             data_dir,
@@ -123,6 +126,7 @@ impl AppState {
             last_plan: Mutex::new(None),
             last_item: Mutex::new(None),
             live: Mutex::new(None),
+            history: Mutex::new(history),
             cancel: Mutex::new(Arc::new(AtomicBool::new(false))),
             overlay_wanted: AtomicBool::new(false),
             overlay_interactive: AtomicBool::new(false),
@@ -155,6 +159,11 @@ impl AppState {
     pub fn save_prices(&self) {
         let p = self.price_overrides.lock().unwrap().clone();
         let _ = std::fs::write(self.data_dir.join("prices.json"), serde_json::to_string_pretty(&p).unwrap());
+    }
+
+    pub fn save_history(&self) {
+        let h = self.history.lock().unwrap().clone();
+        let _ = std::fs::write(self.data_dir.join("craft-history.json"), serde_json::to_string_pretty(&h).unwrap());
     }
 
     /// Nouveau jeton d'annulation pour un calcul long ; annule implicitement le précédent.

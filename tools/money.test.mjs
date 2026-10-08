@@ -1,7 +1,7 @@
 // Conversion d'affichage Exalted → Divine (src/lib/money.ts). Lancer : npm test
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toDisplay, inputToExalted, exaltedToInput, isCostUnit } from "../src/lib/money.ts";
+import { toDisplay, inputToExalted, exaltedToInput, isCostUnit, gapOf } from "../src/lib/money.ts";
 
 const DIV = 470.6; // 1 Divine en Exalted (réponse poe.ninja réelle de crates/craft-data/tests/fixtures/ninja_currency.json)
 
@@ -37,4 +37,12 @@ test("le budget saisi en Divine est converti en Exalted, aller-retour exact", ()
 test("seules « ex » et « div » sont des unités valides", () => {
   assert.ok(isCostUnit("ex") && isCostUnit("div"));
   assert.ok(!isCostUnit("chaos") && !isCostUnit(undefined));
+});
+
+test("historique : écart du réel au prévu", () => {
+  assert.equal(gapOf(200, 300), 0.5);
+  assert.equal(gapOf(200, 150), -0.25);
+  assert.equal(gapOf(0, 40), null, "sans prévision, pas d'écart");
+  // l'écart ne dépend pas de l'unité affichée
+  assert.equal(gapOf(200 * DIV, 300 * DIV), gapOf(200, 300));
 });
