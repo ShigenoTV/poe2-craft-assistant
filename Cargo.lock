@@ -452,7 +452,7 @@ dependencies = [
 
 [[package]]
 name = "craft-api"
-version = "0.2.44"
+version = "0.2.45"
 dependencies = [
  "craft-core",
  "craft-data",
@@ -466,7 +466,7 @@ dependencies = [
 
 [[package]]
 name = "craft-core"
-version = "0.2.44"
+version = "0.2.45"
 dependencies = [
  "rand",
  "rayon",
@@ -475,7 +475,7 @@ dependencies = [
 
 [[package]]
 name = "craft-data"
-version = "0.2.44"
+version = "0.2.45"
 dependencies = [
  "craft-core",
  "flate2",
@@ -486,7 +486,7 @@ dependencies = [
 
 [[package]]
 name = "craft-solver"
-version = "0.2.44"
+version = "0.2.45"
 dependencies = [
  "craft-core",
  "rand",
@@ -2607,7 +2607,7 @@ dependencies = [
 
 [[package]]
 name = "poe2-craft-assistant"
-version = "0.2.44"
+version = "0.2.45"
 dependencies = [
  "arboard",
  "craft-api",
