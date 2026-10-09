@@ -8,7 +8,7 @@ use std::sync::atomic::AtomicBool;
 
 fn usage() -> ! {
     eprintln!(
-        "usage:\n  craft-cli bases\n  craft-cli groups <base>\n  craft-cli solve <base> <ilvl> <groupe:tierMax>... [--json <fichier>] [--trials N]\n  craft-cli parse <fichier|-> [base]"
+        "usage:\n  craft-cli bases\n  craft-cli groups <base>\n  craft-cli solve <base> <ilvl> <groupe:tierMax>... [--json <fichier>] [--trials N] [--compare]\n  craft-cli parse <fichier|-> [base]"
     );
     std::process::exit(2)
 }
@@ -27,7 +27,7 @@ fn main() {
         Some("solve") => {
             let (base, ilvl) = (args.get(1).unwrap_or_else(|| usage()).clone(), args.get(2).unwrap_or_else(|| usage()).parse::<u8>().unwrap());
             let mut wanted = vec![];
-            let (mut json, mut trials) = (None, 20_000u64);
+            let (mut json, mut trials, mut compare) = (None, 20_000u64, false);
             let mut i = 3;
             while i < args.len() {
                 match args[i].as_str() {
@@ -35,6 +35,7 @@ fn main() {
                         json = Some(args[i + 1].clone());
                         i += 1
                     }
+                    "--compare" => compare = true,
                     "--trials" => {
                         trials = args[i + 1].parse().unwrap();
                         i += 1
@@ -78,6 +79,14 @@ fn main() {
                 }
             }
             println!("\nNœuds du plan : {}", plan.nodes.len());
+            if compare {
+                let t1 = std::time::Instant::now();
+                let paths = compare_paths(&ctx, 2, trials.max(1_000), &AtomicBool::new(false), |_, _| true).unwrap();
+                println!("\nComparateur ({} ms) :", t1.elapsed().as_millis());
+                for p in &paths {
+                    println!("  {:<40} {:>10.2}", p.label, p.expected_cost);
+                }
+            }
             if let Some(p) = json {
                 std::fs::write(&p, serde_json::to_string(&plan).unwrap()).unwrap();
                 println!("→ {p}");

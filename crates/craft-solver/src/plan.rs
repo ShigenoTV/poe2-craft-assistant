@@ -160,6 +160,26 @@ pub fn expected_visits(sol: &Solution, start: usize) -> Vec<f64> {
         }
         off[s + 1] = tr.len();
     }
+    // visites = (I − Pᵀ)⁻¹ e_départ : résolu d'un coup ; l'itération ci-dessous ne sert que de secours
+    let a = crate::linsolve::Csr::identity_minus(n, |s, row| row.extend(tr[off[s]..off[s + 1]].iter().map(|&(t, p)| (t, p)))).transpose();
+    let mut e = vec![0.0f64; n];
+    e[start] = 1.0;
+    let mut x = vec![0.0f64; n];
+    if crate::linsolve::gmres(&a, &e, &mut x, 1e-13, 1e-10, 4000, || false).is_some() && x.iter().all(|v| v.is_finite() && *v > -1e-9) {
+        // les états hors d'atteinte sous la politique ont exactement 0 visite (le solveur y laisse du bruit)
+        let mut seen = vec![false; n];
+        let mut stack = vec![start];
+        seen[start] = true;
+        while let Some(s) = stack.pop() {
+            for &(t, _) in &tr[off[s]..off[s + 1]] {
+                if !seen[t as usize] {
+                    seen[t as usize] = true;
+                    stack.push(t as usize);
+                }
+            }
+        }
+        return x.into_iter().zip(seen).map(|(v, r)| if r { v.max(0.0) } else { 0.0 }).collect();
+    }
     let mut cur = vec![0.0f64; n];
     let mut nxt = vec![0.0f64; n];
     let mut vis = vec![0.0f64; n];

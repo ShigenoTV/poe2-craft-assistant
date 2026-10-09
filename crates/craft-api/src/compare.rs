@@ -116,7 +116,7 @@ pub fn compare_paths(
             let m = Arc::new(Model::new(model.pool.clone(), model.goal.clone(), model.ilvl, kept, ctx.base_cost, ctx.salvage));
             // les mods garantis suivis dépendent des actions : on reprojette l'objet de départ
             let start = m.project(&start_item)?;
-            let sol = solve(&m, &[start], &SolveConfig::default(), cancel).ok()?;
+            let sol = solve_cached(SolveCache::global(), &m, &[start], &SolveConfig::default(), cancel).ok()?;
             let id = sol.id(&start)?;
             if !sol.value[id].is_finite() {
                 return None;

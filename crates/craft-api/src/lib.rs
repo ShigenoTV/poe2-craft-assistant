@@ -387,7 +387,7 @@ pub fn build_context(ds: &Dataset, req: &PlanRequest, prices: &BTreeMap<String, 
         }
         None => MacroState::empty(Rarity::Normal),
     };
-    let solution = solve(&model, &[start], &SolveConfig::default(), cancel)?;
+    let solution = solve_cached(SolveCache::global(), &model, &[start], &SolveConfig::default(), cancel)?;
     Ok(PlanContext {
         req: req.clone(),
         labels: goal_items.iter().map(|g| g.label.clone()).collect(),
@@ -460,7 +460,7 @@ pub fn advise_item(ctx: &PlanContext, item: &ItemState, cancel: &AtomicBool) -> 
         let sol = match cached {
             Some(s) => s,
             None => {
-                let s = Arc::new(solve(&ctx.model, &[state], &SolveConfig::default(), cancel)?);
+                let s = Arc::new(solve_cached(SolveCache::global(), &ctx.model, &[state], &SolveConfig::default(), cancel)?);
                 let mut g = ctx.extra.lock().unwrap();
                 if g.len() > 64 {
                     g.clear();
@@ -1608,5 +1608,171 @@ mod liquid_emotions_complete_tests {
         assert!(mc.censored * 100 < mc.trials, "{mc:?}");
         let gap = (mc.mean_cost - plan.expected_cost).abs() / plan.expected_cost;
         assert!(gap < 0.1, "coût moteur exact {:.1} vs solveur {:.1}", mc.mean_cost, plan.expected_cost);
+    }
+}
+
+/// Vitesse du solveur (policy iteration, cache par structure de modèle) sans changement de résultat : sur
+/// de vrais objectifs que l'ancienne value iteration résolvait, mêmes valeurs, mêmes actions, même plan.
+#[cfg(test)]
+mod solver_speed_tests {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    fn req(base: &str, ilvl: u8, wanted: &[(&str, u8)], enabled: Option<&[&str]>) -> PlanRequest {
+        PlanRequest {
+            base_id: base.into(),
+            ilvl,
+            wanted: wanted.iter().map(|(g, t)| WantedReq { group: (*g).into(), max_tier: *t }).collect(),
+            enabled_actions: enabled.map(|e| e.iter().map(|s| s.to_string()).collect()),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: None,
+            instill: None,
+        }
+    }
+
+    fn q(m: &Model, sol: &Solution, s: usize, a: usize) -> f64 {
+        let es = sol.edges_of(s, a);
+        if es.is_empty() {
+            return f64::INFINITY;
+        }
+        let (mut p_self, mut acc) = (0.0, 0.0);
+        for e in es {
+            acc += e.p * e.extra;
+            if e.to as usize == s {
+                p_self += e.p;
+            } else {
+                acc += e.p * sol.value[e.to as usize];
+            }
+        }
+        if p_self > 1.0 - 1e-12 {
+            return f64::INFINITY;
+        }
+        (m.actions[a].cost + acc) / (1.0 - p_self)
+    }
+
+    /// Plan complet (tous les états visités), pour comparer deux solutions nœud par nœud.
+    fn full_plan(ctx: &PlanContext, sol: &Solution) -> CraftPlan {
+        let inputs = PlanInputs { model: &ctx.model, sol, start: ctx.start, base_id: "", base_cost: 0.0, salvage: 0.0, goal_items: ctx.goal_items.clone(), prices_source: String::new() };
+        build_plan(&inputs, &PlanConfig { node_cap: 1_000_000, ..Default::default() }).unwrap()
+    }
+
+    fn rel(a: f64, b: f64) -> f64 {
+        if a == b {
+            0.0
+        } else {
+            (a - b).abs() / a.abs().max(b.abs()).max(1.0)
+        }
+    }
+
+    /// Compare la solution de référence (value iteration seule, l'ancienne méthode) à la nouvelle.
+    fn assert_same(ctx: &PlanContext, old: &Solution, new: &Solution) {
+        let m = &ctx.model;
+        assert!(old.converged && new.converged);
+        assert_eq!(old.states, new.states, "même graphe");
+        let mut ties = 0;
+        for s in 0..old.states.len() {
+            assert_eq!(old.value[s].is_finite(), new.value[s].is_finite(), "état {s}");
+            if old.value[s].is_finite() {
+                assert!(rel(old.value[s], new.value[s]) < 1e-6, "état {s} : V {} (ancien) vs {} (nouveau)", old.value[s], new.value[s]);
+            }
+            if old.policy[s] != new.policy[s] {
+                // seule différence admise : deux actions à égalité (écart sous la précision de l'ancienne méthode)
+                let (qo, qn) = (q(m, new, s, old.policy[s] as usize), q(m, new, s, new.policy[s] as usize));
+                assert!(rel(qo, qn) < 1e-6, "état {s} : {} (ancien) vs {} (nouveau), q {qo} vs {qn}", m.actions[old.policy[s] as usize].id, m.actions[new.policy[s] as usize].id);
+                ties += 1;
+            }
+        }
+        let (po, pn) = (full_plan(ctx, old), full_plan(ctx, new));
+        assert!(rel(po.expected_cost, pn.expected_cost) < 1e-6, "coût {} vs {}", po.expected_cost, pn.expected_cost);
+        if ties == 0 {
+            assert_eq!(po.nodes.keys().collect::<Vec<_>>(), pn.nodes.keys().collect::<Vec<_>>(), "mêmes nœuds de plan");
+            for (id, a) in &po.nodes {
+                if let (CraftNode::Action(a), CraftNode::Action(b)) = (a, &pn.nodes[id]) {
+                    assert_eq!(a.action.id, b.action.id, "nœud {id}");
+                    assert_eq!(a.branches.iter().map(|x| &x.to).collect::<Vec<_>>(), b.branches.iter().map(|x| &x.to).collect::<Vec<_>>(), "nœud {id}");
+                }
+            }
+            assert_eq!(po.shopping.iter().map(|l| &l.id).collect::<Vec<_>>(), pn.shopping.iter().map(|l| &l.id).collect::<Vec<_>>());
+            for (a, b) in po.shopping.iter().zip(&pn.shopping) {
+                assert!(rel(a.expected_count, b.expected_count) < 1e-6, "{} : {} vs {}", a.id, a.expected_count, b.expected_count);
+            }
+        }
+    }
+
+    #[test]
+    fn policy_iteration_gives_the_same_plans_as_value_iteration() {
+        let ds = Dataset::embedded();
+        let no = AtomicBool::new(false);
+        let cases = [
+            req("gold_amulet", 82, &[("IncreasedLife", 3)], Some(&["transmute", "augment"])),
+            req("gold_amulet", 82, &[("IncreasedLife", 2)], None),
+            req("gloves_dex", 81, &[("IncreasedLife", 3), ("FireResistance", 3)], None),
+            req("gloves_dex", 81, &[("IncreasedLife", 3), ("FireResistance", 3), ("ColdResistance", 3)], None),
+            req("jewel_strjewel", 82, &[("IncreasedPhysicalDamageReductionRatingPercent", 1)], Some(&["alchemy", "liquid_ire"])),
+            req("crossbow", 82, &[("FireDamage", 3)], None),
+        ];
+        for r in &cases {
+            let ctx = build_context(&ds, r, &ds.prices, &no).unwrap_or_else(|e| panic!("{} : {e}", r.base_id));
+            let old = solve(&ctx.model, &[ctx.start], &SolveConfig { policy_iteration: false, ..Default::default() }, &no).unwrap();
+            let new = solve(&ctx.model, &[ctx.start], &SolveConfig::default(), &no).unwrap();
+            assert!(new.pi_iters > 0, "{} : policy iteration utilisée", r.base_id);
+            assert_same(&ctx, &old, &new);
+            // et le contexte de l'application (cache) donne la même chose
+            assert_same(&ctx, &old, &ctx.solution);
+        }
+    }
+
+    /// Le cas qui ne convergeait pas en 45 s (gants Vie/Feu/Froid/Précision T3, actions par défaut) :
+    /// résolu, et le coût annoncé est confirmé par le moteur exact.
+    #[test]
+    fn four_t3_mods_on_gloves_converge_and_match_the_exact_engine() {
+        let ds = Dataset::embedded();
+        let mut r = req("gloves_dex", 81, &[("IncreasedLife", 3), ("FireResistance", 3), ("ColdResistance", 3), ("IncreasedAccuracy", 3)], None);
+        r.mc_trials = 3_000;
+        r.seed = 7;
+        let t0 = std::time::Instant::now();
+        let ctx = build_context(&ds, &r, &ds.prices, &AtomicBool::new(false)).unwrap();
+        assert!(ctx.solution.converged, "convergé");
+        assert!(t0.elapsed().as_secs() < 20, "résolu en {:?}", t0.elapsed());
+        let plan = make_plan(&ctx, |_, _| true).unwrap();
+        let mc = plan.mc.as_ref().unwrap();
+        assert!(rel(plan.solver.cost_from_visits, plan.expected_cost) < 1e-6, "contrôle par visites {} vs {}", plan.solver.cost_from_visits, plan.expected_cost);
+        assert!(mc.censored * 100 < mc.trials, "{mc:?}");
+        let gap = (mc.mean_cost - plan.expected_cost).abs() / plan.expected_cost;
+        assert!(gap < 0.08, "moteur exact {:.1} vs solveur {:.1}", mc.mean_cost, plan.expected_cost);
+    }
+
+    /// Cache : un changement de prix seul reprend le graphe et l'ancienne politique, et donne exactement
+    /// le résultat d'un calcul complet aux nouveaux prix.
+    #[test]
+    fn a_price_change_reuses_the_cached_graph_with_the_same_result() {
+        let ds = Dataset::embedded();
+        let no = AtomicBool::new(false);
+        let mut r = req("gloves_dex", 81, &[("IncreasedLife", 3), ("FireResistance", 3), ("ColdResistance", 3)], None);
+        let first = build_context(&ds, &r, &ds.prices, &no).unwrap();
+        let mut prices = ds.prices.clone();
+        let used = full_plan(&first, &first.solution).shopping.iter().find(|l| prices.contains_key(&l.id) && l.expected_count > 0.5).unwrap().id.clone();
+        *prices.get_mut(&used).unwrap() *= 3.0;
+        r.prices = Some([("base_white".to_string(), 2.5)].into_iter().collect());
+        let cache = SolveCache::new(4);
+        let cfg = SolveConfig::default();
+        // remplit un cache privé aux anciens prix, puis recalcule aux nouveaux
+        solve_cached(&cache, &first.model, &[first.start], &cfg, &no).unwrap();
+        let second = build_context(&ds, &r, &prices, &no).unwrap();
+        assert_eq!(first.model.structure_key(&[first.start]), second.model.structure_key(&[second.start]), "même structure");
+        let warm = solve_cached(&cache, &second.model, &[second.start], &cfg, &no).unwrap();
+        let cold = solve(&second.model, &[second.start], &cfg, &no).unwrap();
+        assert_eq!(cache.len(), 1);
+        assert!(warm.pi_iters < cold.pi_iters, "reprise de l'ancienne politique : {} évaluations contre {}", warm.pi_iters, cold.pi_iters);
+        assert_same(&second, &cold, &warm);
+        assert!(rel(warm.value[warm.id(&second.start).unwrap()], first.solution.value[first.solution.id(&first.start).unwrap()]) > 1e-3, "les prix ont bien changé le coût");
+        // un autre objectif ne réutilise pas ce graphe
+        let other = build_context(&ds, &req("gloves_dex", 81, &[("IncreasedLife", 3)], None), &ds.prices, &no).unwrap();
+        assert_ne!(other.model.structure_key(&[other.start]), second.model.structure_key(&[second.start]));
     }
 }

@@ -219,6 +219,36 @@ impl Model {
         m
     }
 
+    /// Empreinte de tout ce qui détermine les états et les transitions (pool, objectif, niveau d'objet,
+    /// actions et leurs effets, remplisseurs écartés, états de départ), sans les prix : deux modèles de même
+    /// empreinte ont le même graphe, au coût d'abandon près (voir `SolveCache`).
+    pub fn structure_key(&self, starts: &[MacroState]) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for a in &self.pool.affixes {
+            (a.group, a.family_id, a.slot as u8, a.tier, a.req_ilvl, a.weight, a.tags, a.desecrated, a.cap_shift).hash(&mut h);
+        }
+        (self.pool.cap_delta, self.pool.rare_cap, self.ilvl).hash(&mut h);
+        for w in &self.goal.wanted {
+            (w.group, w.family, w.max_tier).hash(&mut h);
+        }
+        for (k, s) in self.goal.slots.iter().enumerate() {
+            (k, *s as u8).hash(&mut h);
+        }
+        for (a, pruned) in self.actions.iter().zip(&self.pruned) {
+            a.id.hash(&mut h);
+            pruned.hash(&mut h);
+            match &a.kind {
+                ActionKind::Abandon => 0u8.hash(&mut h),
+                // tous les champs de la monnaie sauf son prix
+                ActionKind::Currency(c) => format!("{:?}", Currency { unit_cost: 0.0, ..c.clone() }).hash(&mut h),
+            }
+        }
+        self.tracked.iter().map(|&(g, s)| (g, s as u8)).collect::<Vec<_>>().hash(&mut h);
+        starts.hash(&mut h);
+        h.finish()
+    }
+
     /// Bit de `MacroState::ess` du mod garanti `t`, s'il est suivi.
     fn tracked_bit(&self, t: AffixIdx) -> Option<u32> {
         let a = &self.pool.affixes[t as usize];

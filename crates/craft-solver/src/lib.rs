@@ -2,6 +2,7 @@
 //! Pipeline : abstraction (`state`) → transitions analytiques (`model`) → value iteration (`solve`)
 //!            → graphe de plan (`plan`) → vérification Monte-Carlo sur le moteur exact (`verify`).
 
+pub mod linsolve;
 pub mod model;
 pub mod plan;
 pub mod solve;
