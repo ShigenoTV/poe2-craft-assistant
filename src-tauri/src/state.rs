@@ -30,7 +30,7 @@ pub struct Settings {
     pub auto_refresh_prices: bool,
     /// intervalle de cette actualisation, en minutes (15 au minimum)
     pub price_refresh_minutes: u32,
-    /// unité d'affichage des coûts : « ex » (Exalted) ou « div » (Divine, au prix courant de la Divine).
+    /// unité d'affichage des coûts : « ex » (Exalted), « chaos » ou « div » (au prix courant du Chaos ou de la Divine).
     /// Affichage seulement : le solveur et les prix restent en Exalted.
     pub cost_unit: String,
 }
@@ -190,5 +190,8 @@ mod tests {
         let back: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
         assert_eq!(back.cost_unit, "div");
         assert!(serde_json::to_string(&s).unwrap().contains(r#""costUnit":"div""#), "nom du champ attendu par l'interface");
+        s.cost_unit = "chaos".into();
+        let back: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
+        assert_eq!(back.cost_unit, "chaos");
     }
 }

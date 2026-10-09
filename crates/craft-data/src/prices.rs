@@ -102,6 +102,17 @@ mod tests {
     }
 
     #[test]
+    fn chaos_price_in_exalted_comes_from_the_currency_response() {
+        // sert à afficher les coûts en Chaos : 1 Chaos = 0,1198 / 0,002125 ≈ 56,4 Exalted dans la réponse réelle
+        // (cohérent avec core.rates : 470,6 ex / 8,35 chaos par Divine)
+        let r = extract(&fixture("ninja_currency.json"), &w(&[("chaos", "chaos")])).unwrap();
+        assert!((r.prices["chaos"] - 56.4).abs() < 0.1, "{}", r.prices["chaos"]);
+        let ds = crate::Dataset::embedded();
+        assert_eq!(ds.price_sources["chaos"], PriceSource { ninja_type: "Currency".into(), ninja_id: "chaos".into() }, "rafraîchi par poe.ninja");
+        assert!((ds.prices["chaos"] - 56.4).abs() < 0.1, "prix par défaut du Chaos : {}", ds.prices["chaos"]);
+    }
+
+    #[test]
     fn omens_come_from_the_ritual_category() {
         let r = extract(&fixture("ninja_ritual.json"), &w(&[("omen_sinistral_exaltation", "omen-of-sinistral-exaltation"), ("omen_dextral_annulment", "omen-of-dextral-annulment")])).unwrap();
         assert!((r.prices["omen_sinistral_exaltation"] - 37.6).abs() < 0.5);

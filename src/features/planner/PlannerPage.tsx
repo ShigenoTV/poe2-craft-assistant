@@ -3,7 +3,7 @@ import { useStore } from "@/store";
 import { GoalPicker } from "@/components/GoalPicker";
 import { num, pct } from "@/lib/format";
 import { Cost, useCost, useDisplay } from "@/lib/display";
-import { exaltedToInput, inputToExalted } from "@/lib/money";
+import { exaltedToInput, inputToExalted, rateOf } from "@/lib/money";
 import { BaseSelect } from "@/components/BaseSelect";
 import { InstillPicker } from "@/components/InstillPicker";
 import { budgetFor, successProbability } from "@/lib/budget";
@@ -74,11 +74,12 @@ function Ledger() {
 
 function BudgetBox() {
   const { plan, budget, setPlanner } = useStore();
-  const { unit: shown, divine } = useDisplay();
+  const { unit: shown, rates } = useDisplay();
   if (!plan) return null;
   // le budget est gardé en Exalted ; il se saisit dans l'unité d'affichage choisie
-  const unit = divine ? shown : "ex";
-  const toInput = (ex: number) => Number(exaltedToInput(ex, unit, divine).toPrecision(12));
+  const rate = rateOf(shown, rates);
+  const unit = rate ? shown : "ex";
+  const toInput = (ex: number) => Number(exaltedToInput(ex, unit, rate).toPrecision(12));
   const b = plan.baseCost + (plan.instill?.cost ?? 0);
   const mc = plan.mc;
   const p = mc && budget !== null ? successProbability(mc, budget - b) : null;
@@ -87,7 +88,7 @@ function BudgetBox() {
     <div className="panel pad budget">
       <label className="f">J'ai ({unit})
         <input type="number" min={0} step="any" value={budget === null ? "" : toInput(budget)} placeholder={num(Math.ceil(toInput(plan.expectedCost + b)), 0)}
-          onChange={(e) => setPlanner({ budget: e.target.value === "" ? null : Math.max(0, inputToExalted(+e.target.value, unit, divine)) })} />
+          onChange={(e) => setPlanner({ budget: e.target.value === "" ? null : Math.max(0, inputToExalted(+e.target.value, unit, rate)) })} />
       </label>
       {!mc || !mc.costQuantiles ? (
         <p className="muted small grow">Active la vérification sur le moteur exact (à gauche) pour estimer tes chances de réussir avec un budget donné.</p>

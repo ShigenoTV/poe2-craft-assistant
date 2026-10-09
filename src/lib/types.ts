@@ -155,7 +155,7 @@ export interface Settings {
   cpuThreads: number; defaultIlvl: number; gameWindowTitle: string;
   overlayAutoHideSecs: number; priceLeague: string; autoRefreshPrices: boolean; priceRefreshMinutes: number; overlayWidth: number; overlayHeight: number; overlayMarginX: number; overlayMarginY: number;
   /** unité d'affichage des coûts (affichage seulement : tout reste calculé en Exalted) */
-  costUnit: "ex" | "div";
+  costUnit: "ex" | "chaos" | "div";
 }
 
 export interface UpdateInfo { version: string; current: string; notes: string | null; date: string | null }

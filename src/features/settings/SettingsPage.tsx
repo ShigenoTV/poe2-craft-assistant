@@ -3,7 +3,7 @@ import { api, listen } from "@/lib/ipc";
 import { useStore } from "@/store";
 import type { PriceState, Settings } from "@/lib/types";
 import { num, shortUnit } from "@/lib/format";
-import { reloadDivine, useDisplay } from "@/lib/display";
+import { reloadRates, useDisplay } from "@/lib/display";
 
 /** Le formulaire des réglages n'écrase pas l'unité des coûts choisie entre-temps dans la barre de gauche. */
 const withCostUnit = (s: Settings): Settings => ({ ...s, costUnit: useDisplay.getState().unit });
@@ -57,7 +57,7 @@ function PricesEditor({ s, set }: { s: Settings; set: <K extends keyof Settings>
   }, []);
 
   const label = (k: string) =>
-    k === "divine" ? "Divine Orb (sert à afficher les coûts en Divine)" : k === "base_white" ? "Base neuve (objet blanc)" : k === "base_salvage" ? "Revente d'un objet abandonné"
+    k === "divine" ? "Divine Orb (sert à afficher les coûts en Divine)" : k === "chaos" ? "Chaos Orb (sert aussi à afficher les coûts en Chaos)" : k === "base_white" ? "Base neuve (objet blanc)" : k === "base_salvage" ? "Revente d'un objet abandonné"
       : actions.find((a) => a.id === k)?.label ?? k.replace(/^omen_/, "Omen of ").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   // date à côté de chaque prix : relevé poe.ninja (un prix saisi à la main n'en a pas, il n'est jamais remplacé)
   const updated = (k: string) => {
@@ -77,7 +77,7 @@ function PricesEditor({ s, set }: { s: Settings; set: <K extends keyof Settings>
     } catch (e) { setMsg({ ok: false, text: String(e) }); } finally { setBusy(false); }
   };
   const saveOverrides = async (next: Record<string, number>) => {
-    try { await api.setPrices(next); setPs(await api.priceState()); await reloadPrices(); reloadDivine(); setEdit({}); setMsg({ ok: true, text: "Prix enregistrés. Recalcule le plan pour les utiliser." }); }
+    try { await api.setPrices(next); setPs(await api.priceState()); await reloadPrices(); reloadRates(); setEdit({}); setMsg({ ok: true, text: "Prix enregistrés. Recalcule le plan pour les utiliser." }); }
     catch (e) { setMsg({ ok: false, text: String(e) }); }
   };
   const commit = () => {
