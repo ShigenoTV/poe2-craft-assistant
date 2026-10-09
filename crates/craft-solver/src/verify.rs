@@ -106,9 +106,16 @@ pub fn verify_policy(
     })
 }
 
-fn one_trial(model: &Model, sol: &Solution, start: ItemState, max_steps: u32, rng: &mut SmallRng) -> (f32, u32, u32, bool) {
+/// Refus consécutifs du moteur exact au-delà desquels un essai est interrompu (compté comme censuré).
+/// Assez large pour qu'une monnaie au résultat aléatoire (Perfect Essence, Désécration d'un objet plein)
+/// ait mille fois sa chance de passer.
+const MAX_REFUSED: u32 = 64;
+
+pub(crate) fn one_trial(model: &Model, sol: &Solution, start: ItemState, max_steps: u32, rng: &mut SmallRng) -> (f32, u32, u32, bool) {
     let fresh = ItemState::new(Rarity::Normal, start.ilvl);
     let (mut item, mut cost, mut abandons) = (start, 0.0f64, 0u32);
+    // monnaies refusées d'affilée par le moteur exact (voir plus bas)
+    let mut refused = 0u32;
     for step in 0..max_steps {
         if model.goal.is_met(&item) {
             return (cost as f32, step, abandons, false);
@@ -124,8 +131,18 @@ fn one_trial(model: &Model, sol: &Solution, start: ItemState, max_steps: u32, rn
                 item = fresh;
             }
             ActionKind::Currency(c) => {
+                // en jeu, une monnaie qui ne s'applique pas n'est pas consommée : rien à payer. Si le plan
+                // la redemande sans fin (plan et moteur exact en désaccord sur cet état), l'essai est
+                // interrompu au lieu de tourner jusqu'à `max_steps`.
+                if model.pool.apply(&mut item, c, rng) == Outcome::NotApplicable {
+                    refused += 1;
+                    if refused >= MAX_REFUSED {
+                        return (cost as f32, step + 1, abandons, true);
+                    }
+                    continue;
+                }
+                refused = 0;
                 cost += model.actions[act].cost;
-                model.pool.apply(&mut item, c, rng);
             }
         }
         // objet « mort » (fracturé sur un mauvais affixe) : abandon immédiat

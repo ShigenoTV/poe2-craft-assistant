@@ -229,3 +229,19 @@ fn budget_success_probability_matches_closed_form() {
     assert_eq!(mc.success_probability(-1.0), 0.0);
     assert!(mc.success_probability(1e9) > 0.999);
 }
+
+/// Une monnaie que le moteur exact refuse n'est pas consommée (rien à payer), et un plan qui la redemande
+/// sans fin interrompt l'essai vite, au lieu de facturer `max_steps` fois la monnaie.
+#[test]
+fn refused_currency_is_not_charged_and_stops_the_trial() {
+    use rand::SeedableRng;
+    let (m, mut s) = build(20, 1, vec![]);
+    let root = start_id(&m, &s);
+    // plan faussé : Exalted sur la base Normale, que le moteur exact refuse toujours
+    s.policy[root] = m.actions.iter().position(|a| a.id == "exalt").unwrap() as u32;
+    let mut rng = rand::rngs::SmallRng::seed_from_u64(1);
+    let (cost, steps, abandons, censored) = crate::verify::one_trial(&m, &s, ItemState::new(Rarity::Normal, 80), 20_000, &mut rng);
+    assert!(censored);
+    assert_eq!((cost, abandons), (0.0, 0));
+    assert!(steps <= 64, "essai interrompu après {steps} étapes");
+}
