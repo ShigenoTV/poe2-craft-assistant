@@ -410,7 +410,8 @@ impl AffixPool {
                 if !self.has_room(item) && !self.remove_random(item, None, false, false, rng) {
                     return Outcome::NotApplicable;
                 }
-                let f = DrawFilter { min_mod_level: 0, force_slot: c.add_slot, require_desecrated: true, require_tag: c.require_tag };
+                // os Ancient : niveau de mod 40 minimum (poe2db « Minimum Modifier Level 40 »), comme le solveur
+                let f = DrawFilter { min_mod_level: c.min_mod_level, force_slot: c.add_slot, require_desecrated: true, require_tag: c.require_tag };
                 match self.draw(item, &f, rng) {
                     Some(idx) => item.push(Mod { idx, fractured: false }),
                     // aucun mod Désécré possible dans la place libérée (ex. gants : suffixes seulement, mod

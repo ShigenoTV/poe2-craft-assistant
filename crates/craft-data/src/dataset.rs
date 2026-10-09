@@ -181,6 +181,18 @@ pub struct OmenDef {
     /// Omen of Whittling : le retrait cible toujours l'affixe tenu du niveau requis le plus bas.
     #[serde(default)]
     pub remove_lowest_level: bool,
+    /// Monnaies (`CurrencyDef::id`) auxquelles l'Omen se combine, parmi celles de `applies_to` ; vide =
+    /// toutes. Ex. Omen of the Sovereign : « your next Weapon or Jewellery Desecration » (poe2db), donc
+    /// Collarbone et Jawbone seulement, jamais Rib (armure).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub currencies: Vec<String>,
+}
+
+impl OmenDef {
+    /// L'Omen se combine-t-il à cette monnaie ?
+    pub fn combines_with(&self, c: &CurrencyDef) -> bool {
+        self.applies_to.contains(&c.kind) && (self.currencies.is_empty() || self.currencies.contains(&c.id))
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -285,6 +297,22 @@ impl Dataset {
         }
         if self.bases.is_empty() || self.mods.is_empty() {
             return Err("dataset vide".into());
+        }
+        // monnaies, Essences et Omens : identifiants uniques (un doublon donnerait deux actions identiques)
+        let mut ids = HashSet::new();
+        for id in self.currencies.iter().map(|c| &c.id).chain(self.essences.iter().map(|e| &e.id)) {
+            if !ids.insert(id) {
+                return Err(format!("identifiant de monnaie dupliqué : {id}"));
+            }
+        }
+        let mut omen_ids = HashSet::new();
+        for o in &self.omens {
+            if !omen_ids.insert(&o.id) {
+                return Err(format!("identifiant d'Omen dupliqué : {}", o.id));
+            }
+            if let Some(c) = o.currencies.iter().find(|c| !self.currencies.iter().any(|d| &d.id == *c && o.applies_to.contains(&d.kind))) {
+                return Err(format!("Omen « {} » : monnaie « {c} » inconnue ou d'un autre type", o.id));
+            }
         }
         let mod_ids: HashSet<&str> = self.mods.iter().map(|m| m.id.as_str()).collect();
         for e in &self.essences {
@@ -425,7 +453,7 @@ impl Dataset {
                     unit_cost: base_price,
                 });
             }
-            for o in self.omens.iter().filter(|o| o.applies_to.contains(&c.kind)) {
+            for o in self.omens.iter().filter(|o| o.combines_with(c)) {
                 let oid = format!("{}+{}", c.id, o.id);
                 if !enabled.map_or(c.default_enabled, |e| e.contains(&oid)) {
                     continue;
@@ -633,5 +661,33 @@ mod tests {
             let stale: Vec<_> = bp.pool.affixes.iter().filter(|a| !a.desecrated && a.weight == 1).map(|a| a.id.as_str()).collect();
             assert!(stale.is_empty(), "{} : mods restés au poids 1 du jeu : {stale:?}", b.id);
         }
+    }
+
+    /// Omens des Seigneurs : « your next Weapon or Jewellery Desecration » (poe2db) : jamais avec un Rib
+    /// (armure) ; et chaque action n'existe qu'une fois.
+    #[test]
+    fn lord_omens_only_combine_with_weapon_and_jewellery_bones() {
+        let ds = Dataset::embedded();
+        let acts = ds.actions(&ds.prices, None).unwrap();
+        for o in ["omen_sovereign", "omen_liege", "omen_blackblooded"] {
+            assert!(!acts.iter().any(|a| a.id.starts_with("desecrate_rib") && a.id.ends_with(o)), "{o} avec un Rib");
+            assert!(acts.iter().any(|a| a.id == format!("desecrate_collarbone+{o}")));
+            assert!(acts.iter().any(|a| a.id == format!("desecrate_jawbone_ancient+{o}")));
+        }
+        assert!(acts.iter().any(|a| a.id == "desecrate_rib+omen_sinistral_necromancy"));
+        let mut ids = HashSet::new();
+        assert!(acts.iter().all(|a| ids.insert(a.id.clone())), "action en double");
+    }
+
+    #[test]
+    fn validate_rejects_duplicate_omens_and_unknown_omen_currencies() {
+        let mut ds = Dataset::embedded();
+        let dup = ds.omens[0].clone();
+        ds.omens.push(dup);
+        assert!(ds.validate().unwrap_err().contains("Omen dupliqué"));
+        let mut ds = Dataset::embedded();
+        let o = ds.omens.iter_mut().find(|o| o.id == "omen_sovereign").unwrap();
+        o.currencies.push("exalt".into());
+        assert!(ds.validate().unwrap_err().contains("omen_sovereign"));
     }
 }

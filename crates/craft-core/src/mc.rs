@@ -353,4 +353,23 @@ pub(crate) mod tests {
             assert!(!it.mods().iter().any(|m| m.idx == 1), "le mod desecrated doit avoir été retiré");
         }
     }
+
+    #[test]
+    fn ancient_bone_never_draws_a_desecrated_mod_below_level_40() {
+        // os Ancient : « Minimum Modifier Level 40 » (poe2db) ; le mod de niveau 20 ne doit jamais sortir
+        let mut affixes = vec![aff("P", 0, Slot::Prefix, 100), aff("Low", 1, Slot::Suffix, 1000), aff("High", 2, Slot::Suffix, 1)];
+        affixes[1].desecrated = true;
+        affixes[1].req_ilvl = 20;
+        affixes[2].desecrated = true;
+        affixes[2].req_ilvl = 60;
+        let pool = AffixPool::new(affixes);
+        let ancient = Currency { min_mod_level: 40, ..cur(CurrencyKind::Desecrate) };
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(5);
+        for _ in 0..300 {
+            let mut it = ItemState::new(Rarity::Rare, 80);
+            it.push(Mod { idx: 0, fractured: false });
+            assert_eq!(pool.apply(&mut it, &ancient, &mut rng), Outcome::Applied);
+            assert!(it.mods().iter().any(|m| m.idx == 2), "seul le mod de niveau 60 est tirable");
+        }
+    }
 }

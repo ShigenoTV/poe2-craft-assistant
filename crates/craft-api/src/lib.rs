@@ -107,7 +107,7 @@ pub fn list_actions(ds: &Dataset, prices: &BTreeMap<String, f64>) -> Result<Vec<
     let all: HashSet<String> = {
         let mut s: HashSet<String> = ds.currencies.iter().map(|c| c.id.clone()).collect();
         for c in &ds.currencies {
-            for o in ds.omens.iter().filter(|o| o.applies_to.contains(&c.kind)) {
+            for o in ds.omens.iter().filter(|o| o.combines_with(c)) {
                 s.insert(format!("{}+{}", c.id, o.id));
             }
         }
