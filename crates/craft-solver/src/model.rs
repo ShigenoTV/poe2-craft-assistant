@@ -1,4 +1,4 @@
-use crate::state::MacroState;
+use crate::state::*;
 use craft_core::*;
 use serde::Serialize;
 use std::sync::Arc;
@@ -90,6 +90,88 @@ pub struct Model {
     pub tracked: Vec<(GroupId, Slot)>,
     /// actions écartées d'office (remplisseurs dominés par un moins cher, voir `Model::new`)
     pruned: Vec<bool>,
+    /// Loi du niveau requis d'un mod posé, par catégorie de l'état abstrait (Omen of Whittling : le Chaos
+    /// retire le mod tenu du niveau le plus bas, or l'état ne garde pas les niveaux).
+    levels: Levels,
+}
+
+/// Loi discrète d'un niveau requis : (niveau, probabilité), niveaux croissants.
+type Dist = Vec<(u8, f64)>;
+
+#[derive(Clone, Debug, Default)]
+struct Levels {
+    held: Vec<Dist>,
+    blocked: Vec<Dist>,
+    /// mauvais affixes du pool normal, [préfixe, suffixe]
+    bad: [Dist; 2],
+    /// mauvais affixes Désécrés, [préfixe, suffixe]
+    desec_bad: [Dist; 2],
+}
+
+/// Loi des niveaux d'une liste (niveau, poids) ; sans poids (mods obtenus seulement par Essence), niveaux
+/// équiprobables.
+fn dist(items: impl Iterator<Item = (u8, u32)>) -> Dist {
+    let items: Vec<(u8, u32)> = items.collect();
+    let total: f64 = items.iter().map(|i| i.1 as f64).sum();
+    let mut d: std::collections::BTreeMap<u8, f64> = std::collections::BTreeMap::new();
+    for &(l, w) in &items {
+        *d.entry(l).or_default() += if total > 0.0 { w as f64 / total } else { 1.0 / items.len() as f64 };
+    }
+    d.into_iter().collect()
+}
+
+/// Comment `remove_outcomes` choisit l'affixe retiré.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Removal {
+    /// au hasard, uniformément parmi les affixes non fracturés
+    Random,
+    /// Omen of Light : seulement le mod Désécré
+    DesecratedOnly,
+    /// Omen of Whittling : l'affixe du niveau requis le plus bas (égalité : au hasard parmi les ex aequo)
+    LowestLevel,
+}
+
+impl Removal {
+    fn of(c: &Currency) -> Self {
+        if c.remove_desecrated_only {
+            Removal::DesecratedOnly
+        } else if c.remove_lowest_level {
+            Removal::LowestLevel
+        } else {
+            Removal::Random
+        }
+    }
+}
+
+/// P(chaque mod est celui du niveau le plus bas), niveaux indépendants de lois `ds`, égalités départagées
+/// au hasard. Pour chaque niveau l de i : produit sur les autres de (P(> l) + P(= l)·x), le coefficient
+/// de x^m comptant les cas à m ex aequo (chance 1/(m+1)).
+fn lowest_probs(ds: &[&Dist]) -> Vec<f64> {
+    let above = |d: &Dist, l: u8| d.iter().filter(|e| e.0 > l).map(|e| e.1).sum::<f64>();
+    let at = |d: &Dist, l: u8| d.iter().filter(|e| e.0 == l).map(|e| e.1).sum::<f64>();
+    (0..ds.len())
+        .map(|i| {
+            ds[i]
+                .iter()
+                .map(|&(l, p)| {
+                    let mut poly = vec![1.0f64];
+                    for (j, d) in ds.iter().enumerate() {
+                        if j == i {
+                            continue;
+                        }
+                        let (g, q) = (above(d, l), at(d, l));
+                        let mut next = vec![0.0; poly.len() + 1];
+                        for (m, c) in poly.iter().enumerate() {
+                            next[m] += c * g;
+                            next[m + 1] += c * q;
+                        }
+                        poly = next;
+                    }
+                    p * poly.iter().enumerate().map(|(m, c)| c / (m + 1) as f64).sum::<f64>()
+                })
+                .sum()
+        })
+        .collect()
 }
 
 /// Remplisseurs gardés par slot (voir `Model::new`).
@@ -168,7 +250,56 @@ impl Model {
             desec_surv_s,
             tracked: Vec::new(),
             pruned: Vec::new(),
+            levels: Levels::default(),
         };
+        {
+            let (pool, goal) = (&m.pool, &m.goal);
+            // Un mod tiré l'a été par une monnaie Greater/Perfect (niveau minimum) ou non : loi du niveau =
+            // moyenne des lois de tirage sur les niveaux minimum des monnaies d'ajout disponibles.
+            let mins = |desecrate: bool| -> Vec<u8> {
+                use CurrencyKind::*;
+                let mut v: Vec<u8> = m
+                    .actions
+                    .iter()
+                    .filter_map(|a| match &a.kind {
+                        ActionKind::Currency(c) if desecrate == (c.kind == Desecrate) && matches!(c.kind, Transmute | Augment | Regal | Alchemy | Exalt | Chaos | Desecrate) => Some(c.min_mod_level),
+                        _ => None,
+                    })
+                    .collect();
+                v.sort_unstable();
+                v.dedup();
+                if v.is_empty() {
+                    v.push(0);
+                }
+                v
+            };
+            let mixed = |desecrate: bool, keep: &dyn Fn(usize, &Affix) -> bool| -> Dist {
+                let parts: Vec<Dist> = mins(desecrate)
+                    .into_iter()
+                    .map(|min| dist(pool.affixes.iter().enumerate().filter(|(i, a)| a.req_ilvl <= ilvl && a.req_ilvl >= min && keep(*i, a)).map(|(_, a)| (a.req_ilvl, a.weight))))
+                    .filter(|d| !d.is_empty())
+                    .collect();
+                if parts.is_empty() {
+                    // aucun tier assez haut (mod obtenu seulement par Essence, ou de bas niveau) : tous les tiers
+                    return dist(pool.affixes.iter().enumerate().filter(|(i, a)| a.req_ilvl <= ilvl && keep(*i, a)).map(|(_, a)| (a.req_ilvl, a.weight)));
+                }
+                let mut d: std::collections::BTreeMap<u8, f64> = std::collections::BTreeMap::new();
+                for part in &parts {
+                    for &(l, p) in part {
+                        *d.entry(l).or_default() += p / parts.len() as f64;
+                    }
+                }
+                d.into_iter().collect()
+            };
+            let of_class = |want: &dyn Fn(Class) -> bool| mixed(false, &|i, _| want(goal.classify(pool, i as AffixIdx)));
+            let bad_of = |slot: Slot, desecrated: bool| mixed(desecrated, &|i, a| a.weight > 0 && a.slot == slot && a.desecrated == desecrated && goal.classify(pool, i as AffixIdx) == Class::Other);
+            m.levels = Levels {
+                held: (0..goal.len()).map(|k| of_class(&|c| c == Class::Wanted(k))).collect(),
+                blocked: (0..goal.len()).map(|k| of_class(&|c| c == Class::Blocked(k))).collect(),
+                bad: [bad_of(Slot::Prefix, false), bad_of(Slot::Suffix, false)],
+                desec_bad: [bad_of(Slot::Prefix, true), bad_of(Slot::Suffix, true)],
+            };
+        }
         m.weights = m
             .actions
             .iter()
@@ -394,20 +525,30 @@ impl Model {
         true
     }
 
-    /// Retrait aléatoire d'un affixe non fracturé (filtré par slot si Omen).
-    fn remove_outcomes(&self, s: MacroState, slot: Option<Slot>, out: &mut Vec<(MacroState, f64)>) -> bool {
+    /// Retrait d'un affixe non fracturé (filtré par slot si Omen), choisi selon `how`. `false` si aucun
+    /// candidat.
+    fn remove_outcomes(&self, s: MacroState, slot: Option<Slot>, how: Removal, out: &mut Vec<(MacroState, f64)>) -> bool {
         let ok = |is_prefix: bool| slot.map_or(true, |x| (x == Slot::Prefix) == is_prefix);
-        let mut cands: Vec<(MacroState, f64)> = Vec::new();
+        // retirer le mod Désécré libère l'objet pour une nouvelle Désécration
+        let undesec = |t: MacroState, which: u8| if s.desecrated && s.desec == which { MacroState { desecrated: false, desec: DESEC_NONE, ..t } } else { t };
+        // (état après retrait, nombre de mods de ce genre, loi de leur niveau, est-ce le mod Désécré)
+        // lois des niveaux : utiles seulement à l'Omen of Whittling, empruntées (ou calculées) à la demande
+        use std::borrow::Cow;
+        let lowest = how == Removal::LowestLevel;
+        let point = |i: AffixIdx| -> Cow<Dist> { Cow::Owned(if lowest { vec![(self.pool.affixes[i as usize].req_ilvl, 1.0)] } else { Vec::new() }) };
+        let mut cands: Vec<(MacroState, u8, Cow<Dist>, bool)> = Vec::new();
         for k in 0..self.goal.len() {
             let is_p = self.pmask >> k & 1 == 1;
             if !ok(is_p) {
                 continue;
             }
             if s.held >> k & 1 == 1 && s.frac != k as u8 + 1 {
-                cands.push((MacroState { held: s.held & !(1 << k), ..s }, 1.0));
+                let which = DESEC_HELD + k as u8;
+                cands.push((undesec(MacroState { held: s.held & !(1 << k), ..s }, which), 1, Cow::Borrowed(&self.levels.held[k]), s.desecrated && s.desec == which));
             }
             if s.blocked >> k & 1 == 1 {
-                cands.push((MacroState { blocked: s.blocked & !(1 << k), ..s }, 1.0));
+                let which = DESEC_BLOCKED + k as u8;
+                cands.push((undesec(MacroState { blocked: s.blocked & !(1 << k), ..s }, which), 1, Cow::Borrowed(&self.levels.blocked[k]), s.desecrated && s.desec == which));
             }
         }
         // le mod décaleur fait partie des mauvais affixes de son slot : le retirer referme la place qu'il ouvrait
@@ -416,33 +557,71 @@ impl Model {
             if bad == 0 || !ok(slot == Slot::Prefix) {
                 continue;
             }
+            let si = (slot == Slot::Suffix) as usize;
             let less = match slot {
                 Slot::Prefix => MacroState { bad_p: s.bad_p - 1, ..s },
                 Slot::Suffix => MacroState { bad_s: s.bad_s - 1, ..s },
             };
-            // mods inutiles identifiés (décaleur, mods garantis suivis) : chacun retiré avec le même poids
-            // qu'un autre mauvais affixe ; le reste, anonyme, se partage le poids restant
+            // mods inutiles identifiés (décaleur, mods garantis suivis, mod Désécré) : chacun retiré avec le
+            // même poids qu'un autre mauvais affixe ; le reste, anonyme, se partage le poids restant
             let mut anon = bad as i32;
-            if shift_slot == Some(slot) {
-                cands.push((MacroState { shifter: None, ..less }, 1.0));
+            if let (Some(i), true) = (s.shifter, shift_slot == Some(slot)) {
+                cands.push((MacroState { shifter: None, ..less }, 1, point(i), false));
                 anon -= 1;
             }
-            for (i, &(_, sl)) in self.tracked.iter().enumerate() {
+            for (i, &(g, sl)) in self.tracked.iter().enumerate() {
                 if sl == slot && s.ess >> i & 1 == 1 {
-                    cands.push((MacroState { ess: s.ess & !(1 << i), ..less }, 1.0));
+                    // niveau du mod garanti suivi : celui d'un affixe de ce groupe et de ce slot
+                    let lv = if lowest { dist(self.pool.affixes.iter().filter(|a| a.group == g && a.slot == sl).map(|a| (a.req_ilvl, 1))) } else { Vec::new() };
+                    cands.push((MacroState { ess: s.ess & !(1 << i), ..less }, 1, Cow::Owned(lv), false));
                     anon -= 1;
                 }
             }
+            let which = if slot == Slot::Prefix { DESEC_BAD_P } else { DESEC_BAD_S };
+            if s.desecrated && s.desec == which && anon > 0 {
+                cands.push((undesec(less, which), 1, Cow::Borrowed(&self.levels.desec_bad[si]), true));
+                anon -= 1;
+            }
             if anon > 0 {
-                cands.push((less, anon as f64));
+                cands.push((less, anon as u8, Cow::Borrowed(&self.levels.bad[si]), false));
             }
         }
-        let total: f64 = cands.iter().map(|c| c.1).sum();
+        let weights: Vec<f64> = match how {
+            Removal::Random => cands.iter().map(|c| c.1 as f64).collect(),
+            Removal::DesecratedOnly => cands.iter().map(|c| if c.3 { 1.0 } else { 0.0 }).collect(),
+            Removal::LowestLevel => {
+                // un exemplaire par mod, puis on regroupe les exemplaires d'une même catégorie
+                let copies: Vec<(usize, &Dist)> = cands.iter().enumerate().flat_map(|(ci, c)| std::iter::repeat_n((ci, c.2.as_ref()), c.1 as usize)).collect();
+                let probs = lowest_probs(&copies.iter().map(|c| c.1).collect::<Vec<_>>());
+                let mut w = vec![0.0; cands.len()];
+                for ((ci, _), p) in copies.iter().zip(probs) {
+                    w[*ci] += p;
+                }
+                w
+            }
+        };
+        let total: f64 = weights.iter().sum();
         if total <= 0.0 {
             return false;
         }
-        out.extend(cands.into_iter().map(|(t, w)| (t, w / total)));
+        let mut v: Vec<(MacroState, f64)> = cands.into_iter().zip(weights).filter(|(_, w)| *w > 0.0).map(|(c, w)| (c.0, w / total)).collect();
+        merge(&mut v);
+        out.extend(v);
         true
+    }
+
+    /// Catégorie du mod qu'un ajout a posé entre `s` et `t` (pour savoir où est le mod Désécré).
+    fn added_desec(s: &MacroState, t: &MacroState) -> u8 {
+        let diff = |a: u8, b: u8| (b & !a).trailing_zeros() as u8;
+        if t.held != s.held {
+            DESEC_HELD + diff(s.held, t.held)
+        } else if t.blocked != s.blocked {
+            DESEC_BLOCKED + diff(s.blocked, t.blocked)
+        } else if t.bad_p > s.bad_p {
+            DESEC_BAD_P
+        } else {
+            DESEC_BAD_S
+        }
     }
 
     /// Remplit `out` avec les transitions de l'action `ai` depuis `s`. Vide = inapplicable.
@@ -494,7 +673,7 @@ impl Model {
             }
             Chaos if s.rarity == Rarity::Rare => {
                 let mut rm = Vec::new();
-                if self.remove_outcomes(s, cur.remove_slot, &mut rm) {
+                if self.remove_outcomes(s, cur.remove_slot, Removal::of(cur), &mut rm) {
                     for (s1, p1) in rm {
                         let mut ad = Vec::new();
                         if self.add_outcomes(s1, w, &mut ad) {
@@ -506,7 +685,7 @@ impl Model {
                 }
             }
             Annul if s.rarity != Rarity::Normal => {
-                self.remove_outcomes(s, cur.remove_slot, &mut v);
+                self.remove_outcomes(s, cur.remove_slot, Removal::of(cur), &mut v);
             }
             Fracture if s.rarity == Rarity::Rare && n >= 4 && s.frac == 0 => {
                 let nf = n as f64;
@@ -557,7 +736,7 @@ impl Model {
                     [one] => {
                         if cur.requires_rare {
                             let mut rm = Vec::new();
-                            if self.remove_outcomes(s, None, &mut rm) {
+                            if self.remove_outcomes(s, None, Removal::Random, &mut rm) {
                                 branches.extend(rm.into_iter().map(|(s1, p1)| (*one, s1, p1)));
                             }
                         } else {
@@ -569,7 +748,7 @@ impl Model {
                     [a, b] => {
                         for t in [*a, *b] {
                             let mut rm = Vec::new();
-                            if self.remove_outcomes(s, Some(t.1), &mut rm) {
+                            if self.remove_outcomes(s, Some(t.1), Removal::Random, &mut rm) {
                                 branches.extend(rm.into_iter().map(|(s1, p1)| (t, s1, 0.5 * p1)));
                             } else {
                                 branches.push((t, s, 0.5));
@@ -591,12 +770,12 @@ impl Model {
                 let mut base: Vec<(MacroState, f64)> = vec![(s, 1.0)];
                 if !self.has_room(&s) {
                     let mut rm = Vec::new();
-                    base = if self.remove_outcomes(s, None, &mut rm) { rm } else { Vec::new() };
+                    base = if self.remove_outcomes(s, None, Removal::Random, &mut rm) { rm } else { Vec::new() };
                 }
                 for (s1, p1) in base {
                     let mut ad = Vec::new();
                     if self.add_outcomes(s1, w, &mut ad) {
-                        v.extend(ad.into_iter().map(|(t, q)| (MacroState { desecrated: true, ..t }, p1 * q)));
+                        v.extend(ad.into_iter().map(|(t, q)| (MacroState { desecrated: true, desec: Self::added_desec(&s1, &t), ..t }, p1 * q)));
                     } else if s1 != s {
                         // mod retiré mais aucun mod Désécré possible dans la place libérée : l'objet reste tel
                         // quel (même règle que le moteur exact). Perdre cette probabilité la ferait passer pour
@@ -681,5 +860,21 @@ pub fn describe_transition(s: &MacroState, t: &MacroState, labels: &[String], ab
         "Aucun changement utile".into()
     } else {
         parts.join(" · ")
+    }
+}
+
+#[cfg(test)]
+mod removal_tests {
+    use super::*;
+
+    #[test]
+    fn lowest_level_probabilities_split_ties_evenly() {
+        let (a, b, c): (Dist, Dist, Dist) = (vec![(10, 1.0)], vec![(20, 1.0)], vec![(10, 0.5), (30, 0.5)]);
+        assert_eq!(lowest_probs(&[&a, &b]), vec![1.0, 0.0]);
+        // c vaut 10 une fois sur deux : ex aequo avec a, départagé à pile ou face
+        let p = lowest_probs(&[&a, &c]);
+        assert!((p[0] - 0.75).abs() < 1e-12 && (p[1] - 0.25).abs() < 1e-12, "{p:?}");
+        let p = lowest_probs(&[&a, &a, &a]);
+        assert!(p.iter().all(|x| (x - 1.0 / 3.0).abs() < 1e-12), "{p:?}");
     }
 }

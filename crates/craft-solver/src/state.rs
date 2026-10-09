@@ -1,6 +1,12 @@
 use craft_core::*;
 use serde::Serialize;
 
+pub const DESEC_NONE: u8 = 0;
+pub const DESEC_HELD: u8 = 1;
+pub const DESEC_BLOCKED: u8 = 7;
+pub const DESEC_BAD_P: u8 = 13;
+pub const DESEC_BAD_S: u8 = 14;
+
 /// Abstraction de l'objet vis-à-vis de l'objectif (au plus 6 affixes voulus).
 /// Les affixes « inutiles » ne sont comptés que par slot : leur identité n'influe pas sur la décision.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
@@ -17,6 +23,10 @@ pub struct MacroState {
     pub bad_s: u8,
     /// un mod Désécré est déjà présent (un objet ne peut être désécré qu'une fois)
     pub desecrated: bool,
+    /// Lequel des mods présents est le mod Désécré (pour l'Omen of Light, et pour savoir qu'un retrait l'a
+    /// enlevé) : `DESEC_NONE`, `DESEC_HELD + k`, `DESEC_BLOCKED + k`, `DESEC_BAD_P` ou `DESEC_BAD_S` (compté
+    /// aussi dans `bad_p`/`bad_s`).
+    pub desec: u8,
     /// Mod inutile qui décale le plafond tant qu'il est là (ex. « +1 Suffix Modifier allowed » de Potent
     /// Liquid Contempt), compté aussi dans `bad_p`/`bad_s` : son indice d'affixe, ou `None`.
     pub shifter: Option<AffixIdx>,
@@ -28,7 +38,7 @@ pub struct MacroState {
 
 impl MacroState {
     pub fn empty(rarity: Rarity) -> Self {
-        Self { rarity, held: 0, blocked: 0, frac: 0, bad_p: 0, bad_s: 0, desecrated: false, shifter: None, ess: 0 }
+        Self { rarity, held: 0, blocked: 0, frac: 0, bad_p: 0, bad_s: 0, desecrated: false, desec: DESEC_NONE, shifter: None, ess: 0 }
     }
     pub fn key(&self) -> String {
         let r = match self.rarity {
@@ -57,8 +67,15 @@ impl MacroState {
 pub fn project(goal: &Goal, pool: &AffixPool, item: &ItemState) -> Option<MacroState> {
     let mut s = MacroState::empty(item.rarity);
     for m in item.mods() {
-        if pool.affixes[m.idx as usize].desecrated {
+        let desecrated = pool.affixes[m.idx as usize].desecrated;
+        if desecrated {
             s.desecrated = true;
+            s.desec = match goal.classify(pool, m.idx) {
+                Class::Wanted(k) => DESEC_HELD + k as u8,
+                Class::Blocked(k) => DESEC_BLOCKED + k as u8,
+                Class::Other if pool.affixes[m.idx as usize].slot == Slot::Prefix => DESEC_BAD_P,
+                Class::Other => DESEC_BAD_S,
+            };
         }
         match goal.classify(pool, m.idx) {
             Class::Wanted(k) => {

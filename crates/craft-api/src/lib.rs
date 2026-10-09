@@ -1745,6 +1745,36 @@ mod solver_speed_tests {
         assert!(mc.censored * 100 < mc.trials, "{mc:?}");
         let gap = (mc.mean_cost - plan.expected_cost).abs() / plan.expected_cost;
         assert!(gap < 0.08, "moteur exact {:.1} vs solveur {:.1}", mc.mean_cost, plan.expected_cost);
+        // Omen of Whittling (le Chaos retire le mod du niveau le plus bas) : utilisé, et le moteur exact
+        // confirme le gain (sans lui : ~1 453 ex au moteur exact, 1 439 annoncés)
+        let whittling = plan.shopping.iter().find(|l| l.id == "chaos+omen_whittling").map_or(0.0, |l| l.expected_count);
+        assert!(whittling > 1.0, "Whittling utilisé : {whittling}");
+        assert!(mc.ci95_mean.1 < 1_400.0, "gain confirmé par le moteur exact : {:?}", mc.ci95_mean);
+    }
+
+    /// Omen of Light (l'Annulation ne retire que le mod Désécré) : le solveur s'en sert pour retenter une
+    /// Désécration ratée au lieu de jeter l'objet, et le moteur exact confirme le gain. Annulation à 0,5 ex
+    /// pour que ce soit rentable (au prix du dataset, 304 ex, jeter l'objet reste moins cher).
+    #[test]
+    fn omen_of_light_lets_the_solver_retry_a_desecration() {
+        let ds = Dataset::embedded();
+        let g = "MaximumResistances::+#% to all maximum Resistances (Amanamu)";
+        let run = |acts: &[&str]| {
+            let mut r = req("shield_str", 82, &[(g, 1)], Some(acts));
+            r.mc_trials = 6_000;
+            r.seed = 3;
+            r.prices = Some([("annul".to_string(), 0.5)].into_iter().collect());
+            let ctx = build_context(&ds, &r, &ds.prices, &AtomicBool::new(false)).unwrap();
+            make_plan(&ctx, |_, _| true).unwrap()
+        };
+        let without = run(&["alchemy", "desecrate_rib"]);
+        let with = run(&["alchemy", "desecrate_rib", "annul+omen_light"]);
+        let light = with.shopping.iter().find(|l| l.id == "annul+omen_light").map_or(0.0, |l| l.expected_count);
+        assert!(light > 5.0, "Omen of Light utilisé : {light}");
+        let (mw, mo) = (with.mc.as_ref().unwrap(), without.mc.as_ref().unwrap());
+        assert!(mw.ci95_mean.1 * 3.0 < mo.ci95_mean.0, "moteur exact : {:.1} avec Light contre {:.1} sans", mw.mean_cost, mo.mean_cost);
+        // écart solveur / moteur exact du même ordre que sans Light (~10 % sur ce cas de Désécration)
+        assert!((mw.mean_cost - with.expected_cost).abs() / with.expected_cost < 0.15, "moteur exact {:.1} vs solveur {:.1}", mw.mean_cost, with.expected_cost);
     }
 
     /// Cache : un changement de prix seul reprend le graphe et l'ancienne politique, et donne exactement
