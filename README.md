@@ -74,6 +74,10 @@ et l'application refuse tout ce qui n'est pas signé par elle. Le dépôt GitHub
    contient l'installeur signé et `latest.json`. Installe celui-là : c'est lui qui saura se mettre à jour.
 5. Pour chaque nouvelle version : `release.bat` avec le nouveau numéro. Les applications installées la proposent au démarrage
    (bandeau à gauche) et dans Réglages → Mises à jour ; rien n'est installé sans clic.
+6. **Notes de version** : écris les changements sous `## Prochaine version` dans `CHANGELOG.md` avant `release.bat`
+   (il refuse sinon). La release renomme la section avec le numéro et la date ; son texte devient celui de la Release
+   GitHub et de `latest.json`, et l'appli l'affiche avant d'installer, dans la fenêtre « Nouveautés » (une fois après
+   la mise à jour) et dans Réglages → Historique des versions.
 
 ### Vérifier que la chaîne de mise à jour marche (test en trois temps)
 

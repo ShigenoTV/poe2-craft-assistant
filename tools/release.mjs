@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stampNext } from "./changelog.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const [version, ...flags] = process.argv.slice(2);
@@ -24,15 +25,22 @@ if (!u?.pubkey || String(u.endpoints).includes("OWNER/REPO")) {
 }
 if (conf.version === version) fail(`la version ${version} est déjà celle du projet`);
 
+// Notes de version : la section « Prochaine version » de CHANGELOG.md prend le numéro publié (obligatoire,
+// le workflow en fait le texte de la Release et les notes affichées par l'appli).
+const day = new Date().toLocaleDateString("sv-SE"); // AAAA-MM-JJ, date locale
+let changelog;
+try { changelog = stampNext(readFileSync(at("CHANGELOG.md"), "utf8"), version, day); } catch (e) { fail(e.message); }
+
 const cargo = at("Cargo.toml");
 const toml = readFileSync(cargo, "utf8");
 if (!/\[workspace\.package\][^[]*?version = "[^"]+"/s.test(toml)) fail("version introuvable dans Cargo.toml");
 if (!dry) {
   json("package.json", (o) => { o.version = version; });
   json("src-tauri/tauri.conf.json", (o) => { o.version = version; });
+  writeFileSync(at("CHANGELOG.md"), changelog);
   writeFileSync(cargo, toml.replace(/(\[workspace\.package\][^[]*?version = ")[^"]+(")/s, `$1${version}$2`));
 }
-console.log(dry ? `(essai à blanc) numéros de version qui seraient écrits : ${version}` : `Numéros de version mis à jour : ${version}`);
+console.log(dry ? `(essai à blanc) numéros de version qui seraient écrits : ${version}, notes de version prêtes` : `Numéros de version mis à jour : ${version}`);
 
 const git = (...a) => { console.log(`> git ${a.join(" ")}`); if (!dry) execFileSync("git", a, { cwd: root, stdio: "inherit" }); };
 git("add", "-A");

@@ -251,3 +251,11 @@ details.box > div { padding: 4px 12px 12px; }
 .lv-fam.want .lv-famname { color: var(--rare); }
 .lv-chips { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-end; }
 .lv-chips button { font-size: 11px; padding: 2px 5px; }
+
+/* Notes de version : fenêtre « Nouveautés » et historique */
+.notes-text h4 { margin: 8px 0 2px; font: 600 13px/1.3 var(--font-ui); color: var(--rare); }
+.notes-text ul { margin: 2px 0; padding-left: 18px; }
+.notes-text li, .notes-text p { margin: 2px 0; color: var(--text); }
+.modal-bg { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(5, 8, 9, 0.7); padding: 16px; }
+.modal { width: min(560px, 100%); max-height: calc(100vh - 32px); box-shadow: var(--shadow-pop); }
+.modal-body { overflow-y: auto; min-height: 0; }

@@ -4,6 +4,7 @@ import { useStore } from "@/store";
 import type { PriceState, Settings } from "@/lib/types";
 import { num, shortUnit } from "@/lib/format";
 import { reloadRates, useDisplay } from "@/lib/display";
+import { NotesText, ReleaseHistory } from "@/components/ReleaseNotes";
 
 /** Le formulaire des réglages n'écrase pas l'unité des coûts choisie entre-temps dans la barre de gauche. */
 const withCostUnit = (s: Settings): Settings => ({ ...s, costUnit: useDisplay.getState().unit });
@@ -21,7 +22,7 @@ function UpdatesPanel({ s, set }: { s: Settings; set: <K extends keyof Settings>
       </div>
       {updateStatus === "uptodate" && <div className="note ok-t">Tu utilises la dernière version.</div>}
       {updateStatus === "available" && update && (
-        <div className="note">Version {update.version} disponible{update.date ? ` (${update.date.slice(0, 10)})` : ""}.{update.notes && <><br />{update.notes}</>}</div>
+        <div className="note">Version {update.version} disponible{update.date ? ` (${update.date.slice(0, 10)})` : ""}.{update.notes && <NotesText text={update.notes} />}</div>
       )}
       {updateStatus === "installing" && (
         <div><div className={`progress ${updateProgress?.total ? "" : "ind"}`}><i style={{ width: `${updateProgress?.total ? (100 * updateProgress.downloaded) / updateProgress.total : 0}%` }} /></div>
@@ -148,6 +149,7 @@ export function SettingsPage() {
       <div className="page-head"><h1>Réglages</h1></div>
       <div className="stack" style={{ maxWidth: 820 }}>
         <UpdatesPanel s={s} set={set} />
+        <ReleaseHistory />
         <div className="panel pad stack">
           <h3 className="hd">Raccourcis globaux</h3>
           {hkError && <div className="err">Les raccourcis ne fonctionnent pas : {hkError}</div>}

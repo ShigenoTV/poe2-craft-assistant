@@ -8,6 +8,7 @@ import { DataPage } from "@/features/data/DataPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { isTauri } from "@/lib/ipc";
 import { UpdateBox } from "@/components/UpdateBox";
+import { WhatsNew } from "@/components/ReleaseNotes";
 import { CostUnitSwitch, useDisplay } from "@/lib/display";
 
 const NAV: [Page, string][] = [["planner", "Reverse-crafting"], ["sandbox", "Simulateur"], ["item", "Objet en jeu"], ["history", "Historique"], ["data", "Données"], ["settings", "Réglages"]];
@@ -50,6 +51,7 @@ export function App() {
             {page === "history" && <HistoryPage />}
             {page === "data" && <DataPage />}
             {page === "settings" && <SettingsPage />}
+            <WhatsNew />
           </>
         )}
       </main>
