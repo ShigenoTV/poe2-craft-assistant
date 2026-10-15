@@ -29,11 +29,12 @@ export function notesFor(text, version) {
   return parseChangelog(text).find((s) => s.version === version && hasContent(s.body))?.body ?? null;
 }
 
-/** Renomme « ## Prochaine version » en « ## X.Y.Z (date) » ; erreur si la section manque ou est vide. */
+/** Renomme « ## Prochaine version » en « ## X.Y.Z (date) » et en rouvre une vide au-dessus ; erreur si la section manque ou est vide. */
 export function stampNext(text, version, date) {
   if (!notesFor(text, NEXT)) throw new Error(`aucune note sous « ## ${NEXT} » dans CHANGELOG.md : écris d'abord ce que contient la ${version}`);
   if (parseChangelog(text).some((s) => s.version === version)) throw new Error(`CHANGELOG.md contient déjà une section ${version}`);
-  return text.replace(new RegExp(`^## +${NEXT}\\s*$`, "m"), `## ${version} (${date})`);
+  // une section vide est rouverte au-dessus pour les notes de la version suivante
+  return text.replace(new RegExp(`^## +${NEXT}[ \\t]*$`, "m"), `## ${NEXT}\n\n## ${version} (${date})`);
 }
 
 /** Versions publiées strictement plus récentes que `since` et jusqu'à `upTo` inclus. */

@@ -35,8 +35,10 @@ test("chaque section garde son numéro, sa date et son texte", () => {
 test("la release renomme « Prochaine version » avec le numéro et la date", () => {
   const out = stampNext(SAMPLE, "0.2.50", "2026-10-25");
   assert.equal(notesFor(out, "0.2.50"), "### Nouveautés\n\n- C");
-  assert.equal(parseChangelog(out)[0].date, "2026-10-25");
+  assert.equal(parseChangelog(out)[1].date, "2026-10-25");
   assert.equal(notesFor(out, NEXT), null);
+  assert.match(out, /## Prochaine version\n\n## 0\.2\.50 \(2026-10-25\)\n\n### Nouveautés/); // section vide rouverte, mise en page gardée
+  assert.throws(() => stampNext(out, "0.2.51", "2026-10-26"), /aucune note/);
 });
 
 test("la release refuse des notes vides ou une version déjà décrite", () => {
