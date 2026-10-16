@@ -6,6 +6,8 @@ Une section par version, la plus récente en haut. Les notes de la version en pr
 
 ## Prochaine version
 
+## 0.3.1 (2026-10-16)
+
 ### Nouveautés
 
 - Réglages : les raccourcis se choisissent au clavier. On clique dans le champ, on appuie sur la combinaison voulue, et elle s'applique tout de suite (plus besoin de l'écrire ni de cliquer sur « Enregistrer »).
