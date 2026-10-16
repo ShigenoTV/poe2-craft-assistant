@@ -145,28 +145,14 @@ mod tests {
     #[test]
     fn every_priced_action_of_the_sample_dataset_has_a_source() {
         let ds = crate::Dataset::embedded();
-        // "base_*", "essence_*", "desecrate_*" et les Omens de Désécration : prix estimés à la main
-        // (poe.ninja ne suit pas encore ces mécaniques dans notre import), documenté dans meta.notice —
-        // exception volontaire, pas un oubli.
-        let manual: std::collections::HashSet<&str> = [
-            "omen_sovereign",
-            "omen_liege",
-            "omen_blackblooded",
-            "omen_sinistral_necromancy",
-            "omen_dextral_necromancy",
-            "omen_sinistral_coronation",
-            "omen_dextral_coronation",
-            "omen_sinistral_erasure",
-            "omen_dextral_erasure",
-            "omen_light",
-            "omen_whittling",
-        ]
-        .into_iter()
-        .collect();
+        // "base_*" (aucune cote poe.ninja par base) et Essences/émotions/Alloys (en partie absentes de poe.ninja) :
+        // prix saisis à la main. Les Omens et les os, longtemps
+        // estimés à la main, sont cotés depuis (catégories Ritual et Abyss, vérifié le 16/10/2026) : plus
+        // aucune exception pour eux.
         for key in ds
             .prices
             .keys()
-            .filter(|k| !k.starts_with("base_") && !k.starts_with("essence_") && !k.starts_with("desecrate_") && !k.starts_with("liquid_") && !k.starts_with("alloy_") && !manual.contains(k.as_str()))
+            .filter(|k| !k.starts_with("base_") && !k.starts_with("essence_") && !k.starts_with("liquid_") && !k.starts_with("alloy_"))
         {
             assert!(ds.price_sources.contains_key(key), "pas de source poe.ninja pour « {key} »");
         }

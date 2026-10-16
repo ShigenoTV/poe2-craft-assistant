@@ -123,7 +123,7 @@ fn main() {
             let pick = |key: &str, tier: u8| ctx.bp.groups.iter().find(|g| g.key == key).unwrap().tiers.iter().find(|t| t.tier == tier).unwrap().affix_idx;
             let mut it = ItemState::new(Rarity::Rare, 81);
             for (k, t) in [("IncreasedLife", 2u8), ("BaseLocalDefences", 6), ("FireResistance", 2), ("IncreasedAccuracy", 4)] {
-                it.push(Mod { idx: pick(k, t), fractured: k == "IncreasedLife" });
+                it.push(Mod { idx: pick(k, t), fractured: k == "IncreasedLife", crafted: false });
             }
             let advice = advise_item(&ctx, &it, &AtomicBool::new(false)).unwrap();
             let analysis = ItemAnalysis {

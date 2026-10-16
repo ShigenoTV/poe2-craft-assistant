@@ -220,9 +220,9 @@ pub(crate) mod tests {
         let mut got_suffix_room = 0;
         for _ in 0..4000 {
             let mut it = ItemState::new(Rarity::Rare, 80);
-            it.push(Mod { idx: 0, fractured: true });
+            it.push(Mod { idx: 0, fractured: true, crafted: false });
             for idx in [1, 6, 7] {
-                it.push(Mod { idx, fractured: false });
+                it.push(Mod { idx, fractured: false, crafted: false });
             }
             assert_eq!(jewel.apply(&mut it, &contempt, &mut rng), Outcome::Applied);
             let has = |i: AffixIdx| it.mods().iter().any(|m| m.idx == i);
@@ -235,7 +235,7 @@ pub(crate) mod tests {
 
         // préfixe « +1 Suffix » : 3 suffixes, puis Annulation du préfixe (Omen Sinistral) : 3 suffixes gardés
         let mut it = ItemState::new(Rarity::Rare, 80);
-        it.push(Mod { idx: plus_suffix, fractured: false });
+        it.push(Mod { idx: plus_suffix, fractured: false, crafted: false });
         let dextral = Currency { add_slot: Some(Slot::Suffix), ..cur(CurrencyKind::Exalt) };
         for _ in 0..3 {
             assert_eq!(jewel.apply(&mut it, &dextral, &mut rng), Outcome::Applied);
@@ -307,7 +307,7 @@ pub(crate) mod tests {
         for _ in 0..300 {
             let mut it = ItemState::new(Rarity::Rare, 80);
             for i in [0u16, 1, 3, 4] {
-                it.push(Mod { idx: i, fractured: false });
+                it.push(Mod { idx: i, fractured: false, crafted: false });
             }
             it.set_fractured(0);
             let keep = it.mods()[0].idx;
@@ -328,7 +328,7 @@ pub(crate) mod tests {
         for _ in 0..200 {
             let mut it = ItemState::new(Rarity::Rare, 80);
             for i in [0u16, 1, 2] {
-                it.push(Mod { idx: i, fractured: false });
+                it.push(Mod { idx: i, fractured: false, crafted: false });
             }
             // isolé du réajout de Chaos : on teste directement la sélection du retrait
             assert!(pool.remove_random(&mut it, None, false, true, &mut rng));
@@ -345,8 +345,8 @@ pub(crate) mod tests {
         let mut rng = rand::rngs::SmallRng::seed_from_u64(11);
         for _ in 0..200 {
             let mut it = ItemState::new(Rarity::Rare, 80);
-            it.push(Mod { idx: 0, fractured: false }); // normal, jamais ciblé
-            it.push(Mod { idx: 1, fractured: false }); // desecrated, seul retirable
+            it.push(Mod { idx: 0, fractured: false, crafted: false }); // normal, jamais ciblé
+            it.push(Mod { idx: 1, fractured: false, crafted: false }); // desecrated, seul retirable
             let light = Currency { remove_desecrated_only: true, ..cur(CurrencyKind::Annul) };
             assert_eq!(pool.apply(&mut it, &light, &mut rng), Outcome::Applied);
             assert!(it.mods().iter().any(|m| m.idx == 0), "le mod normal ne doit jamais être retiré par Omen of Light");
@@ -367,7 +367,7 @@ pub(crate) mod tests {
         let mut rng = rand::rngs::SmallRng::seed_from_u64(5);
         for _ in 0..300 {
             let mut it = ItemState::new(Rarity::Rare, 80);
-            it.push(Mod { idx: 0, fractured: false });
+            it.push(Mod { idx: 0, fractured: false, crafted: false });
             assert_eq!(pool.apply(&mut it, &ancient, &mut rng), Outcome::Applied);
             assert!(it.mods().iter().any(|m| m.idx == 2), "seul le mod de niveau 60 est tirable");
         }

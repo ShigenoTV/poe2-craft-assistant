@@ -29,6 +29,9 @@ pub struct ModView {
     pub affix_idx: u16,
     #[serde(default)]
     pub fractured: bool,
+    /// mod posé par une Essence/Alloy/émotion (un seul par objet depuis 0.5.0)
+    #[serde(default)]
+    pub crafted: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -46,12 +49,12 @@ impl ItemView {
             if m.affix_idx as usize >= pool.affixes.len() {
                 return Err("affixe hors du pool".into());
             }
-            it.push(Mod { idx: m.affix_idx, fractured: m.fractured });
+            it.push(Mod { idx: m.affix_idx, fractured: m.fractured, crafted: m.crafted });
         }
         Ok(it)
     }
     pub fn from_state(it: &ItemState) -> Self {
-        Self { rarity: it.rarity, ilvl: it.ilvl, mods: it.mods().iter().map(|m| ModView { affix_idx: m.idx, fractured: m.fractured }).collect() }
+        Self { rarity: it.rarity, ilvl: it.ilvl, mods: it.mods().iter().map(|m| ModView { affix_idx: m.idx, fractured: m.fractured, crafted: m.crafted }).collect() }
     }
 }
 
@@ -845,7 +848,7 @@ mod jewel_tests {
 
         // joyau Rare plein : 2 préfixes + 2 suffixes non voulus, objectif = un 3e préfixe
         let lowest = |g: &GroupInfo| g.tiers.iter().max_by_key(|t| t.tier).unwrap().affix_idx;
-        let mods = [pre[0], pre[1], suf[0], suf[1]].iter().map(|g| ModView { affix_idx: lowest(g), fractured: false }).collect();
+        let mods = [pre[0], pre[1], suf[0], suf[1]].iter().map(|g| ModView { affix_idx: lowest(g), fractured: false, crafted: false }).collect();
         let full = ItemView { rarity: Rarity::Rare, ilvl: 82, mods };
         let ctx = build_context(&ds, &req(vec![want(pre[2])], Some(full)), &ds.prices, &AtomicBool::new(false)).expect("build_context");
         let plan = make_plan(&ctx, |_, _| true).expect("make_plan");
@@ -962,7 +965,7 @@ mod starting_item_tests {
         let fresh_plan = make_plan(&fresh, |_, _| true).expect("make_plan (neuf)");
 
         let mut with_start = base_req.clone();
-        with_start.starting_item = Some(ItemView { rarity: Rarity::Magic, ilvl: 82, mods: vec![ModView { affix_idx: target_idx as u16, fractured: false }] });
+        with_start.starting_item = Some(ItemView { rarity: Rarity::Magic, ilvl: 82, mods: vec![ModView { affix_idx: target_idx as u16, fractured: false, crafted: false }] });
         let ctx2 = build_context(&ds, &with_start, &prices, &AtomicBool::new(false)).expect("build_context (objet existant)");
         let plan2 = make_plan(&ctx2, |_, _| true).expect("make_plan (objet existant)");
 
@@ -1419,7 +1422,7 @@ mod liquid_emotions_complete_tests {
         };
         let (pre, suf) = (top(Slot::Prefix), top(Slot::Suffix));
         let wanted: Vec<WantedReq> = suf[..3].iter().map(|g| WantedReq { group: g.key.clone(), max_tier: g.tiers.len() as u8 }).collect();
-        let lowest = |g: &GroupInfo| ModView { affix_idx: g.tiers.last().unwrap().affix_idx, fractured: false };
+        let lowest = |g: &GroupInfo| ModView { affix_idx: g.tiers.last().unwrap().affix_idx, fractured: false, crafted: false };
         let start = ItemView { rarity: Rarity::Rare, ilvl: 82, mods: vec![lowest(suf[0]), lowest(suf[1]), lowest(pre[0])] };
         let req = |actions: &[&str], mc_trials: u64| PlanRequest {
             base_id: "jewel_strjewel".into(),
@@ -1735,6 +1738,9 @@ mod solver_speed_tests {
         let mut r = req("gloves_dex", 81, &[("IncreasedLife", 3), ("FireResistance", 3), ("ColdResistance", 3), ("IncreasedAccuracy", 3)], None);
         r.mc_trials = 3_000;
         r.seed = 7;
+        // prix d'avant le relevé poe.ninja des Omens (Whittling ≈ 11 000 ex le 16/10/2026, où il n'est plus
+        // rentable) : ce test vérifie la mécanique, pas le marché
+        r.prices = Some([("omen_whittling", 0.5), ("omen_sinistral_erasure", 0.5), ("omen_dextral_erasure", 0.5)].into_iter().map(|(k, v)| (k.to_string(), v)).collect());
         let t0 = std::time::Instant::now();
         let ctx = build_context(&ds, &r, &ds.prices, &AtomicBool::new(false)).unwrap();
         assert!(ctx.solution.converged, "convergé");
@@ -1763,7 +1769,8 @@ mod solver_speed_tests {
             let mut r = req("shield_str", 82, &[(g, 1)], Some(acts));
             r.mc_trials = 6_000;
             r.seed = 3;
-            r.prices = Some([("annul".to_string(), 0.5)].into_iter().collect());
+            // prix bas exprès (Light ≈ 7 000 ex, Preserved Rib ≈ 8 ex sur poe.ninja le 16/10/2026) : ce test vérifie la mécanique
+            r.prices = Some([("annul".to_string(), 0.5), ("omen_light".to_string(), 0.5), ("desecrate_rib".to_string(), 0.4)].into_iter().collect());
             let ctx = build_context(&ds, &r, &ds.prices, &AtomicBool::new(false)).unwrap();
             make_plan(&ctx, |_, _| true).unwrap()
         };
@@ -1804,5 +1811,141 @@ mod solver_speed_tests {
         // un autre objectif ne réutilise pas ce graphe
         let other = build_context(&ds, &req("gloves_dex", 81, &[("IncreasedLife", 3)], None), &ds.prices, &no).unwrap();
         assert_ne!(other.model.structure_key(&[other.start]), second.model.structure_key(&[second.start]));
+    }
+}
+
+/// Règles du patch 0.5.0 et de la 0.3.1 vérifiées le 16/10/2026 (rapport analyse/recherche-jeu-2026-10-16.md).
+#[cfg(test)]
+mod game_rules_tests {
+    use super::*;
+    use rand::{rngs::SmallRng, SeedableRng};
+    use std::sync::atomic::AtomicBool;
+
+    fn action<'a>(ctx: &'a PlanContext, id: &str) -> (usize, &'a Currency) {
+        ctx.model
+            .actions
+            .iter()
+            .enumerate()
+            .find_map(|(i, a)| match &a.kind {
+                ActionKind::Currency(c) if a.id == id => Some((i, c)),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("action {id} absente"))
+    }
+
+    /// Un seul mod crafted par objet (« this item already has a crafted modifier ») : après une Greater Essence,
+    /// l'Alloy est refusé par le moteur exact ET par le solveur ; retirer le mod crafted le rend de nouveau
+    /// possible. Le plan reste confirmé par le moteur exact.
+    #[test]
+    fn a_second_crafted_modifier_is_refused_by_engine_and_solver() {
+        let ds = Dataset::embedded();
+        let bp = ds.build_pool("helmet_str").unwrap();
+        let life = bp.groups.iter().find(|g| g.key == "IncreasedLife").unwrap();
+        let life8 = bp.pool.affixes.iter().position(|a| a.id == "IncreasedLife8").unwrap() as u16;
+        let life_tier = bp.pool.affixes[life8 as usize].tier;
+        assert!(life.tiers.iter().any(|t| t.affix_idx == life8));
+        let mut r = PlanRequest {
+            base_id: "helmet_str".into(),
+            ilvl: 82,
+            wanted: vec![WantedReq { group: "AlloySpellAoE".into(), max_tier: 1 }, WantedReq { group: "IncreasedLife".into(), max_tier: life_tier }],
+            enabled_actions: Some(["transmute", "essence_body_greater", "alloy_mystic", "exalt", "annul"].iter().map(|s| s.to_string()).collect()),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 4_000,
+            node_cap: 50,
+            seed: 5,
+            prices_label: None,
+            starting_item: None,
+            instill: None,
+        };
+        r.prices = Some([("alloy_mystic".to_string(), 3.0), ("essence_body_greater".to_string(), 2.0)].into_iter().collect());
+        let ctx = build_context(&ds, &r, &ds.prices, &AtomicBool::new(false)).unwrap();
+        let (ess_ai, ess) = action(&ctx, "essence_body_greater");
+        let (alloy_ai, alloy) = action(&ctx, "alloy_mystic");
+        let (_, annul) = action(&ctx, "annul");
+        let (_, transmute) = action(&ctx, "transmute");
+        let pool = &ctx.bp.pool;
+        let mut rng = SmallRng::seed_from_u64(1);
+        let mut it = ItemState::new(Rarity::Normal, 82);
+        assert_eq!(pool.apply(&mut it, transmute, &mut rng), Outcome::Applied);
+        assert_eq!(pool.apply(&mut it, ess, &mut rng), Outcome::Applied, "Greater Essence sur l'objet magique");
+        assert!(it.has_crafted() && it.mods().iter().any(|m| m.idx == life8 && m.crafted));
+        let before = it;
+        assert_eq!(pool.apply(&mut it, alloy, &mut rng), Outcome::NotApplicable, "moteur exact : second mod crafted refusé");
+        assert_eq!(it.mods(), before.mods());
+        // solveur : aucune transition pour l'Alloy dans cet état, ni pour une seconde Essence
+        let s = ctx.model.project(&it).unwrap();
+        assert_ne!(s.craft, craft_solver::CRAFT_NONE);
+        let mut out = Vec::new();
+        ctx.model.outcomes(s, alloy_ai, &mut out);
+        assert!(out.is_empty(), "solveur : Alloy refusé tant que le mod crafted est là : {out:?}");
+        ctx.model.outcomes(s, ess_ai, &mut out);
+        assert!(out.is_empty());
+        // une fois le mod crafted retiré (Annulation), l'Alloy redevient possible, au moteur comme au solveur
+        while it.has_crafted() {
+            it = before;
+            pool.apply(&mut it, annul, &mut rng);
+        }
+        let s = ctx.model.project(&it).unwrap();
+        assert_eq!(s.craft, craft_solver::CRAFT_NONE);
+        ctx.model.outcomes(s, alloy_ai, &mut out);
+        assert!(!out.is_empty(), "solveur : Alloy possible après retrait du mod crafted");
+        // solveur et moteur exact d'accord sur le plan complet
+        let plan = make_plan(&ctx, |_, _| true).unwrap();
+        assert!(plan.solver.converged && plan.expected_cost.is_finite());
+        let mc = plan.mc.as_ref().unwrap();
+        assert!(mc.censored * 100 < mc.trials, "{mc:?}");
+        let gap = (mc.mean_cost - plan.expected_cost).abs() / plan.expected_cost;
+        assert!(gap < 0.1, "moteur exact {:.1} vs solveur {:.1}", mc.mean_cost, plan.expected_cost);
+    }
+
+    /// Orb of Alchemy sur un objet Magique (0.3.1) : Rare à 4 mods, mods d'origine non conservés ; le solveur
+    /// propose la même transition.
+    #[test]
+    fn alchemy_applies_to_a_magic_item() {
+        let ds = Dataset::embedded();
+        let r = PlanRequest {
+            base_id: "gloves_dex".into(),
+            ilvl: 81,
+            wanted: vec![WantedReq { group: "IncreasedLife".into(), max_tier: 3 }],
+            enabled_actions: Some(["transmute", "alchemy"].iter().map(|s| s.to_string()).collect()),
+            prices: None,
+            allow_abandon: true,
+            mc_trials: 0,
+            node_cap: 50,
+            seed: 1,
+            prices_label: None,
+            starting_item: None,
+            instill: None,
+        };
+        let ctx = build_context(&ds, &r, &ds.prices, &AtomicBool::new(false)).unwrap();
+        let (alch_ai, alch) = action(&ctx, "alchemy");
+        let (_, transmute) = action(&ctx, "transmute");
+        let mut rng = SmallRng::seed_from_u64(2);
+        let mut it = ItemState::new(Rarity::Normal, 81);
+        ctx.bp.pool.apply(&mut it, transmute, &mut rng);
+        assert_eq!(it.rarity, Rarity::Magic);
+        assert_eq!(ctx.bp.pool.apply(&mut it, alch, &mut rng), Outcome::Applied);
+        assert_eq!((it.rarity, it.len()), (Rarity::Rare, 4));
+        let magic = MacroState { bad_s: 1, ..MacroState::empty(Rarity::Magic) };
+        let mut out = Vec::new();
+        ctx.model.outcomes(magic, alch_ai, &mut out);
+        assert!(!out.is_empty() && out.iter().all(|t| t.to.rarity == Rarity::Rare && t.to.total() == 4), "{out:?}");
+        let p: f64 = out.iter().map(|t| t.p).sum();
+        assert!((p - 1.0).abs() < 1e-9);
+    }
+
+    /// Données vérifiées sur poe2db / patch notes / poe.ninja.
+    #[test]
+    fn dataset_matches_the_current_game() {
+        let ds = Dataset::embedded();
+        let lvl = |id: &str| ds.currencies.iter().find(|c| c.id == id).unwrap().min_mod_level;
+        assert_eq!((lvl("transmute_greater"), lvl("augment_greater")), (44, 44));
+        assert_eq!((lvl("transmute_perfect"), lvl("augment_perfect")), (70, 70));
+        assert_eq!((lvl("exalt_greater"), lvl("exalt_perfect"), lvl("regal_greater"), lvl("chaos_perfect")), (35, 50, 35, 50));
+        assert!(!ds.omens.iter().any(|o| o.id.contains("coronation")), "Omens de Coronation introuvables depuis 0.3.0");
+        for id in ["omen_whittling", "omen_light", "desecrate_rib_ancient", "desecrate_jawbone", "omen_liege"] {
+            assert!(ds.price_sources.contains_key(id), "{id} coté sur poe.ninja");
+        }
     }
 }

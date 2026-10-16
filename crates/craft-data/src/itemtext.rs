@@ -30,6 +30,9 @@ pub struct ParsedMod {
     pub lines: Vec<String>,
     pub fractured: bool,
     pub desecrated: bool,
+    /// Mod posé par une Essence, un Alloy ou une Liquid Emotion. Format du texte copié en jeu non vérifié sur un
+    /// vrai objet : en-tête contenant « Crafted » ou ligne finissant par « (crafted) », comme pour « Fractured ».
+    pub crafted: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -201,11 +204,15 @@ fn parse_advanced_section(sec: &[&str], out: &mut Vec<ParsedMod>) {
                 lines: vec![],
                 fractured: pre.contains("fractured"),
                 desecrated: pre.contains("desecrated"),
+                crafted: pre.contains("crafted"),
             });
         } else if let Some(m) = cur.as_mut() {
             let low = l.to_lowercase();
             if low.contains("(fractured)") {
                 m.fractured = true;
+            }
+            if low.contains("(crafted)") {
+                m.crafted = true;
             }
             m.lines.push(re_suffix_tag().replace(l, "").to_string());
         }
@@ -240,6 +247,7 @@ fn parse_basic_section(sec: &[&str], out: &mut Vec<ParsedMod>) {
             lines: vec![re_suffix_tag().replace(l, "").to_string()],
             fractured: low.contains("(fractured)"),
             desecrated: low.contains("(desecrated)"),
+            crafted: low.contains("(crafted)"),
         });
     }
 }
@@ -356,7 +364,10 @@ pub fn resolve(parsed: &ParsedItem, bp: &BasePool, fallback_ilvl: u8) -> Result<
         match chosen {
             Some(c) if item.len() < 6 => {
                 let a = &bp.pool.affixes[c as usize];
-                item.push(Mod { idx: c, fractured: pm.fractured });
+                // un mod de poids nul sur cette base (hors Désécration) ne vient que d'une Essence, d'un Alloy ou
+                // d'une émotion : crafted même si le texte copié ne le dit pas
+                let crafted = pm.crafted || (a.weight == 0 && !a.desecrated);
+                item.push(Mod { idx: c, fractured: pm.fractured, crafted });
                 matched.push(MatchedMod { affix_idx: c, tier: a.tier, name: a.name.clone(), text: a.text.clone(), slot: a.slot, fractured: pm.fractured });
             }
             _ => unmatched.push(line.clone()),
@@ -425,6 +436,25 @@ mod tests {
         let r = resolve(&p, &bp, 80).unwrap();
         let got: Vec<u16> = r.matched.iter().map(|m| m.affix_idx).collect();
         assert_eq!(got, want, "non appariés : {:?}", r.unmatched);
+    }
+
+    /// Mod crafted (Essence, Alloy, émotion) : reconnu à « (crafted) », à l'en-tête « Crafted … Modifier », ou
+    /// parce qu'il ne peut pas apparaître naturellement sur la base (poids nul).
+    #[test]
+    fn crafted_modifiers_are_flagged() {
+        let ds = Dataset::embedded();
+        let bp = ds.build_pool("gloves_dex").unwrap();
+        let (_, basic, _) = sample(&bp);
+        let basic = basic.replacen("\n", " (crafted)\n", 10).replacen(" (crafted)\n", "\n", 9);
+        let p = parse_item(&basic).unwrap();
+        assert_eq!(p.mods.iter().filter(|m| m.crafted).count(), 1, "{:?}", p.mods);
+        let (adv, _, _) = sample(&bp);
+        let p = parse_item(&adv.replace("{ Suffix Modifier", "{ Crafted Suffix Modifier")).unwrap();
+        let r = resolve(&p, &bp, 80).unwrap();
+        assert_eq!(r.item.mods().iter().map(|m| m.crafted).collect::<Vec<_>>(), [false, true, false]);
+        // mod exclusif d'Alloy (poids nul sur la base) : crafted sans mention dans le texte
+        let alloy = bp.pool.affixes.iter().position(|a| a.id == "AlloyMysticGloves").unwrap();
+        assert_eq!(bp.pool.affixes[alloy].weight, 0);
     }
 
     #[test]

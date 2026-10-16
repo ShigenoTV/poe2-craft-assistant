@@ -13,7 +13,8 @@ const blank = (ilvl: number): ItemDetail => ({ view: { rarity: "normal", ilvl, m
 function applicable(a: ActionView, it: ItemDetail): boolean {
   const r = it.view.rarity, n = it.mods.length;
   switch (a.kind) {
-    case "transmute": case "alchemy": return r === "normal";
+    case "transmute": return r === "normal";
+    case "alchemy": return r !== "rare"; // Normal ou Magique (0.3.1)
     case "augment": return r === "magic" && n < 2;
     case "regal": return r === "magic";
     case "exalt": return r === "rare" && n < 6;

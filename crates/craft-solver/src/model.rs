@@ -394,6 +394,9 @@ impl Model {
             let a = &self.pool.affixes[m.idx as usize];
             if let Some(i) = self.tracked.iter().position(|&g| g == (a.group, a.slot)) {
                 s.ess |= 1 << i;
+                if m.crafted && s.craft != CRAFT_SHIFTER {
+                    s.craft = CRAFT_TRACKED + i as u8;
+                }
             }
         }
         Some(s)
@@ -531,6 +534,8 @@ impl Model {
         let ok = |is_prefix: bool| slot.map_or(true, |x| (x == Slot::Prefix) == is_prefix);
         // retirer le mod Désécré libère l'objet pour une nouvelle Désécration
         let undesec = |t: MacroState, which: u8| if s.desecrated && s.desec == which { MacroState { desecrated: false, desec: DESEC_NONE, ..t } } else { t };
+        // retirer le mod crafted autorise de nouveau une Essence/Alloy/émotion
+        let uncraft = |t: MacroState, which: u8| if s.craft == which { MacroState { craft: CRAFT_NONE, ..t } } else { t };
         // (état après retrait, nombre de mods de ce genre, loi de leur niveau, est-ce le mod Désécré)
         // lois des niveaux : utiles seulement à l'Omen of Whittling, empruntées (ou calculées) à la demande
         use std::borrow::Cow;
@@ -544,11 +549,11 @@ impl Model {
             }
             if s.held >> k & 1 == 1 && s.frac != k as u8 + 1 {
                 let which = DESEC_HELD + k as u8;
-                cands.push((undesec(MacroState { held: s.held & !(1 << k), ..s }, which), 1, Cow::Borrowed(&self.levels.held[k]), s.desecrated && s.desec == which));
+                cands.push((uncraft(undesec(MacroState { held: s.held & !(1 << k), ..s }, which), which), 1, Cow::Borrowed(&self.levels.held[k]), s.desecrated && s.desec == which));
             }
             if s.blocked >> k & 1 == 1 {
                 let which = DESEC_BLOCKED + k as u8;
-                cands.push((undesec(MacroState { blocked: s.blocked & !(1 << k), ..s }, which), 1, Cow::Borrowed(&self.levels.blocked[k]), s.desecrated && s.desec == which));
+                cands.push((uncraft(undesec(MacroState { blocked: s.blocked & !(1 << k), ..s }, which), which), 1, Cow::Borrowed(&self.levels.blocked[k]), s.desecrated && s.desec == which));
             }
         }
         // le mod décaleur fait partie des mauvais affixes de son slot : le retirer referme la place qu'il ouvrait
@@ -566,20 +571,25 @@ impl Model {
             // même poids qu'un autre mauvais affixe ; le reste, anonyme, se partage le poids restant
             let mut anon = bad as i32;
             if let (Some(i), true) = (s.shifter, shift_slot == Some(slot)) {
-                cands.push((MacroState { shifter: None, ..less }, 1, point(i), false));
+                cands.push((uncraft(MacroState { shifter: None, ..less }, CRAFT_SHIFTER), 1, point(i), false));
                 anon -= 1;
             }
             for (i, &(g, sl)) in self.tracked.iter().enumerate() {
                 if sl == slot && s.ess >> i & 1 == 1 {
                     // niveau du mod garanti suivi : celui d'un affixe de ce groupe et de ce slot
                     let lv = if lowest { dist(self.pool.affixes.iter().filter(|a| a.group == g && a.slot == sl).map(|a| (a.req_ilvl, 1))) } else { Vec::new() };
-                    cands.push((MacroState { ess: s.ess & !(1 << i), ..less }, 1, Cow::Owned(lv), false));
+                    cands.push((uncraft(MacroState { ess: s.ess & !(1 << i), ..less }, CRAFT_TRACKED + i as u8), 1, Cow::Owned(lv), false));
                     anon -= 1;
                 }
             }
             let which = if slot == Slot::Prefix { DESEC_BAD_P } else { DESEC_BAD_S };
             if s.desecrated && s.desec == which && anon > 0 {
                 cands.push((undesec(less, which), 1, Cow::Borrowed(&self.levels.desec_bad[si]), true));
+                anon -= 1;
+            }
+            // mod crafted anonyme (mod garanti inutile non suivi) : retiré comme un autre mauvais affixe
+            if s.craft == which && anon > 0 {
+                cands.push((uncraft(less, which), 1, Cow::Borrowed(&self.levels.bad[si]), false));
                 anon -= 1;
             }
             if anon > 0 {
@@ -651,8 +661,9 @@ impl Model {
             Regal if s.rarity == Rarity::Magic => {
                 self.add_outcomes(MacroState { rarity: Rarity::Rare, ..s }, w, &mut v);
             }
-            Alchemy if s.rarity == Rarity::Normal => {
-                let mut dist = vec![(MacroState { rarity: Rarity::Rare, ..s }, 1.0)];
+            // Normal ou Magique (0.3.1) : sur un objet magique, ses mods sont perdus
+            Alchemy if s.rarity != Rarity::Rare => {
+                let mut dist = vec![(MacroState::empty(Rarity::Rare), 1.0)];
                 for _ in 0..4 {
                     let mut next = Vec::new();
                     for (st, p) in dist {
@@ -699,7 +710,8 @@ impl Model {
                     out.push(Tr { to: self.restart, p: dead, extra: self.abandon_extra, abandon: true });
                 }
             }
-            Essence if (s.rarity == Rarity::Magic && !cur.requires_rare) || (s.rarity == Rarity::Rare && cur.requires_rare) => {
+            // un seul mod crafted par objet (0.5.0) : refusée tant qu'il en reste un
+            Essence if ((s.rarity == Rarity::Magic && !cur.requires_rare) || (s.rarity == Rarity::Rare && cur.requires_rare)) && s.craft == CRAFT_NONE => {
                 let targets = &self.essence_class[ai];
                 // état après l'ajout de l'affixe garanti `t` dans `s1`, `None` sans place ou en conflit de groupe
                 let add = |s1: MacroState, (t, slot, class): (AffixIdx, Slot, Class)| -> Option<MacroState> {
@@ -714,16 +726,25 @@ impl Model {
                         return None;
                     }
                     match class {
-                        Class::Wanted(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => Some(MacroState { rarity: Rarity::Rare, held: s1.held | 1 << k, ..s1 }),
-                        Class::Blocked(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => Some(MacroState { rarity: Rarity::Rare, blocked: s1.blocked | 1 << k, ..s1 }),
+                        Class::Wanted(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => Some(MacroState { rarity: Rarity::Rare, held: s1.held | 1 << k, craft: DESEC_HELD + k as u8, ..s1 }),
+                        Class::Blocked(k) if s1.held >> k & 1 == 0 && s1.blocked >> k & 1 == 0 => Some(MacroState { rarity: Rarity::Rare, blocked: s1.blocked | 1 << k, craft: DESEC_BLOCKED + k as u8, ..s1 }),
                         Class::Other => {
                             let bit = self.tracked_bit(t).unwrap_or(0);
                             if s1.ess & bit != 0 {
                                 return None; // ce mod garanti est déjà sur l'objet : groupe déjà pris
                             }
+                            let craft = if shift {
+                                CRAFT_SHIFTER
+                            } else if bit != 0 {
+                                CRAFT_TRACKED + bit.trailing_zeros() as u8
+                            } else if slot == Slot::Prefix {
+                                DESEC_BAD_P
+                            } else {
+                                DESEC_BAD_S
+                            };
                             let st = match slot {
-                                Slot::Prefix => MacroState { rarity: Rarity::Rare, bad_p: s1.bad_p + 1, ess: s1.ess | bit, ..s1 },
-                                Slot::Suffix => MacroState { rarity: Rarity::Rare, bad_s: s1.bad_s + 1, ess: s1.ess | bit, ..s1 },
+                                Slot::Prefix => MacroState { rarity: Rarity::Rare, bad_p: s1.bad_p + 1, ess: s1.ess | bit, craft, ..s1 },
+                                Slot::Suffix => MacroState { rarity: Rarity::Rare, bad_s: s1.bad_s + 1, ess: s1.ess | bit, craft, ..s1 },
                             };
                             Some(if shift { MacroState { shifter: Some(t), ..st } } else { st })
                         }

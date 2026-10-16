@@ -6,6 +6,11 @@ pub const DESEC_HELD: u8 = 1;
 pub const DESEC_BLOCKED: u8 = 7;
 pub const DESEC_BAD_P: u8 = 13;
 pub const DESEC_BAD_S: u8 = 14;
+/// Mod crafted (Essence, Alloy, émotion) : mêmes codes que `DESEC_*` pour un mod voulu, bloquant ou mauvais
+/// anonyme, plus le mod décaleur et les mods garantis suivis (`Model::tracked`, bit i → `CRAFT_TRACKED + i`).
+pub const CRAFT_NONE: u8 = DESEC_NONE;
+pub const CRAFT_SHIFTER: u8 = 15;
+pub const CRAFT_TRACKED: u8 = 16;
 
 /// Abstraction de l'objet vis-à-vis de l'objectif (au plus 6 affixes voulus).
 /// Les affixes « inutiles » ne sont comptés que par slot : leur identité n'influe pas sur la décision.
@@ -34,11 +39,15 @@ pub struct MacroState {
     /// aussi dans `bad_p`/`bad_s`. Sans ce suivi, le solveur croirait pouvoir reposer ce mod (groupe déjà
     /// pris : le jeu refuse) et la politique tournerait en rond sur le moteur exact.
     pub ess: u32,
+    /// Lequel des mods présents est le mod crafted (un seul par objet depuis 0.5.0 : une Essence, un Alloy ou une
+    /// émotion est refusé tant qu'il est là) : `CRAFT_NONE`, `DESEC_HELD + k`, `DESEC_BLOCKED + k`,
+    /// `DESEC_BAD_P`, `DESEC_BAD_S`, `CRAFT_SHIFTER` ou `CRAFT_TRACKED + i`.
+    pub craft: u8,
 }
 
 impl MacroState {
     pub fn empty(rarity: Rarity) -> Self {
-        Self { rarity, held: 0, blocked: 0, frac: 0, bad_p: 0, bad_s: 0, desecrated: false, desec: DESEC_NONE, shifter: None, ess: 0 }
+        Self { rarity, held: 0, blocked: 0, frac: 0, bad_p: 0, bad_s: 0, desecrated: false, desec: DESEC_NONE, shifter: None, ess: 0, craft: CRAFT_NONE }
     }
     pub fn key(&self) -> String {
         let r = match self.rarity {
@@ -51,8 +60,9 @@ impl MacroState {
             Some(i) => format!("{key}:x{i}"),
             None => key,
         };
-        if self.ess != 0 {
-            format!("{key}:e{:x}", self.ess)
+        let key = if self.ess != 0 { format!("{key}:e{:x}", self.ess) } else { key };
+        if self.craft != CRAFT_NONE {
+            format!("{key}:c{}", self.craft)
         } else {
             key
         }
@@ -67,6 +77,15 @@ impl MacroState {
 pub fn project(goal: &Goal, pool: &AffixPool, item: &ItemState) -> Option<MacroState> {
     let mut s = MacroState::empty(item.rarity);
     for m in item.mods() {
+        if m.crafted {
+            s.craft = match goal.classify(pool, m.idx) {
+                Class::Wanted(k) => DESEC_HELD + k as u8,
+                Class::Blocked(k) => DESEC_BLOCKED + k as u8,
+                Class::Other if pool.affixes[m.idx as usize].cap_shift != (0, 0) => CRAFT_SHIFTER,
+                Class::Other if pool.affixes[m.idx as usize].slot == Slot::Prefix => DESEC_BAD_P,
+                Class::Other => DESEC_BAD_S,
+            };
+        }
         let desecrated = pool.affixes[m.idx as usize].desecrated;
         if desecrated {
             s.desecrated = true;

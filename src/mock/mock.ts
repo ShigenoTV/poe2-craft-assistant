@@ -60,7 +60,7 @@ function applyCur(pool: T.PoolView, item: T.ItemView, c: T.ActionView): boolean 
     case "transmute": if (item.rarity !== "normal") return false; item.rarity = "magic"; add(); return true;
     case "augment": if (item.rarity !== "magic" || n >= 2) return false; add(); return true;
     case "regal": if (item.rarity !== "magic") return false; item.rarity = "rare"; add(); return true;
-    case "alchemy": if (item.rarity !== "normal") return false; item.rarity = "rare"; for (let k = 0; k < 4; k++) add(); return true;
+    case "alchemy": if (item.rarity === "rare") return false; item.rarity = "rare"; item.mods = []; for (let k = 0; k < 4; k++) add(); return true;
     case "exalt": if (item.rarity !== "rare" || n >= 6) return false; add(); return true;
     case "chaos": if (item.rarity !== "rare" || !remove()) return false; add(); return true;
     case "annul": return item.rarity !== "normal" && remove();

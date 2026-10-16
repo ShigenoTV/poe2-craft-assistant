@@ -64,6 +64,10 @@ pub struct Affix {
 pub struct Mod {
     pub idx: AffixIdx,
     pub fractured: bool,
+    /// Mod « crafted » : posé par une Essence, un Alloy ou une Liquid Emotion. Depuis le patch 0.5.0, un
+    /// objet n'en porte qu'un à la fois (« items can only have 1 crafted modifier at a time » ; le jeu refuse
+    /// une seconde Essence : « this item already has a crafted modifier »).
+    pub crafted: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -89,6 +93,9 @@ impl ItemState {
     }
     pub fn has_fractured(&self) -> bool {
         self.mods().iter().any(|m| m.fractured)
+    }
+    pub fn has_crafted(&self) -> bool {
+        self.mods().iter().any(|m| m.crafted)
     }
     pub fn push(&mut self, m: Mod) {
         debug_assert!(self.len < 6);
@@ -307,7 +314,7 @@ impl AffixPool {
 
     fn add_random(&self, item: &mut ItemState, f: &DrawFilter, rng: &mut impl Rng) {
         if let Some(idx) = self.draw(item, f, rng) {
-            item.push(Mod { idx, fractured: false });
+            item.push(Mod { idx, fractured: false, crafted: false });
         }
     }
 
@@ -351,8 +358,9 @@ impl AffixPool {
                 item.rarity = Rarity::Rare;
                 self.add_random(item, &f, rng);
             }
-            Alchemy if item.rarity == Rarity::Normal => {
-                item.rarity = Rarity::Rare;
+            // Normal ou Magique (patch 0.3.1 : « When used on Magic items the original modifiers are not retained »)
+            Alchemy if item.rarity != Rarity::Rare => {
+                *item = ItemState::new(Rarity::Rare, item.ilvl);
                 for _ in 0..4 {
                     self.add_random(item, &f, rng);
                 }
@@ -374,7 +382,8 @@ impl AffixPool {
                 let pos = rng.gen_range(0..n);
                 item.set_fractured(pos);
             }
-            Essence if (item.rarity == Rarity::Magic && !c.requires_rare) || (item.rarity == Rarity::Rare && c.requires_rare) => {
+            // un seul mod crafted par objet (0.5.0) : l'Essence est refusée tant qu'il en reste un
+            Essence if ((item.rarity == Rarity::Magic && !c.requires_rare) || (item.rarity == Rarity::Rare && c.requires_rare)) && !item.has_crafted() => {
                 let Some(target) = c.target else { return Outcome::NotApplicable };
                 // affixe garanti sans place ou en conflit de groupe : l'objet reste tel quel
                 let before = *item;
@@ -403,7 +412,7 @@ impl AffixPool {
                     return Outcome::NotApplicable;
                 }
                 item.rarity = Rarity::Rare;
-                item.push(Mod { idx: pick, fractured: false });
+                item.push(Mod { idx: pick, fractured: false, crafted: true });
             }
             Desecrate if item.rarity == Rarity::Rare && !self.has_desecrated(item) => {
                 let before = *item;
@@ -413,7 +422,7 @@ impl AffixPool {
                 // os Ancient : niveau de mod 40 minimum (poe2db « Minimum Modifier Level 40 »), comme le solveur
                 let f = DrawFilter { min_mod_level: c.min_mod_level, force_slot: c.add_slot, require_desecrated: true, require_tag: c.require_tag };
                 match self.draw(item, &f, rng) {
-                    Some(idx) => item.push(Mod { idx, fractured: false }),
+                    Some(idx) => item.push(Mod { idx, fractured: false, crafted: false }),
                     // aucun mod Désécré possible dans la place libérée (ex. gants : suffixes seulement, mod
                     // retiré = préfixe) : l'objet reste tel quel, jamais amputé du mod retiré
                     None => {

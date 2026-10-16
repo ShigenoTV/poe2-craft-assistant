@@ -31,7 +31,7 @@ export interface ActionView {
   addSlot: Slot | null; removeSlot: Slot | null; unitCost: number; defaultEnabled: boolean;
 }
 
-export interface ModView { affixIdx: number; fractured: boolean }
+export interface ModView { affixIdx: number; fractured: boolean; /** posé par une Essence/Alloy/émotion (un seul par objet) */ crafted?: boolean }
 export interface ItemView { rarity: Rarity; ilvl: number; mods: ModView[] }
 export interface ModDetail {
   affixIdx: number; name: string; family: string; text: string; tier: number; level: number;
@@ -108,7 +108,7 @@ export interface InstillStep { skill: number; name: string; stats: string[]; emo
 // ── Presse-papiers / overlay
 export interface ParsedMod {
   kind: "implicit" | "explicit" | "rune" | "enchant"; slot: Slot | null; name: string | null; tier: number | null;
-  tags: string[]; lines: string[]; fractured: boolean; desecrated: boolean;
+  tags: string[]; lines: string[]; fractured: boolean; desecrated: boolean; crafted: boolean;
 }
 export interface ParsedItem {
   itemClass: string | null; rarityLabel: string | null; rarity: Rarity | null; name: string | null;

@@ -47,8 +47,12 @@ environnement, donc je n'ai pas pu écrire ni tester ses sélecteurs. Le chargeu
 ## Règles de craft codées en dur (à vérifier)
 
 Le noyau (`crates/craft-core/src/model.rs`) code : magique = 1 préfixe + 1 suffixe, rare = 3 + 3 ; Alchimie = rare
-avec 4 affixes ; Chaos = retrait puis ajout ; Fracture = rare avec ≥ 4 affixes, un seul mod fracturé ; Greater/Perfect =
-niveau de mod minimal (`min_mod_level`, piloté par les données). Vérifie ces règles contre la version du jeu visée.
+avec 4 affixes, depuis un objet Normal ou Magique (0.3.1 : les mods de l'objet magique sont perdus) ; Chaos = retrait puis
+ajout ; Fracture = rare avec ≥ 4 affixes, un seul mod fracturé ; Greater/Perfect = niveau de mod minimal (`min_mod_level`,
+piloté par les données ; vérifié sur poe2db le 16/10/2026 : Greater Transmute/Augment 44, Perfect Transmute/Augment 70,
+Greater Regal/Exalted/Chaos 35, Perfect Regal/Exalted/Chaos 50) ; un seul mod crafted par objet (0.5.0 : une Essence,
+un Alloy ou une Liquid Emotion est refusé tant qu'un mod crafted est présent) ; un seul mod Désécré.
+Omens de Coronation retirés le 16/10/2026 : introuvables en ligue depuis la 0.3.0 (comme Alchemy et Greater Annulment).
 
 
 ## Mettre à jour les données de jeu
@@ -118,7 +122,8 @@ Ce que fait l'import, et pourquoi (voir aussi les commentaires en tête de `tool
   32 mods Désécrés de joyau sans seigneur (aucune source ne dit quel os les donne), et ceux de l'arbre
   Genesis, des cartes et des uniques. Os (poe2db) : Rib = armure, Collarbone = amulette/anneau/ceinture,
   Jawbone = arme ou carquois (champ `item_tags` de la monnaie) ; Ancient = mod de niveau 40 minimum.
-  Gnawed (objet de niveau 64 maximum) n'est pas modélisé. Prix des os : saisis à la main.
+  Gnawed (objet de niveau 64 maximum) n'est pas modélisé. Prix des os : poe.ninja, catégorie « Abyss »
+  (`preserved-rib`, `ancient-rib`…, depuis le 16/10/2026 ; avant, saisis à la main à 0,4 Exalted).
 - Non importé : Essences, mods de corruption, mods d'objets uniques.
 
 Essences Greater et Perfect (04/10/2026), ajoutées à la main dans `essences` : 18 Greater et 18

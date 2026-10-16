@@ -181,6 +181,13 @@ fn check_add(pool: &AffixPool, it: &ItemState, idx: u16) -> Result<(), String> {
     Ok(())
 }
 
+/// Mod de poids nul sur cette base (hors Désécration) : il ne vient que d'une Essence, d'un Alloy ou d'une
+/// émotion, donc il compte comme le mod crafted de l'objet.
+fn only_crafted(pool: &AffixPool, idx: AffixIdx) -> bool {
+    let a = &pool.affixes[idx as usize];
+    a.weight == 0 && !a.desecrated
+}
+
 /// Chaque slot reste sous le plafond de l'objet à sa rareté.
 fn check_cap(pool: &AffixPool, it: &ItemState) -> Result<(), String> {
     let (cp, cs) = pool.cap_of(it);
@@ -200,7 +207,8 @@ pub fn apply_edit(pool: &AffixPool, it: &mut ItemState, e: &LiveEdit) -> Result<
             if it.rarity == Rarity::Normal {
                 it.rarity = Rarity::Magic;
             }
-            it.push(Mod { idx: affix_idx, fractured: false });
+            let crafted = only_crafted(pool, affix_idx);
+            it.push(Mod { idx: affix_idx, fractured: false, crafted });
             if it.rarity == Rarity::Magic && check_cap(pool, it).is_err() {
                 it.rarity = Rarity::Rare;
             }
@@ -216,7 +224,7 @@ pub fn apply_edit(pool: &AffixPool, it: &mut ItemState, e: &LiveEdit) -> Result<
             let fractured = it.mods()[p].fractured;
             it.remove(p);
             check_add(pool, it, to)?;
-            it.push(Mod { idx: to, fractured });
+            it.push(Mod { idx: to, fractured, crafted: only_crafted(pool, to) });
             check_cap(pool, it)
         }
         LiveEdit::Rarity { rarity } => {
