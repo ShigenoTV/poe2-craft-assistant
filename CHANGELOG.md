@@ -6,6 +6,8 @@ Une section par version, la plus récente en haut. Les notes de la version en pr
 
 ## Prochaine version
 
+## 0.3.0 (2026-10-16)
+
 ### Corrections
 
 - Prix : les Omens of Whittling, Light, Necromancy, Sovereign, Liege et Blackblooded et les 6 os de Désécration sont maintenant relevés sur poe.ninja (ils restaient à 0,5 Exalted alors que Whittling en vaut des milliers, et le planificateur les croyait presque gratuits).
