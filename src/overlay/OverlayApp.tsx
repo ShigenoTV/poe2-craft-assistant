@@ -4,7 +4,7 @@ import { AdviceView } from "@/components/AdviceView";
 import { LivePanel } from "./LivePanel";
 import { useDisplay } from "@/lib/display";
 import { prettyText, rarityLabel } from "@/lib/format";
-import type { ActiveInfo, ItemCaptured } from "@/lib/types";
+import type { ActiveInfo, ItemCaptured, Settings } from "@/lib/types";
 
 export function OverlayApp() {
   const [cap, setCap] = useState<ItemCaptured | null>(null);
@@ -24,6 +24,7 @@ export function OverlayApp() {
     void listen<ItemCaptured>("item-captured", (c) => { setCap(c); refresh(); }).then((f) => offs.push(f));
     void listen<boolean>("overlay-interactive", setInteractive).then((f) => offs.push(f));
     void listen<null>("plan-refreshed", refresh).then((f) => offs.push(f));
+    void listen<Settings>("settings-changed", (s) => { setHotkey(s.hotkeyInteractive); void api.hotkeyStatus().then(setHkError); }).then((f) => offs.push(f));
     return () => offs.forEach((f) => f());
   }, []);
 

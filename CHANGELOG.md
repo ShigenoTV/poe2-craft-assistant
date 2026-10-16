@@ -6,6 +6,16 @@ Une section par version, la plus récente en haut. Les notes de la version en pr
 
 ## Prochaine version
 
+### Nouveautés
+
+- Réglages : les raccourcis se choisissent au clavier. On clique dans le champ, on appuie sur la combinaison voulue, et elle s'applique tout de suite (plus besoin de l'écrire ni de cliquer sur « Enregistrer »).
+- Réglages : l'historique des versions ne garde que les 5 dernières.
+
+### Corrections
+
+- Raccourcis : l'ancien raccourci (Ctrl+D par défaut) ne peut plus afficher l'overlay après un changement. Une deuxième copie de l'appli lancée par erreur gardait ses propres raccourcis et son overlay ; l'appli ne s'ouvre plus qu'une fois (la relancer ramène la fenêtre déjà ouverte).
+- Raccourcis : un raccourci modifié sans cliquer sur « Enregistrer » restait affiché dans le champ mais n'était pas appliqué ; ils s'appliquent maintenant dès la saisie, avec un message qui confirme les raccourcis actifs.
+
 ## 0.3.0 (2026-10-16)
 
 ### Corrections

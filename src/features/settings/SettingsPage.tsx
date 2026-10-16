@@ -5,6 +5,7 @@ import type { PriceState, Settings } from "@/lib/types";
 import { num, shortUnit } from "@/lib/format";
 import { reloadRates, useDisplay } from "@/lib/display";
 import { NotesText, ReleaseHistory } from "@/components/ReleaseNotes";
+import { hotkeyFromEvent } from "@/lib/hotkey";
 
 /** Le formulaire des réglages n'écrase pas l'unité des coûts choisie entre-temps dans la barre de gauche. */
 const withCostUnit = (s: Settings): Settings => ({ ...s, costUnit: useDisplay.getState().unit });
@@ -134,6 +135,55 @@ function PricesEditor({ s, set }: { s: Settings; set: <K extends keyof Settings>
   );
 }
 
+/** Champ de raccourci : on clique dedans puis on appuie sur la combinaison voulue (Échap annule). */
+function HotkeyInput({ value, onCapture }: { value: string; onCapture: (v: string) => void }) {
+  const [listening, setListening] = useState(false);
+  const stop = () => { setListening(false); void api.hotkeysPause(false); };
+  return (
+    <input
+      type="text" readOnly className={listening ? "hotkey listening" : "hotkey"}
+      value={listening ? "Appuie sur la combinaison…" : value}
+      onFocus={() => { setListening(true); void api.hotkeysPause(true); }}
+      onBlur={stop}
+      onKeyDown={(e) => {
+        if (!listening) return;
+        e.preventDefault();
+        if (e.key === "Escape" && !e.ctrlKey && !e.altKey && !e.shiftKey) { e.currentTarget.blur(); return; }
+        const hk = hotkeyFromEvent(e);
+        if (!hk) return; // touche de modification seule : on attend la suite
+        setListening(false);
+        onCapture(hk);
+        e.currentTarget.blur();
+      }}
+    />
+  );
+}
+
+function HotkeysPanel({ s, setS, hkError, setHkError }: { s: Settings; setS: (s: Settings) => void; hkError: string | null; setHkError: (e: string | null) => void }) {
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const capture = async (k: "hotkeyToggle" | "hotkeyInteractive", v: string) => {
+    const next = { ...s, [k]: v };
+    try {
+      await api.setHotkeys(next.hotkeyToggle, next.hotkeyInteractive);
+      setS(next);
+      setMsg({ ok: true, text: `Raccourcis actifs : ${next.hotkeyToggle} et ${next.hotkeyInteractive}.` });
+    } catch (e) { setMsg({ ok: false, text: String(e) }); }
+    setHkError(await api.hotkeyStatus());
+  };
+  return (
+    <div className="panel pad stack">
+      <h3 className="hd">Raccourcis globaux</h3>
+      {hkError && <div className="err">Les raccourcis ne fonctionnent pas : {hkError}</div>}
+      <div className="row">
+        <label className="f grow">Afficher / masquer l'overlay<HotkeyInput value={s.hotkeyToggle} onCapture={(v) => void capture("hotkeyToggle", v)} /></label>
+        <label className="f grow">Mode interactif (l'overlay capte la souris)<HotkeyInput value={s.hotkeyInteractive} onCapture={(v) => void capture("hotkeyInteractive", v)} /></label>
+      </div>
+      {msg && <div className={msg.ok ? "ok-t small" : "err"}>{msg.text}</div>}
+      <p className="note small">Clique dans un champ puis appuie sur la combinaison voulue (Échap pour annuler) : elle s'applique tout de suite. Sans raccourci, l'icône de l'application (zone de notification, près de l'horloge) permet d'afficher ou masquer l'overlay et de quitter. Un raccourci global masque cette combinaison pour les autres applications (Ctrl+S enregistre un fichier dans la plupart des logiciels, par exemple) : choisis-en un que tu n'utilises pas ailleurs pendant que l'app tourne.</p>
+    </div>
+  );
+}
+
 export function SettingsPage() {
   const [s, setS] = useState<Settings | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -150,15 +200,7 @@ export function SettingsPage() {
       <div className="stack" style={{ maxWidth: 820 }}>
         <UpdatesPanel s={s} set={set} />
         <ReleaseHistory />
-        <div className="panel pad stack">
-          <h3 className="hd">Raccourcis globaux</h3>
-          {hkError && <div className="err">Les raccourcis ne fonctionnent pas : {hkError}</div>}
-          <div className="row">
-            <label className="f grow">Afficher / masquer l'overlay<input type="text" value={s.hotkeyToggle} onChange={(e) => set("hotkeyToggle", e.target.value)} /></label>
-            <label className="f grow">Mode interactif (l'overlay capte la souris)<input type="text" value={s.hotkeyInteractive} onChange={(e) => set("hotkeyInteractive", e.target.value)} /></label>
-          </div>
-          <p className="note small">Exemples : « Ctrl+D », « Ctrl+Shift+D », « F9 ». Sans raccourci, l'icône de l'application (zone de notification, près de l'horloge) permet d'afficher ou masquer l'overlay et de quitter. Un raccourci global masque cette combinaison pour les autres applications (Ctrl+D ajoute un favori dans un navigateur, par exemple) : choisis-en un que tu n'utilises pas ailleurs pendant que l'app tourne.</p>
-        </div>
+        <HotkeysPanel s={s} setS={setS} hkError={hkError} setHkError={setHkError} />
         <div className="panel pad stack">
           <h3 className="hd">Presse-papiers et overlay</h3>
           <label className="row"><input type="checkbox" checked={s.watchClipboard} onChange={(e) => set("watchClipboard", e.target.checked)} /> Analyser automatiquement chaque objet copié</label>

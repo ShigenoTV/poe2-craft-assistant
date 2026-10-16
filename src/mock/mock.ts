@@ -212,6 +212,8 @@ export async function handle(cmd: string, a: Record<string, unknown>): Promise<u
     case "get_settings": return settings;
     case "set_settings": settings = a.settings as T.Settings; emit("settings-changed", settings); return null;
     case "hotkey_status": return null;
+    case "set_hotkeys": settings = { ...settings, hotkeyToggle: a.toggle as string, hotkeyInteractive: a.interactive as string }; emit("settings-changed", settings); return null;
+    case "hotkeys_pause": return null;
     case "price_state": case "refresh_prices": {
       const eff = { ...get<Record<string, number>>("prices"), ...overrides };
       const market = cmd === "refresh_prices" ? Object.keys(get<Record<string, number>>("prices")).filter((k) => !k.startsWith("base_")) : [];

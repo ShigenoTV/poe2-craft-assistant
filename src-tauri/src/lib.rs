@@ -37,6 +37,15 @@ fn build_tray(app: &tauri::AppHandle, st: Arc<state::AppState>) -> tauri::Result
 
 pub fn run() {
     tauri::Builder::default()
+        // une seule instance : une deuxième copie lancée garderait ses propres raccourcis (Ctrl+D par défaut) et son
+        // overlay, que les réglages de la première ne touchent pas. Relancer l'app ramène la fenêtre existante.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(hotkeys::on_shortcut).build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
@@ -84,6 +93,8 @@ pub fn run() {
             commands::install_update,
             commands::app_version,
             commands::hotkey_status,
+            commands::set_hotkeys,
+            commands::hotkeys_pause,
             commands::price_state,
             commands::refresh_prices,
             commands::live_state,

@@ -432,6 +432,38 @@ pub async fn install_update(app: AppHandle, on_event: Channel<UpdateProgress>) -
     app.restart()
 }
 
+/// Change les deux raccourcis tout de suite (saisie au clavier dans les réglages), sans attendre « Enregistrer ».
+/// En cas d'échec, les raccourcis précédents sont remis en place et l'erreur est renvoyée.
+#[tauri::command]
+pub fn set_hotkeys(app: AppHandle, st: St, toggle: String, interactive: String) -> Result<(), String> {
+    let old = st.settings.lock().unwrap().clone();
+    {
+        let mut s = st.settings.lock().unwrap();
+        s.hotkey_toggle = toggle;
+        s.hotkey_interactive = interactive;
+    }
+    if let Err(e) = crate::hotkeys::apply(&app, &st) {
+        *st.settings.lock().unwrap() = old;
+        let _ = crate::hotkeys::apply(&app, &st);
+        return Err(e);
+    }
+    st.save_settings();
+    let settings = st.settings.lock().unwrap().clone();
+    let _ = tauri::Emitter::emit(&app, "settings-changed", &settings);
+    Ok(())
+}
+
+/// Suspend (`true`) les raccourcis le temps d'en saisir un nouveau, puis les rétablit (`false`).
+#[tauri::command]
+pub fn hotkeys_pause(app: AppHandle, st: St, paused: bool) -> Result<(), String> {
+    if paused {
+        crate::hotkeys::suspend(&app, &st);
+        Ok(())
+    } else {
+        crate::hotkeys::apply(&app, &st)
+    }
+}
+
 /// Erreur d'enregistrement des raccourcis globaux, ou `None` s'ils fonctionnent.
 #[tauri::command]
 pub fn hotkey_status(st: St) -> Option<String> {

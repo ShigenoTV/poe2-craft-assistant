@@ -45,9 +45,11 @@ export function WhatsNew() {
   );
 }
 
-/** Historique complet, dans les Réglages. */
+/** Historique des dernières versions, dans les Réglages (les plus récentes, celles qui servent encore). */
+const HISTORY_SIZE = 5;
+
 export function ReleaseHistory() {
-  const all = releases();
+  const all = releases().slice(0, HISTORY_SIZE);
   return (
     <div className="panel pad stack" style={{ gap: 10 }}>
       <h3 className="hd">Historique des versions</h3>

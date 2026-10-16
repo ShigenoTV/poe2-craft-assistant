@@ -58,6 +58,8 @@ input[type="text"], input[type="number"], input[type="search"], select, textarea
 }
 textarea { font: 12px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace; resize: vertical; }
 input:disabled, select:disabled { opacity: 0.5; }
+input.hotkey { cursor: pointer; caret-color: transparent; }
+input.hotkey.listening { border-color: var(--focus); color: var(--muted); font-style: italic; }
 .btn {
   background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 7px 13px; cursor: pointer; color: var(--text);
 }
