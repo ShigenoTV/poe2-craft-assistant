@@ -6,6 +6,10 @@ Une section par version, la plus récente en haut. Les notes de la version en pr
 
 ## Prochaine version
 
+### Corrections
+
+- Sécurité : la connexion HTTPS de l'appli (prix poe.ninja, mises à jour) utilise les derniers correctifs TLS et certificats racines, et l'outillage de compilation passe à Node 24 et Vite 8 (avis de sécurité Node.js du 21 octobre 2026).
+
 ## 0.3.1 (2026-10-16)
 
 ### Nouveautés

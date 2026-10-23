@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 // Deux pages : fenêtre principale et overlay (fenêtre Tauri séparée, transparente).
 export default defineConfig({
   plugins: [react()],
-  resolve: { alias: { "@": resolve(__dirname, "src") } },
+  resolve: { alias: { "@": resolve(import.meta.dirname, "src") } },
   clearScreen: false,
   server: {
     port: 1420,
@@ -19,6 +19,6 @@ export default defineConfig({
   },
   build: {
     target: "es2021",
-    rollupOptions: { input: { main: resolve(__dirname, "index.html"), overlay: resolve(__dirname, "overlay.html") } },
+    rolldownOptions: { input: { main: resolve(import.meta.dirname, "index.html"), overlay: resolve(import.meta.dirname, "overlay.html") } },
   },
 });
