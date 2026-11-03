@@ -6,6 +6,10 @@ Une section par version, la plus récente en haut. Les notes de la version en pr
 
 ## Prochaine version
 
+### Corrections
+
+- Sécurité : le module de mise à jour automatique passe à une version qui corrige quatre failles d'extraction d'archives ZIP (RUSTSEC-2026-0367, -0368, -0369, -0429), avec Tauri 2.12.
+
 ## 0.3.2 (2026-10-25)
 
 ### Corrections
